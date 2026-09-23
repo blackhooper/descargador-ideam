@@ -9,6 +9,16 @@ import streamlit.components.v1 as components
 # variables CSS; los de Streamlit salen de [theme.light]/[theme.dark].
 # ===========================================================================
 
+# Creditos que se ven abajo a la izquierda. Deja un enlace vacio ("") para no mostrarlo.
+CREDITOS = {
+    "autor": "Juan Real",
+    "linkedin": "https://www.linkedin.com/in/juan-real-54a062415/",
+    "correo": "juan.realdata@gmail.com",
+    "mensaje": "¿Deseas una herramienta hecha a tu medida?",
+    "codigo": "",
+    "version": "1.0",
+}
+
 # Colores que usan las graficas y los mapas (no pueden leer variables CSS)
 PALETAS = {
     "claro": {"tinta": "#16213A", "tinta_3": "#7C87A3", "rejilla": "#E3E7EE", "superficie": "#FBFCFE",
@@ -58,6 +68,13 @@ html, body, .stApp, [class*="st-"], button, input, textarea, select{font-family:
   background:var(--y2k-surface) !important;border:1px solid var(--y2k-line-2) !important;color:var(--y2k-ink-2) !important;
   box-shadow:0 1px 0 var(--y2k-brillo) inset,0 4px 12px -6px var(--y2k-sombra)}
 .st-key-y2k_tema iframe{display:none}
+/* boton Manual, a la izquierda del boton del tema */
+.y2k-manual{position:fixed;top:14px;right:62px;z-index:999991;display:inline-flex;align-items:center;gap:6px;height:36px;
+  padding:0 14px;border-radius:999px;background:var(--y2k-surface);border:1px solid var(--y2k-line-2);
+  color:var(--y2k-ink-2) !important;font-size:13px;font-weight:600;text-decoration:none !important;
+  box-shadow:0 1px 0 var(--y2k-brillo) inset,0 4px 12px -6px var(--y2k-sombra)}
+.y2k-manual:hover{color:var(--y2k-accent) !important;border-color:var(--y2k-accent)}
+.y2k-manual svg{width:16px;height:16px}
 .st-key-y2k_orbita{height:0;overflow:hidden;margin:0}
 /* tarjetas de cifras del resumen: la etiqueta se parte en dos lineas si no cabe */
 .y2k-cifras{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin:2px 0 8px}
@@ -67,6 +84,17 @@ html, body, .stApp, [class*="st-"], button, input, textarea, select{font-family:
 .y2k-cifra .s{font-size:11.5px;color:var(--y2k-ink-3);margin-top:2px;line-height:1.3}
 .y2k-alerta{border:1px solid #EC835A;background:rgba(236,131,90,.12);border-radius:10px;padding:8px 11px;font-size:13px;color:var(--y2k-ink);margin:0 0 8px}
 .y2k-alerta b{color:var(--y2k-ink)}
+/* creditos: pestana fija abajo a la izquierda (al final de la pagina en celular) */
+.block-container{padding-bottom:4.5rem !important}
+.y2k-creditos{position:fixed;left:14px;bottom:12px;z-index:999990;font-size:12px;line-height:1.4;color:var(--y2k-ink-3);
+  background:var(--y2k-surface);border:1px solid var(--y2k-line-2);border-radius:12px;padding:6px 13px;
+  box-shadow:0 1px 0 var(--y2k-brillo) inset,0 6px 16px -10px var(--y2k-sombra)}
+.y2k-creditos b{color:var(--y2k-ink);font-weight:600}
+.y2k-creditos a{color:var(--y2k-accent) !important;text-decoration:none}
+.y2k-creditos a:hover{text-decoration:underline}
+.y2k-creditos .contacto{margin-top:2px;color:var(--y2k-ink-2)}
+.y2k-creditos .contacto a{font-weight:600}
+@media (max-width:640px){.y2k-creditos{position:static;display:inline-block;border-radius:12px;margin-top:10px}}
 /* alertas compactas de altitud: un desplegable naranja de una linea */
 .st-key-alerta_altura [data-testid="stExpander"] details,.st-key-alerta_ficha [data-testid="stExpander"] details{
   border-color:#EC835A !important;background:rgba(236,131,90,.10)}
@@ -196,6 +224,32 @@ def control_tema():
                   help="Cambiar a modo claro" if tema == "oscuro" else "Cambiar a modo oscuro",
                   key="btn_tema", on_click=_cambiar_tema)
         components.html(_SINCRONIZAR_TEMA.replace("__TEMA__", "Dark" if tema == "oscuro" else "Light"), height=0)
+    # El manual lo sirve la propia app desde la carpeta static/ (server.enableStaticServing)
+    st.markdown(
+        '<a class="y2k-manual" href="app/static/manual.html" target="_blank" rel="noopener" title="Manual de usuario">'
+        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" '
+        'stroke-linejoin="round" aria-hidden="true"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>'
+        '<path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>Manual</a>',
+        unsafe_allow_html=True)
+
+
+def creditos():
+    """Pestana de creditos: autor, enlaces y origen de los datos."""
+    c = CREDITOS
+    partes = [f'Creado por <b>{c["autor"]}</b>']
+    if c.get("linkedin"):
+        partes.append(f'<a href="{c["linkedin"]}" target="_blank" rel="noopener">LinkedIn</a>')
+    if c.get("codigo"):
+        partes.append(f'<a href="{c["codigo"]}" target="_blank" rel="noopener">Código</a>')
+    partes.append("Datos: IDEAM · DHIME")
+    if c.get("version"):
+        partes.append(f'v{c["version"]}')
+    contacto = ""
+    if c.get("correo"):
+        asunto = "Descargador IDEAM"
+        contacto = (f'<div class="contacto">{c.get("mensaje", "")} Contáctame: '
+                    f'<a href="mailto:{c["correo"]}?subject={asunto.replace(" ", "%20")}">{c["correo"]}</a></div>')
+    st.markdown(f'<div class="y2k-creditos"><div>{" · ".join(partes)}</div>{contacto}</div>', unsafe_allow_html=True)
 
 
 def ventana(meta=""):

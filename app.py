@@ -520,3 +520,5 @@ else:
     with cabecera:
         estilo.ventana(meta)
         estilo.pasos({2, 3} if hay_cuenca else {1}, {1} if hay_cuenca else set())
+
+estilo.creditos()

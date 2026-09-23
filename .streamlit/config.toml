@@ -18,3 +18,7 @@ textColor = "#E6ECF7"
 
 [client]
 toolbarMode = "viewer"
+
+# Sirve la carpeta static/ (ahi esta el manual: app/static/manual.html)
+[server]
+enableStaticServing = true

@@ -142,6 +142,49 @@ _ORBITA = """
 """
 
 
+# Algunos navegadores (Safari en modo privado o con proteccion avanzada contra rastreo, Brave,
+# Firefox "resistFingerprinting") meten ruido a proposito en los pixeles que lee una pagina.
+# Las alturas del relieve vienen en los pixeles, asi que ese ruido se ve como miles de puas.
+# Esto no se puede apagar desde la pagina: se detecta (una imagen de prueba que no vuelve
+# identica) y se avisa encima del mapa 3D.
+AVISO_NAVEGADOR = """
+<script>
+(async () => {
+  const c = document.createElement("canvas"); c.width = c.height = 16;
+  const g = c.getContext("2d", {willReadFrequently: true});
+  const img = g.createImageData(16, 16);
+  for (let i = 0; i < img.data.length; i += 4) {
+    img.data[i] = (i * 7) % 256; img.data[i + 1] = (i * 13) % 256; img.data[i + 2] = (i * 29) % 256; img.data[i + 3] = 255;
+  }
+  g.putImageData(img, 0, 0);
+  const leido = g.getImageData(0, 0, 16, 16).data;
+  let distintos = 0;
+  for (let i = 0; i < leido.length; i++) if (leido[i] !== img.data[i]) distintos++;
+  if (!distintos) return;
+  const d = window.parent.document;
+  for (let i = 0; i < 50; i++) {
+    const mapa = d.querySelector('[data-testid="stDeckGlJsonChart"]');
+    if (mapa) {
+      if (mapa.querySelector(".y2k-aviso3d")) return;
+      const aviso = d.createElement("div");
+      aviso.className = "y2k-aviso3d";
+      aviso.textContent = "⚠ Tu navegador altera las imágenes por privacidad (Safari en modo privado o con " +
+        "protección contra rastreo, Brave…). Por eso el relieve puede verse con púas. Ábrelo en una pestaña " +
+        "normal, desactiva esa protección para este sitio o usa Chrome.";
+      aviso.style.cssText = "position:absolute;left:10px;right:10px;bottom:10px;z-index:5;padding:8px 12px;" +
+        "border-radius:10px;background:rgba(255,243,236,.95);color:#16213A;border:1px solid #EC835A;" +
+        "font:13px Figtree,system-ui,sans-serif;pointer-events:none";
+      mapa.style.position = "relative";
+      mapa.appendChild(aviso);
+      return;
+    }
+    await new Promise(r => setTimeout(r, 200));
+  }
+})();
+</script>
+"""
+
+
 def orbitar(orbita, turno):
     """Guion que acerca la camara a la estacion y da una vuelta lenta a su alrededor. `turno`
     cambia en cada seleccion nueva, asi el guion solo corre una vez por estacion elegida."""
@@ -164,8 +207,7 @@ def _zoom_para_distancia(distancia, lat):
 
 
 def _orbita(e, base):
-    """Parametros de la vuelta de camara alrededor de la estacion `e`: punto de giro, zoom,
-    rumbo inicial y la inclinacion para cada direccion, segun el relieve de alrededor."""
+    """Vuelta de camara alrededor de la estacion `e` (la seleccionada)."""
     lon, lat = e["lon"], e["lat"]
     t0 = altura_terreno(lon, lat)
     if t0 is None:
@@ -176,26 +218,56 @@ def _orbita(e, base):
         # que tambien quepa el fantasma naranja (la altura que dice el catalogo)
         z_fantasma = (e["altitud"] - base) * EXAGERACION
         z_min, z_max = min(z_min, z_fantasma), max(z_max, z_fantasma)
+    return _parametros_orbita(lon, lat, t0, z_min, z_max, alcance=0)
 
-    # Horizonte de montanas visto desde la estacion, cada 10 grados: la camara debe ir por
+
+def _orbita_grupo(estaciones, zona_gdf, base):
+    """Vuelta de camara alrededor del centro de las estaciones seleccionadas para descargar
+    (o de todas las del mapa, o de la zona si no hay ninguna), lo bastante lejos para verlas todas."""
+    grupo = [e for e in estaciones if e.get("ok")] or list(estaciones)
+    if grupo:
+        lon = sum(e["lon"] for e in grupo) / len(grupo)
+        lat = sum(e["lat"] for e in grupo) / len(grupo)
+        puntos = [(e["lon"], e["lat"]) for e in grupo]
+    else:
+        minx, miny, maxx, maxy = zona_gdf.total_bounds
+        lon, lat = (minx + maxx) / 2, (miny + maxy) / 2
+        puntos = [(minx, miny), (maxx, maxy)]
+    # radio horizontal (m) que ocupan las estaciones alrededor del centro
+    alcance = max(math.hypot((x - lon) * 111320 * math.cos(math.radians(lat)), (y - lat) * 111320) for x, y in puntos)
+    t0 = altura_terreno(lon, lat)
+    if t0 is None:
+        t0 = base
+    alturas = [((altura_terreno(e["lon"], e["lat"]) or t0) - base) * EXAGERACION for e in grupo] or [(t0 - base) * EXAGERACION]
+    z_min, z_max = min(alturas), max(alturas) + 170 * EXAGERACION
+    # vista de conjunto: la camara mas alta (inclinacion max. 58) para ver todas las estaciones
+    return _parametros_orbita(lon, lat, t0, z_min, z_max, alcance, pitch_max=58)
+
+
+def _parametros_orbita(lon, lat, t0, z_min, z_max, alcance, pitch_max=PITCH_MAX):
+    """Punto de giro (entre z_min y z_max), zoom, rumbo inicial e inclinacion por direccion segun
+    el relieve de alrededor. `alcance`: radio horizontal (m) que debe quedar a la vista."""
+    # lo vertical (pin, fantasma) ocupa como mucho ~2/3 del alto de pantalla y lo horizontal
+    # (el grupo de estaciones) cabe a lo ancho; nunca mas cerca de DISTANCIA_ORBITA
+    distancia = max(DISTANCIA_ORBITA, 2.4 * (z_max - z_min) * 0.9, 2.6 * alcance)
+    escala = distancia / DISTANCIA_ORBITA
+
+    # Horizonte de montanas visto desde el centro, cada 10 grados: la camara debe ir por
     # encima de el para no chocar con el relieve ni perder la estacion detras de un cerro
     inclinaciones = []
     for i in range(36):
         horizonte = 0.0
-        for distancia in DISTANCIAS_HORIZONTE:
-            x, y = _destino(lon, lat, i * 10, distancia)
+        for d in DISTANCIAS_HORIZONTE:
+            d *= escala
+            x, y = _destino(lon, lat, i * 10, d)
             altura = altura_terreno(x, y)
             if altura is not None:
-                horizonte = max(horizonte, math.degrees(math.atan2((altura - t0) * EXAGERACION, distancia)))
-        inclinaciones.append(min(PITCH_MAX, max(PITCH_MIN, 90 - horizonte - MARGEN_VISTA)))
+                horizonte = max(horizonte, math.degrees(math.atan2((altura - t0) * EXAGERACION, d)))
+        inclinaciones.append(min(pitch_max, max(PITCH_MIN, 90 - horizonte - MARGEN_VISTA)))
     # Suavizado circular: primero lo mas prudente en +-20 grados, luego promedio (sin tirones)
     n = len(inclinaciones)
     prudentes = [min(inclinaciones[(i + k) % n] for k in range(-2, 3)) for i in range(n)]
     suaves = [sum(prudentes[(i + k) % n] for k in range(-2, 3)) / 5 for i in range(n)]
-
-    media = sum(suaves) / n
-    # lo vertical (pin, y el fantasma si hay) debe ocupar como mucho ~2/3 del alto de la pantalla
-    distancia = max(DISTANCIA_ORBITA, 2.4 * (z_max - z_min) * math.sin(math.radians(media)))
     zoom = _zoom_para_distancia(distancia, lat)
     abierto = max(range(n), key=lambda i: suaves[i])   # arranca por el lado mas despejado
     rumbo = ((abierto * 10 + 180) + 180) % 360 - 180    # la camara mira hacia el lado opuesto
@@ -265,33 +337,31 @@ def _camino_3d(anillo, base):
     return puntos
 
 
-def construir_deck(cuenca_gdf, area_gdf, estaciones, seleccionada=None, textura="Satélite", paleta=None):
+def construir_deck(cuenca_gdf, area_gdf, estaciones, seleccionada=None, textura="Satélite", paleta=None,
+                   ligero=False):
     """
+    ligero: para celulares (menos memoria grafica): tiles de 512, menos tiles guardados y menos distancia.
     estaciones: lista de dicts con codigo, nombre, lon, lat, altitud, pct, color [r,g,b], ok (bool), zona, alerta.
-    Devuelve (deck, orbita). Si hay una estacion seleccionada, la vista arranca cerca de ella y
-    `orbita` trae los parametros de la vuelta de camara (ver `orbitar`); si no, orbita es None.
+    Devuelve (deck, orbita). `orbita` trae los parametros de la vuelta de camara (ver `orbitar`):
+    alrededor de la estacion seleccionada o, si no hay, del centro de las estaciones.
     """
     paleta = paleta or {"tinta": "#16213A", "superficie": "#FBFCFE", "borde": "#B8C4D8"}
     minx, miny, maxx, maxy = (area_gdf if area_gdf is not None else cuenca_gdf).total_bounds
     lon_c, lat_c = (minx + maxx) / 2, (miny + maxy) / 2
-    extension = max(maxx - minx, maxy - miny, 0.01)
-    zoom = max(8.0, min(14.5, math.log2(360 / extension) + 0.5))
     # Toda la escena se baja la altura del terreno en el centro de la cuenca: la camara
     # de deck.gl apunta al nivel 0, y con el relieve a ~5 km (Bogota x2) al acercarse
     # quedaba debajo del terreno y no se veia nada. Asi el suelo de la cuenca queda en 0.
     base = altura_terreno(lon_c, lat_c) or 0
-    # position [0, 0, 0] siempre: Streamlit solo actualiza las claves que vienen en la vista, y
-    # sin ella quedaria el punto de giro elevado de la ultima estacion. max_pitch 85: deja
-    # inclinar mas que el tope de 60 que trae deck.gl al arrastrar
-    vista = pdk.ViewState(latitude=lat_c, longitude=lon_c, zoom=zoom, pitch=55, bearing=-20,
-                          position=[0, 0, 0], max_pitch=85)
     elegida = next((e for e in estaciones if e["codigo"] == seleccionada), None)
-    orbita = _orbita(elegida, base) if elegida else None
-    if orbita:
-        # La vista arranca donde empieza la vuelta de camara (si el guion no corre, igual se ve bien)
-        vista = pdk.ViewState(latitude=orbita["lat"], longitude=orbita["lon"], zoom=orbita["inicio"]["zoom"],
-                              pitch=orbita["inicio"]["pitch"], bearing=orbita["inicio"]["bearing"],
-                              position=[0, 0, orbita["pivote"]], max_pitch=85)
+    # Vuelta de camara: alrededor de la estacion elegida o, si no hay, del centro de las estaciones
+    orbita = _orbita(elegida, base) if elegida else _orbita_grupo(
+        estaciones, area_gdf if area_gdf is not None else cuenca_gdf, base)
+    # La vista arranca donde empieza la vuelta de camara (si el guion no corre, igual se ve bien).
+    # "position" sube el punto de giro a la altura de la estacion o del grupo; max_pitch 85 deja
+    # inclinar mas que el tope de 60 que trae deck.gl al arrastrar
+    vista = pdk.ViewState(latitude=orbita["lat"], longitude=orbita["lon"], zoom=orbita["inicio"]["zoom"],
+                          pitch=orbita["inicio"]["pitch"], bearing=orbita["inicio"]["bearing"],
+                          position=[0, 0, orbita["pivote"]], max_pitch=85)
 
     capas = [pdk.Layer(
         "TerrainLayer",
@@ -302,13 +372,17 @@ def construir_deck(cuenca_gdf, area_gdf, estaciones, seleccionada=None, textura=
         texture=TEXTURAS.get(textura, TEXTURAS["Satélite"]),
         # Los tiles miden 256 px: con tile_size=256 cada pixel de la foto se ve a
         # su tamano real (el valor por defecto, 512, la estira al doble y se ve pixelada)
-        tile_size=256,
+        tile_size=512 if ligero else 256,
         max_zoom=ZOOM_MAX_TILES,
         # Memoria de la tarjeta grafica: al girar la camara se cargan muchos tiles nuevos y sin
         # limite el navegador se queda sin memoria y el 3D se borra (GL_OUT_OF_MEMORY). Malla con
-        # error de 4 m (el valor normal) y como mucho 120 tiles guardados a la vez.
+        # error de 4 m (el valor normal) y como mucho 120 tiles guardados a la vez (60 en celular).
         mesh_max_error=4,
-        max_cache_size=120,
+        max_cache_size=60 if ligero else 120,
+        # Las alturas vienen codificadas en los colores del PNG: el navegador no debe "corregir"
+        # esos colores (perfil de color / alfa), porque un cambio minimo en el rojo son 256 m
+        # y el relieve se llena de puas
+        load_options={"imagebitmap": {"colorSpaceConversion": "none", "premultiplyAlpha": "none"}},
         wireframe=False,
     )]
 
@@ -381,7 +455,8 @@ def construir_deck(cuenca_gdf, area_gdf, estaciones, seleccionada=None, textura=
         # montanas por encima de ese suelo, el relieve lejano se cortaba en linea recta al inclinar.
         # far_z_multiplier=3 dibuja 3 veces mas lejos (mas seria pedirle demasiada memoria a la
         # tarjeta grafica); near bajo evita recortes pegados a la camara.
-        views=[pdk.View(type="MapView", controller=True, far_z_multiplier=3, near_z_multiplier=0.05)],
+        views=[pdk.View(type="MapView", controller=True, far_z_multiplier=2 if ligero else 3,
+                        near_z_multiplier=0.05)],
         map_provider=None,
         # "__MAP_STYLE__" le dice a Streamlit que no ponga su mapa plano de fondo: ese mapa
         # queda a nivel 0 y tapaba (de negro) los valles mas bajos que el suelo de la cuenca

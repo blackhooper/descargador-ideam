@@ -78,6 +78,15 @@ def _nombre_archivo(texto, respaldo):
     return limpio or respaldo
 
 
+def _es_celular():
+    """True si la pagina se abrio desde un celular o tablet (segun el navegador)."""
+    try:
+        agente = st.context.headers.get("User-Agent", "")
+    except Exception:
+        return False
+    return any(marca in agente for marca in ("Mobi", "Android", "iPhone", "iPad"))
+
+
 def _hex_a_rgb(color):
     color = color.lstrip("#")
     return [int(color[i:i + 2], 16) for i in (0, 2, 4)]
@@ -314,19 +323,29 @@ def pantalla_estaciones():
             else:
                 with st.spinner("Cargando el relieve..."):
                     deck, orbita = terreno.construir_deck(cuenca, area if buffer_on else None,
-                                                          _estaciones_3d(zona, umbral), ss.estacion_sel, textura, PALETA)
+                                                          _estaciones_3d(zona, umbral), ss.estacion_sel, textura,
+                                                          PALETA, ligero=_es_celular())
                 st.pydeck_chart(deck, height=terreno.ALTO_VISOR, on_select="rerun", selection_mode="single-object",
                                 key="mapa3d")
-                # Estacion recien elegida: la camara se acerca y da una vuelta a su alrededor
+                # Vuelta de camara: alrededor de la estacion recien elegida o, sin seleccion, alrededor
+                # del centro de las estaciones (al abrir el 3D, al cambiar las estaciones o al quitar la seleccion)
                 pedida = ss.pop("_orbitar", False)
-                if ss.estacion_sel and (cambio_sel or pedida):
+                entro_3d = ss.get("_vista_prev") != "3D"
+                if ss.estacion_sel:
+                    disparar = cambio_sel or pedida or entro_3d
+                else:
+                    firma = json.dumps([orbita["lon"], orbita["lat"], orbita["zoom"], orbita["pivote"]])
+                    disparar = entro_3d or firma != ss.get("_orbita_firma") or ss.get("_sel_prev") is not None
+                    ss._orbita_firma = firma
+                ss._sel_prev = ss.estacion_sel
+                if disparar:
                     ss.saltos += 1
                     ss.orbita = ss.saltos
-                if orbita and ss.get("orbita"):
-                    with st.container(key="y2k_orbita"):
-                        components.html(terreno.orbitar(orbita, ss.orbita), height=0)
-                st.caption("Relieve real exagerado ×2 · cada pin se apoya en el terreno · Ctrl + arrastrar para "
-                           "girar e inclinar · clic en una estación y la cámara le da una vuelta (toca el mapa para detenerla)")
+                with st.container(key="y2k_orbita"):
+                    components.html(terreno.orbitar(orbita, ss.get("orbita", 0)), height=0)
+                    components.html(terreno.AVISO_NAVEGADOR, height=0)
+                st.caption("Relieve real exagerado ×2 · la cámara da una vuelta alrededor de las estaciones (o de la "
+                           "que elijas) · toca el mapa para detenerla · Ctrl + arrastrar para girar e inclinar")
         else:
             base = map_view.mapa_base(cuenca, ss.tema)
             capa = map_view.capa_dinamica(area if (buffer_on and cuenca is not None) else None, zona, umbral,
@@ -354,6 +373,7 @@ def pantalla_estaciones():
                 st.rerun()
             st.caption("Pasa el cursor por una estación para ver su ficha · clic para seleccionarla · "
                        "cambia el mapa base con el botón de capas (arriba a la derecha)")
+        ss._vista_prev = vista
 
     # ---------------- resumen ----------------
     with col_res, st.container(border=True):

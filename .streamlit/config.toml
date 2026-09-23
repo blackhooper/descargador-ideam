@@ -1,0 +1,20 @@
+# Dos temas propios: el claro es el predeterminado. El boton de la esquina
+# superior derecha de la app cambia entre ambos (usa el menu de Streamlit,
+# por eso toolbarMode es "viewer"; el menu queda oculto con CSS).
+[theme]
+font = "sans serif"
+
+[theme.light]
+primaryColor = "#1C6FD8"
+backgroundColor = "#EDF1F7"
+secondaryBackgroundColor = "#F3F6FB"
+textColor = "#16213A"
+
+[theme.dark]
+primaryColor = "#5AA2F5"
+backgroundColor = "#0C1220"
+secondaryBackgroundColor = "#182238"
+textColor = "#E6ECF7"
+
+[client]
+toolbarMode = "viewer"

@@ -1,0 +1,20 @@
+# Credenciales: nunca se suben (en el servidor van en el panel "Secrets")
+.streamlit/secrets.toml
+
+# Entornos de Python y archivos temporales
+venv/
+.venv/
+source/
+__pycache__/
+*.pyc
+
+# Configuracion del editor
+.vscode/
+
+# Archivos que la app no usa (pesados)
+ladron.gif
+data/estaciones_ideam.geojson
+
+# Salidas de depuracion y descargas locales
+debug_respuesta_*.bin
+*.zip

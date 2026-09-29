@@ -190,7 +190,7 @@ dl.glosario dd{margin:0;color:var(--ink-2)}
     <div class="portada">
       <p class="eyebrow">MANUAL DE USUARIO</p>
       <h1>Descargador IDEAM</h1>
-      <p class="bajada">Guía para delimitar una cuenca, seleccionar las estaciones del IDEAM que contiene y descargar sus series del portal DHIME, consolidadas en un archivo Excel por estación. Herramienta independiente, no oficial del IDEAM.</p>
+      <p class="bajada">Cómo descargar información meteorológica e hidrológica del IDEAM con el Descargador IDEAM. Herramienta independiente, no oficial del IDEAM.</p>
       <nav class="pasos" aria-label="Los cuatro pasos de la app">
         <a class="paso" href="#cuenca"><span class="n">1</span>Cuenca</a><span class="linea"></span>
         <a class="paso" href="#estaciones"><span class="n">2</span>Estaciones</a><span class="linea"></span>
@@ -204,9 +204,9 @@ dl.glosario dd{margin:0;color:var(--ink-2)}
     <nav class="indice" aria-label="Contenido">
       <p>CONTENIDO</p>
       <ol>
-        <li><a href="#que-es">La información del IDEAM</a></li>
-          <li><a href="#limitaciones">Inconvenientes y limitaciones</a></li>
-          <li><a href="#solucion">Cómo lo resuelve el Descargador</a></li>
+        <li><a href="#que-es">Qué ofrece el IDEAM</a></li>
+          <li><a href="#limitaciones">El problema</a></li>
+          <li><a href="#solucion">La solución</a></li>
         <li><a href="#cuenca">1 · Marcar la cuenca</a></li>
         <li><a href="#estaciones">2 · Estaciones en el mapa</a></li>
         <li><a href="#vista-3d">El mapa 3D</a></li>
@@ -226,9 +226,9 @@ dl.glosario dd{margin:0;color:var(--ink-2)}
       <details class="indice-movil">
         <summary>Contenido del manual</summary>
         <ol>
-          <li><a href="#que-es">La información del IDEAM</a></li>
-          <li><a href="#limitaciones">Inconvenientes y limitaciones</a></li>
-          <li><a href="#solucion">Cómo lo resuelve el Descargador</a></li>
+          <li><a href="#que-es">Qué ofrece el IDEAM</a></li>
+          <li><a href="#limitaciones">El problema</a></li>
+          <li><a href="#solucion">La solución</a></li>
           <li><a href="#cuenca">1 · Marcar la cuenca</a></li>
           <li><a href="#estaciones">2 · Estaciones en el mapa</a></li>
           <li><a href="#vista-3d">El mapa 3D</a></li>
@@ -245,79 +245,41 @@ dl.glosario dd{margin:0;color:var(--ink-2)}
       </details>
 
       <section id="que-es">
-        <h2><span class="etiqueta">CONTEXTO</span>La información del IDEAM</h2>
-        <p>El IDEAM (Instituto de Hidrología, Meteorología y Estudios Ambientales) opera la red de monitoreo hidrometeorológico de Colombia. Su catálogo reúne 9.857 estaciones, activas y suspendidas, de tecnología convencional y automática. En algunas, los registros se remontan a mediados del siglo XX. Las series de tiempo se publican en el portal <strong>DHIME</strong>:</p>
-        <ul>
-          <li><strong>Variables:</strong> 26 variables hidrológicas y meteorológicas, entre ellas precipitación, temperatura, humedad relativa, brillo solar, radiación solar, evaporación, presión atmosférica, velocidad y dirección del viento, nivel, caudal y transporte de sedimentos.</li>
-          <li><strong>Parámetros:</strong> 161 series de consulta pública, cada una con su código y unidad. Por ejemplo, <code>PTPM_CON</code> (precipitación diaria, mm) o <code>Q_MEDIA_D</code> (caudal medio diario, m³/s).</li>
-          <li><strong>Frecuencias de registro:</strong> desde datos cada minuto o cada 2, 5 y 10 minutos, pasando por datos horarios y diarios, hasta valores mensuales y anuales.</li>
-          <li><strong>Formato de entrega:</strong> un ZIP con un archivo Excel por estación consultada. Cada Excel trae un encabezado con los metadatos de la estación (identificación, ubicación, parámetro y periodo consultado) y, a continuación, la serie fecha–valor con el nivel de aprobación de cada dato.</li>
-        </ul>
+        <h2><span class="etiqueta">CONTEXTO</span>Qué ofrece el IDEAM</h2>
+        <p>El IDEAM publica en su portal <strong>DHIME</strong> la información de su red de estaciones en todo el país: precipitación, temperatura, caudal, nivel de los ríos, humedad, viento, radiación y otras variables. Cualquier persona puede descargarla, de la estación que necesite y para el rango de tiempo que le interese, en archivos Excel.</p>
       </section>
 
       <section id="limitaciones">
-        <h2><span class="etiqueta">EL PROBLEMA</span>Inconvenientes y limitaciones de la descarga</h2>
-        <h3>Inconvenientes en la práctica</h3>
+        <h2><span class="etiqueta">EL PROBLEMA</span>Descargarla a mano toma horas</h2>
+        <p>Para un estudio de cuenca, con muchas estaciones y muchos años de datos, el portal se queda corto:</p>
         <ul>
-          <li><strong>Volumen de consultas:</strong> cada archivo corresponde a una sola estación y un solo parámetro. Un estudio de cuenca con decenas de estaciones y varias variables se traduce en decenas o cientos de consultas manuales.</li>
-          <li><strong>Series fragmentadas:</strong> un periodo largo llega repartido en varios archivos por estación, que luego hay que unir en orden y sin dañar el formato.</li>
-          <li><strong>Vacíos visibles solo al descargar:</strong> los huecos internos de una serie solo se detectan después de descargar y revisar cada archivo.</li>
-          <li><strong>Metadatos sin verificar:</strong> algunas estaciones del catálogo tienen altitudes o coordenadas inconsistentes con el terreno. Por ejemplo, hay estaciones con 3 m de altitud en plena sabana de Bogotá, a más de 2.500 m.</li>
-        </ul>
-        <h3>Limitaciones del portal</h3>
-        <ul>
-          <li><strong>Límite de periodo por consulta,</strong> según la frecuencia de registro:</li>
-        </ul>
-        <div class="tabla">
-          <table>
-            <thead><tr><th>Frecuencia</th><th>Periodo máximo por consulta</th></tr></thead>
-            <tbody>
-              <tr><td>Mensual y anual</td><td class="num">50 años</td></tr>
-              <tr><td>Diaria</td><td class="num">30 años</td></tr>
-              <tr><td>Horaria</td><td class="num">10 años</td></tr>
-              <tr><td>Cada 1, 2, 5 o 10 minutos</td><td class="num">1 mes</td></tr>
-            </tbody>
-          </table>
-        </div>
-        <ul>
-          <li><strong>Máximo 10 estaciones por consulta:</strong> según el manual oficial de DHIME, cada consulta admite de una a diez estaciones. Una cuenca con sesenta estaciones exige al menos seis rondas, antes de multiplicar por variables o por tramos de periodo.</li>
-          <li><strong>Periodo bloqueado:</strong> al agregar la primera consulta al carrito, el portal bloquea la sección de periodo y todas las consultas siguientes comparten ese rango de fechas. Para usar periodos distintos hay que limpiar el carrito y empezar de cero.</li>
-          <li><strong>Límite de 5 MB por archivo,</strong> establecido en los términos de uso del portal.</li>
-          <li><strong>Selección espacial:</strong> las estaciones se eligen con los filtros y el mapa del portal. No se puede cargar el polígono de una cuenca de estudio (Shapefile, KML) ni definir un área de influencia a su alrededor.</li>
-          <li><strong>Cobertura sin comparar:</strong> el portal informa la cantidad probable de cada estación como un número de datos, pero no la compara con el periodo consultado ni permite filtrar o agrupar las estaciones por ese criterio.</li>
-          <li><strong>Sin consolidación:</strong> no une los periodos de una misma serie ni organiza los archivos de varias estaciones.</li>
+          <li><strong>Volumen de consultas:</strong> hay un máximo de estaciones por consulta, que según el parámetro puede ser de solo 10. Una cuenca con 60 estaciones exige al menos 6 rondas de descarga.</li>
+          <li><strong>Límite de tiempo por consulta:</strong> cada consulta admite un máximo de años según la frecuencia de los datos: 10 años para datos horarios, 30 para diarios y 50 para mensuales. Quien necesite 30 años de datos horarios tiene que hacer <strong>tres descargas separadas por estación</strong>. Con 20 estaciones, son 60 descargas.</li>
+          <li><strong>Unir todo a mano:</strong> después hay que unir, estación por estación y en orden, los archivos de cada tramo de años, y renombrarlos para saber cuál es cuál.</li>
+          <li><strong>Sin saber qué esperar:</strong> hasta no descargar no se sabe si el registro de una estación alcanza a cubrir el periodo que se necesita.</li>
         </ul>
       </section>
 
       <section id="solucion">
-        <h2><span class="etiqueta">LA SOLUCIÓN</span>Cómo lo resuelve el Descargador IDEAM</h2>
-        <div class="tabla">
-          <table>
-            <thead><tr><th>Limitación</th><th>Solución</th></tr></thead>
-            <tbody>
-              <tr><td>Selección sin polígono de cuenca</td><td>Carga de la cuenca, dibujada en el mapa o como archivo vectorial, y selección espacial automática de las estaciones que contiene, con un buffer configurable de 0,5 a 15 km.</td></tr>
-              <tr><td>Máximo 10 estaciones por consulta</td><td>Descarga por lotes: todas las estaciones seleccionadas en una sola operación, con consultas en paralelo.</td></tr>
-              <tr><td>Periodo bloqueado</td><td>Cada descarga usa un solo periodo, pero cambiarlo es inmediato: la evaluación se recalcula sola. Además, por cada estación solo se piden los años en que tiene registro.</td></tr>
-              <tr><td>Límite de periodo por consulta</td><td>División automática del periodo en bloques según la frecuencia y unión en un solo Excel por estación. Conserva el formato del IDEAM (encabezado, logo y metadatos) y actualiza el periodo consultado.</td></tr>
-              <tr><td>Límite de 5 MB por archivo</td><td>Los bloques se piden de a un tramo de periodo, muy por debajo de ese tamaño. En pruebas, un bloque de 10 años de datos horarios pesó 2,7 MB.</td></tr>
-              <tr><td>Cobertura sin comparar</td><td>La <em>cantidad probable</em> de cada estación se expresa como porcentaje del periodo consultado, se clasifica en cuatro clases de cobertura y se filtra por un mínimo.</td></tr>
-              <tr><td>Metadatos sin verificar</td><td>Contraste de la altitud del catálogo con un modelo digital de elevación, con alerta cuando la diferencia supera 200 m.</td></tr>
-              <tr><td>Organización manual de los resultados</td><td>ZIP organizado por clase de cobertura, con un resumen (<code>resumen_descarga.csv</code>) de las estaciones guardadas y omitidas, y la cita de la fuente lista en <code>CITACION.txt</code>.</td></tr>
-            </tbody>
-          </table>
-        </div>
-        <p>Además, el mapa 2D y 3D con relieve real permite ubicar cada estación en su contexto topográfico antes de descargar.</p>
-        <h3>Requisitos</h3>
+        <h2><span class="etiqueta">LA SOLUCIÓN</span>El Descargador IDEAM lo hace por ti</h2>
         <ul>
-          <li><strong>Navegador web actualizado</strong> (Chrome, Edge, Firefox o Safari) y conexión a internet. No requiere instalación.</li>
-          <li><strong>Delimitación de la cuenca:</strong> trazada directamente sobre el mapa, o como archivo vectorial de polígonos (Shapefile, GeoJSON, KML/KMZ o GeoPackage) con su sistema de referencia definido.</li>
-          <li><strong>Definición de la consulta:</strong> variable (precipitación, temperatura, caudal, nivel, etc.), frecuencia de registro y periodo de análisis.</li>
+          <li><strong>Todas las estaciones de tu cuenca, de una vez:</strong> dibujas tu cuenca o subes su archivo, y aparecen todas las estaciones del IDEAM que contiene, más las cercanas si quieres.</li>
+          <li><strong>Sin límite de estaciones ni de años:</strong> el Descargador divide el periodo en los tramos que permite el portal y hace todas las consultas por su cuenta.</li>
+          <li><strong>Un solo Excel por estación, ya unido:</strong> los tramos se unen automáticamente, con el formato original del IDEAM, y cada archivo lleva el nombre de su estación.</li>
+          <li><strong>Sabes qué vas a recibir antes de descargar:</strong> para cada estación ves qué parte de tu periodo cubre su registro, y puedes filtrar y ordenar las descargas en carpetas según esa cobertura.</li>
+          <li><strong>Revisión de altitudes en 3D:</strong> un mapa 3D con el relieve real ubica cada estación y marca las que tienen la altitud mal registrada en el catálogo.</li>
+          <li><strong>Lista para citar:</strong> cada descarga incluye la cita de la fuente que exigen los términos de uso del IDEAM.</li>
         </ul>
         <div class="nota">
-          <strong>Disponibilidad del servicio</strong>
-          <p>La aplicación está alojada en un servidor que entra en reposo tras un periodo sin uso. En ese caso, la primera carga puede tardar hasta un minuto; las siguientes son inmediatas.</p>
+          <strong>Ejemplo</strong>
+          <p>20 estaciones con 30 años de datos horarios: a mano son 60 descargas y 60 archivos por unir y renombrar. Con el Descargador es una sola descarga que entrega 20 Excel listos.</p>
         </div>
-        <p>La interfaz tiene <strong>modo claro y oscuro</strong>, que se alterna con el botón de la esquina superior derecha.</p>
+        <h3>Requisitos</h3>
+        <ul>
+          <li>Un navegador web actualizado y conexión a internet. No hay que instalar nada.</li>
+          <li>La cuenca: trazada sobre el mapa o como archivo (Shapefile, GeoJSON, KML/KMZ o GeoPackage).</li>
+        </ul>
+        <p class="pie">Si la aplicación lleva un rato sin uso, la primera carga puede tardar hasta un minuto; las siguientes son inmediatas. La interfaz tiene modo claro y oscuro (botón de la esquina superior derecha).</p>
       </section>
 
       <section id="cuenca">

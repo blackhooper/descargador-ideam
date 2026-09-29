@@ -180,7 +180,7 @@ dl.glosario dd{margin:0;color:var(--ink-2)}
 </head>
 <body>
 
-<div class="hoja">
+<div class="hoja"><p style="margin:0 0 12px"><a href="../../" style="display:inline-block;padding:6px 14px;border-radius:999px;border:1px solid var(--line-2);background:var(--surface);font-weight:600;font-size:14px;text-decoration:none">← Abrir el Descargador IDEAM</a></p>
   <header>
     <div class="barra" aria-hidden="true">
       <div class="puntos"><i></i><i></i><i></i></div>
@@ -190,7 +190,7 @@ dl.glosario dd{margin:0;color:var(--ink-2)}
     <div class="portada">
       <p class="eyebrow">MANUAL DE USUARIO</p>
       <h1>Descargador IDEAM</h1>
-      <p class="bajada">Guía para delimitar una cuenca, seleccionar las estaciones del IDEAM que contiene y descargar sus series del portal DHIME, consolidadas en un archivo Excel por estación.</p>
+      <p class="bajada">Guía para delimitar una cuenca, seleccionar las estaciones del IDEAM que contiene y descargar sus series del portal DHIME, consolidadas en un archivo Excel por estación. Herramienta independiente, no oficial del IDEAM.</p>
       <nav class="pasos" aria-label="Los cuatro pasos de la app">
         <a class="paso" href="#cuenca"><span class="n">1</span>Cuenca</a><span class="linea"></span>
         <a class="paso" href="#estaciones"><span class="n">2</span>Estaciones</a><span class="linea"></span>
@@ -216,9 +216,9 @@ dl.glosario dd{margin:0;color:var(--ink-2)}
         <li><a href="#altitud">Altitud inconsistente</a></li>
         <li><a href="#descarga">4 · La descarga</a></li>
         <li><a href="#zip">Qué trae el ZIP</a></li>
+          <li><a href="#uso-datos">Uso de los datos y citación</a></li>
         <li><a href="#problemas">Problemas frecuentes</a></li>
         <li><a href="#glosario">Glosario</a></li>
-          <li><a href="#contacto">Autor y contacto</a></li>
       </ol>
     </nav>
 
@@ -238,9 +238,9 @@ dl.glosario dd{margin:0;color:var(--ink-2)}
           <li><a href="#altitud">Altitud inconsistente</a></li>
           <li><a href="#descarga">4 · La descarga</a></li>
           <li><a href="#zip">Qué trae el ZIP</a></li>
+          <li><a href="#uso-datos">Uso de los datos y citación</a></li>
           <li><a href="#problemas">Problemas frecuentes</a></li>
           <li><a href="#glosario">Glosario</a></li>
-          <li><a href="#contacto">Autor y contacto</a></li>
         </ol>
       </details>
 
@@ -251,7 +251,7 @@ dl.glosario dd{margin:0;color:var(--ink-2)}
           <li><strong>Variables:</strong> 26 variables hidrológicas y meteorológicas, entre ellas precipitación, temperatura, humedad relativa, brillo solar, radiación solar, evaporación, presión atmosférica, velocidad y dirección del viento, nivel, caudal y transporte de sedimentos.</li>
           <li><strong>Parámetros:</strong> 161 series de consulta pública, cada una con su código y unidad. Por ejemplo, <code>PTPM_CON</code> (precipitación diaria, mm) o <code>Q_MEDIA_D</code> (caudal medio diario, m³/s).</li>
           <li><strong>Frecuencias de registro:</strong> desde datos cada minuto o cada 2, 5 y 10 minutos, pasando por datos horarios y diarios, hasta valores mensuales y anuales.</li>
-          <li><strong>Formato de entrega:</strong> un archivo Excel por estación y parámetro. Trae un encabezado con los metadatos de la estación (identificación, ubicación, parámetro y periodo consultado) y, a continuación, la serie fecha–valor.</li>
+          <li><strong>Formato de entrega:</strong> un ZIP con un archivo Excel por estación consultada. Cada Excel trae un encabezado con los metadatos de la estación (identificación, ubicación, parámetro y periodo consultado) y, a continuación, la serie fecha–valor con el nivel de aprobación de cada dato.</li>
         </ul>
       </section>
 
@@ -261,7 +261,7 @@ dl.glosario dd{margin:0;color:var(--ink-2)}
         <ul>
           <li><strong>Volumen de consultas:</strong> cada archivo corresponde a una sola estación y un solo parámetro. Un estudio de cuenca con decenas de estaciones y varias variables se traduce en decenas o cientos de consultas manuales.</li>
           <li><strong>Series fragmentadas:</strong> un periodo largo llega repartido en varios archivos por estación, que luego hay que unir en orden y sin dañar el formato.</li>
-          <li><strong>Calidad desconocida hasta descargar:</strong> las series con vacíos importantes solo se detectan después de descargar y revisar cada archivo.</li>
+          <li><strong>Vacíos visibles solo al descargar:</strong> los huecos internos de una serie solo se detectan después de descargar y revisar cada archivo.</li>
           <li><strong>Metadatos sin verificar:</strong> algunas estaciones del catálogo tienen altitudes o coordenadas inconsistentes con el terreno. Por ejemplo, hay estaciones con 3 m de altitud en plena sabana de Bogotá, a más de 2.500 m.</li>
         </ul>
         <h3>Limitaciones del portal</h3>
@@ -280,8 +280,11 @@ dl.glosario dd{margin:0;color:var(--ink-2)}
           </table>
         </div>
         <ul>
+          <li><strong>Máximo 10 estaciones por consulta:</strong> según el manual oficial de DHIME, cada consulta admite de una a diez estaciones. Una cuenca con sesenta estaciones exige al menos seis rondas, antes de multiplicar por variables o por tramos de periodo.</li>
+          <li><strong>Periodo bloqueado:</strong> al agregar la primera consulta al carrito, el portal bloquea la sección de periodo y todas las consultas siguientes comparten ese rango de fechas. Para usar periodos distintos hay que limpiar el carrito y empezar de cero.</li>
+          <li><strong>Límite de 5 MB por archivo,</strong> establecido en los términos de uso del portal.</li>
           <li><strong>Selección espacial:</strong> las estaciones se eligen con los filtros y el mapa del portal. No se puede cargar el polígono de una cuenca de estudio (Shapefile, KML) ni definir un área de influencia a su alrededor.</li>
-          <li><strong>Sin indicadores de completitud:</strong> el portal no estima qué porcentaje de datos tiene cada serie en el periodo elegido, ni permite filtrar las estaciones por ese criterio.</li>
+          <li><strong>Cobertura sin comparar:</strong> el portal informa la cantidad probable de cada estación como un número de datos, pero no la compara con el periodo consultado ni permite filtrar o agrupar las estaciones por ese criterio.</li>
           <li><strong>Sin consolidación:</strong> no une los periodos de una misma serie ni organiza los archivos de varias estaciones.</li>
         </ul>
       </section>
@@ -293,11 +296,13 @@ dl.glosario dd{margin:0;color:var(--ink-2)}
             <thead><tr><th>Limitación</th><th>Solución</th></tr></thead>
             <tbody>
               <tr><td>Selección sin polígono de cuenca</td><td>Carga de la cuenca, dibujada en el mapa o como archivo vectorial, y selección espacial automática de las estaciones que contiene, con un buffer configurable de 0,5 a 15 km.</td></tr>
-              <tr><td>Un archivo por estación y parámetro</td><td>Descarga por lotes: todas las estaciones seleccionadas en una sola operación, con consultas en paralelo.</td></tr>
+              <tr><td>Máximo 10 estaciones por consulta</td><td>Descarga por lotes: todas las estaciones seleccionadas en una sola operación, con consultas en paralelo.</td></tr>
+              <tr><td>Periodo bloqueado</td><td>Cada descarga usa un solo periodo, pero cambiarlo es inmediato: la evaluación se recalcula sola. Además, por cada estación solo se piden los años en que tiene registro.</td></tr>
               <tr><td>Límite de periodo por consulta</td><td>División automática del periodo en bloques según la frecuencia y unión en un solo Excel por estación. Conserva el formato del IDEAM (encabezado, logo y metadatos) y actualiza el periodo consultado.</td></tr>
-              <tr><td>Completitud desconocida</td><td>Cálculo previo de la <em>cantidad probable</em> de cada serie, clasificación en cuatro clases de calidad y filtro por porcentaje mínimo.</td></tr>
+              <tr><td>Límite de 5 MB por archivo</td><td>Los bloques se piden de a un tramo de periodo, muy por debajo de ese tamaño. En pruebas, un bloque de 10 años de datos horarios pesó 2,7 MB.</td></tr>
+              <tr><td>Cobertura sin comparar</td><td>La <em>cantidad probable</em> de cada estación se expresa como porcentaje del periodo consultado, se clasifica en cuatro clases de cobertura y se filtra por un mínimo.</td></tr>
               <tr><td>Metadatos sin verificar</td><td>Contraste de la altitud del catálogo con un modelo digital de elevación, con alerta cuando la diferencia supera 200 m.</td></tr>
-              <tr><td>Organización manual de los resultados</td><td>ZIP organizado por clase de calidad, con un resumen (<code>resumen_descarga.csv</code>) de las estaciones guardadas y omitidas.</td></tr>
+              <tr><td>Organización manual de los resultados</td><td>ZIP organizado por clase de cobertura, con un resumen (<code>resumen_descarga.csv</code>) de las estaciones guardadas y omitidas, y la cita de la fuente lista en <code>CITACION.txt</code>.</td></tr>
             </tbody>
           </table>
         </div>
@@ -370,7 +375,7 @@ dl.glosario dd{margin:0;color:var(--ink-2)}
         <p>Con la cuenca marcada, la pantalla se divide en tres columnas: <strong>controles</strong> a la izquierda, <strong>mapa</strong> en el centro y <strong>resumen</strong> a la derecha. Todo se recalcula solo cuando cambias algo: la cuenca, el buffer, el parámetro, las fechas o el filtro.</p>
 
         <h3>Qué significa cada punto</h3>
-        <p>El color de cada estación indica la clase de calidad de su serie (se explica en <a href="#filtro">Filtro y cantidad probable</a>):</p>
+        <p>El color de cada estación indica su clase de cobertura del periodo consultado (se explica en <a href="#filtro">Filtro y cantidad probable</a>):</p>
         <div class="clases" aria-label="Colores de las estaciones">
           <div class="clase"><span class="punto" style="background:var(--alta)"></span><b>Alta</b><span>70–100 %</span></div>
           <div class="clase"><span class="punto" style="background:var(--media)"></span><b>Media</b><span>50–70 %</span></div>
@@ -405,7 +410,7 @@ dl.glosario dd{margin:0;color:var(--ink-2)}
         </ul>
         <div class="nota">
           <strong>El 3D pide más al equipo</strong>
-          <p>Si la vista 3D se queda en blanco, el navegador se quedó sin memoria gráfica: cierra pestañas que no uses y recarga. En el celular el 3D carga una versión más liviana.</p>
+          <p>El detalle del relieve se ajusta a la distancia: la vista de conjunto usa una versión liviana, y el detalle máximo se carga al acercarse a una estación. En el celular el 3D usa siempre la versión liviana. Si aun así el navegador se queda sin memoria gráfica, aparece un aviso con <span class="ui primario">Recargar vista 3D</span>, que vuelve a cargar la vista en su versión más liviana, y <span class="ui">Ver en 2D</span>.</p>
         </div>
       </section>
 
@@ -442,19 +447,21 @@ dl.glosario dd{margin:0;color:var(--ink-2)}
         <p>Antes de descargar nada, la app consulta al IDEAM la información de la serie de cada estación y calcula su <strong>cantidad probable</strong>:</p>
         <div class="nota">
           <strong>Cantidad probable</strong>
-          <p>El porcentaje de datos que tendría la serie en tu rango de fechas frente a los que debería tener según su frecuencia (en una serie diaria, un dato por día). Por ejemplo, una estación diaria con 90 % tendría unos 9 de cada 10 días con dato. Es una estimación previa: los huecos reales conviene revisarlos después en los Excel.</p>
+          <p>El IDEAM calcula, para cada estación, cuántos datos cabrían entre la primera y la última fecha con registro dentro de tu rango, según la frecuencia de la serie. El cálculo no descuenta los datos faltantes: una serie con huecos internos cuenta igual que una continua.</p>
+          <p>La app expresa ese número como porcentaje del total que tendría una serie ininterrumpida en todo tu rango. Así que el porcentaje te dice cuánto de tu periodo alcanza a cubrir el registro de la estación, no qué tan densa es la serie por dentro. Una estación con 100 % puede tener vacíos importantes: significa que su registro empieza antes y termina después de tu rango.</p>
+          <p>Sirve para descartar estaciones cuyo registro no llega a tu periodo. Los huecos reales se revisan en los Excel descargados.</p>
         </div>
-        <p>Con ese porcentaje, cada estación cae en una clase:</p>
+        <p>Con ese porcentaje, cada estación cae en una clase de <strong>cobertura</strong> del periodo consultado:</p>
         <div class="clases">
-          <div class="clase"><span class="punto" style="background:var(--alta)"></span><b>Alta</b><span>70–100 %</span><code>1_Calidad_Alta_70_100</code></div>
-          <div class="clase"><span class="punto" style="background:var(--media)"></span><b>Media</b><span>50–70 %</span><code>2_Calidad_Media_50_70</code></div>
-          <div class="clase"><span class="punto" style="background:var(--baja)"></span><b>Baja</b><span>25–50 %</span><code>3_Calidad_Baja_25_50</code></div>
-          <div class="clase"><span class="punto" style="background:var(--critica)"></span><b>Crítica</b><span>0–25 %</span><code>4_Calidad_Critica_0_25</code></div>
+          <div class="clase"><span class="punto" style="background:var(--alta)"></span><b>Alta</b><span>70–100 %</span><code>1_Cobertura_Alta_70_100</code></div>
+          <div class="clase"><span class="punto" style="background:var(--media)"></span><b>Media</b><span>50–70 %</span><code>2_Cobertura_Media_50_70</code></div>
+          <div class="clase"><span class="punto" style="background:var(--baja)"></span><b>Baja</b><span>25–50 %</span><code>3_Cobertura_Baja_25_50</code></div>
+          <div class="clase"><span class="punto" style="background:var(--critica)"></span><b>Crítica</b><span>0–25 %</span><code>4_Cobertura_Critica_0_25</code></div>
         </div>
         <h3>El bloque FILTRO</h3>
         <ul>
-          <li><span class="ui">Cantidad probable mínima</span> (0–100 %, de 5 en 5): solo se descargan las estaciones con ese porcentaje o más. Las que no tienen serie del parámetro nunca se descargan.</li>
-          <li><span class="ui">Carpetas por calidad en el ZIP</span>: si está marcado, cada Excel va dentro de la carpeta de su clase (los nombres de arriba). Si no, todos quedan juntos.</li>
+          <li><span class="ui">Cantidad probable mínima</span> (0–100 %, de 5 en 5): solo se descargan las estaciones cuyo registro cubre ese porcentaje del periodo o más. Las que no tienen serie del parámetro nunca se descargan.</li>
+          <li><span class="ui">Carpetas por cobertura en el ZIP</span>: si está marcado, cada Excel va dentro de la carpeta de su clase (los nombres de arriba). Si no, todos quedan juntos.</li>
           <li>El botón <span class="ui primario">Iniciar extracción · N estaciones</span> muestra cuántas estaciones se van a descargar. Si no hay ninguna, queda desactivado.</li>
         </ul>
       </section>
@@ -468,21 +475,22 @@ dl.glosario dd{margin:0;color:var(--ink-2)}
             <thead><tr><th>Cifra</th><th>Qué dice</th></tr></thead>
             <tbody>
               <tr><td><strong>Estaciones</strong></td><td>Cuántas se van a descargar, de cuántas hay en la cuenca y el buffer.</td></tr>
-              <tr><td><strong>Calidad media</strong></td><td>El promedio de la cantidad probable de esas estaciones.</td></tr>
+              <tr><td><strong>Cobertura media</strong></td><td>El promedio de la cantidad probable de esas estaciones: qué parte del periodo cubren sus registros.</td></tr>
               <tr><td><strong>Tiempo</strong></td><td>Cuánto tardará la descarga y cuántas consultas al IDEAM hará. Depende de qué tan rápido responda su servidor.</td></tr>
-              <tr><td><strong>Datos</strong></td><td>Cuántos registros tendrán, en total, los Excel.</td></tr>
+              <tr><td><strong>Datos</strong></td><td>Cuántos registros cabrían, en total, entre el primer y el último dato de cada estación dentro del periodo. Es un máximo: no descuenta los datos faltantes.</td></tr>
             </tbody>
           </table>
         </div>
+        <p>Debajo de las cifras, una nota recuerda que los datos recientes pueden estar en nivel preliminar y sujetos a cambios (ver <a href="#aprobacion">Niveles de aprobación</a>).</p>
         <h3>Gráficas y lista</h3>
         <ul>
-          <li><strong>Calidad aproximada de los datos:</strong> cuántas estaciones hay en cada clase (Alta, Media, Baja, Crítica).</li>
+          <li><strong>Cobertura del periodo consultado:</strong> cuántas estaciones hay en cada clase (Alta, Media, Baja, Crítica).</li>
           <li><strong>Altitud de las estaciones:</strong> un punto por estación, de la más baja a la más alta, con el desnivel total. Haz clic en un punto para ubicar esa estación en el mapa. Los puntos naranja tienen la altitud inconsistente.</li>
           <li><strong>Conteos:</strong> cuántas están en la cuenca y cuántas en el buffer; cuántas siguen activas (con datos del último año) y cuántas son históricas.</li>
           <li><strong>La lista:</strong> todas las estaciones a descargar, con altitud y cantidad probable. Marca una fila para seleccionarla. El ⚠ señala altitud inconsistente.</li>
         </ul>
         <h3>La ficha de la estación seleccionada</h3>
-        <p>Al seleccionar una estación (en la lista, la gráfica o el mapa) aparece su ficha: código, altitud, si está en la cuenca o en el buffer, cantidad probable, clase y años de la serie. Si no tiene datos del parámetro, lo dice: <em>Sin serie de este parámetro en DHIME</em>. Con <span class="ui">Quitar selección</span> vuelves a la vista general.</p>
+        <p>Al seleccionar una estación (en la lista, la gráfica o el mapa) aparece su ficha: código, altitud, si está en la cuenca o en el buffer, cantidad probable, clase de cobertura y años de la serie. Si no tiene datos del parámetro, lo dice: <em>Sin serie de este parámetro en DHIME</em>. Con <span class="ui">Quitar selección</span> vuelves a la vista general.</p>
       </section>
 
       <section id="altitud">
@@ -502,7 +510,7 @@ dl.glosario dd{margin:0;color:var(--ink-2)}
       <section id="descarga">
         <h2><span class="etiqueta">PASO 4</span>La descarga</h2>
         <ol>
-          <li>Pulsa <span class="ui primario">Iniciar extracción · N estaciones</span>.</li>
+          <li>Pulsa <span class="ui primario">Iniciar extracción · N estaciones</span>. Debajo del botón están las condiciones de uso de los datos (ver <a href="#uso-datos">Uso de los datos y citación</a>).</li>
           <li>Durante la descarga se muestran una animación de progreso, una barra con el tiempo restante estimado y, a la derecha, el registro de cada consulta al IDEAM.</li>
           <li>Al terminar aparecen el resumen de resultados y el botón para descargar el ZIP.</li>
         </ol>
@@ -510,11 +518,11 @@ dl.glosario dd{margin:0;color:var(--ink-2)}
 <pre class="consola" aria-label="Ejemplo de la consola de descarga">&gt; token OK · 6 estaciones · 4 a la vez
 &gt; JARDIN BOTANICO · bloque 2000-2020 ... ok
 &gt; EL DORADO CATAM · bloque 2000-2020 ... ok
-&gt; ZIP listo en 00:08 · incluye resumen_descarga.csv</pre>
+&gt; ZIP listo en 00:08 · incluye resumen_descarga.csv y CITACION.txt</pre>
         <h3>Detener o esperar turno</h3>
         <ul>
           <li><span class="ui">🛑 Detener descarga</span> la corta a mitad de camino. Luego puedes <span class="ui">Reintentar</span> o <span class="ui">← Volver a estaciones</span>.</li>
-          <li>Para no saturar al IDEAM, el servidor hace <strong>máximo 2 descargas a la vez</strong> entre todos los usuarios. Si están ocupadas, verás que tu descarga espera turno: empieza sola apenas se libere uno. Puedes salir con <span class="ui">Cancelar y volver</span>.</li>
+          <li>Para no saturar al IDEAM, el servidor hace <strong>máximo 4 descargas a la vez</strong> entre todos los usuarios. Si están ocupadas, tu descarga espera turno: verás tu puesto en la fila y un tiempo estimado, y empieza sola apenas se libere uno. Puedes salir con <span class="ui">Cancelar y volver</span>.</li>
           <li>No cierres ni recargues la pestaña mientras descarga: se perdería el avance.</li>
         </ul>
         <h3>Guardar el ZIP</h3>
@@ -527,23 +535,52 @@ dl.glosario dd{margin:0;color:var(--ink-2)}
 
       <section id="zip">
         <h2><span class="etiqueta">RESULTADO</span>Qué trae el ZIP</h2>
-        <p class="pie">Ejemplo con precipitación diaria en Bogotá y carpetas por calidad:</p>
+        <p class="pie">Ejemplo con precipitación diaria en Bogotá y carpetas por cobertura:</p>
 <pre class="arbol" aria-label="Ejemplo de contenido del ZIP">IDEAM_PTPM_CON_20000101-20201231.zip
-├── 1_Calidad_Alta_70_100/
+├── 1_Cobertura_Alta_70_100/
 │   ├── JARDIN_BOTANICO_[21205710]_PTPM_CON.xlsx
 │   └── ENMANUEL_D'_ALZON_[21201230]_PTPM_CON.xlsx
-├── 2_Calidad_Media_50_70/
+├── 2_Cobertura_Media_50_70/
 │   └── …
-└── resumen_descarga.csv   <span class="c">← qué se guardó y qué no, estación por estación</span></pre>
+├── resumen_descarga.csv   <span class="c">← qué se guardó y qué no, estación por estación</span>
+└── CITACION.txt           <span class="c">← la cita de la fuente, lista para copiar</span></pre>
         <h3>Cada Excel</h3>
         <ul>
           <li>Es <strong>el mismo formato que entrega el portal del IDEAM</strong>: filas 1 a 8 con el título, el logo y los metadatos de la estación; desde la fila 9, los datos.</li>
           <li>Si tu rango necesitó varias consultas, los bloques ya vienen <strong>unidos en una sola tabla</strong>, en orden.</li>
           <li>La celda de <em>Fecha consulta</em> refleja el rango completo que pediste.</li>
           <li>El nombre del archivo es el nombre de la estación seguido del código de la serie.</li>
+          <li>Junto a cada dato viene su <strong>nivel de aprobación</strong> (columna «Nivel de Aprobación»; ver abajo).</li>
         </ul>
+        <h3 id="aprobacion">Niveles de aprobación del dato</h3>
+        <p>El IDEAM clasifica cada dato en tres niveles:</p>
+        <div class="tabla">
+          <table>
+            <thead><tr><th>Nivel</th><th>Código</th><th>Qué significa</th></tr></thead>
+            <tbody>
+              <tr><td><strong>Preliminar</strong></td><td class="num">900</td><td>Dato crudo de campo o de sensor automático, sujeto a cambios o reemplazo.</td></tr>
+              <tr><td><strong>En revisión</strong></td><td class="num">1100</td><td>Superó la evaluación preliminar y sigue en verificación.</td></tr>
+              <tr><td><strong>Definitivo</strong></td><td class="num">1200</td><td>Revisado, aprobado y considerado confiable.</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p>Buena parte de los datos recientes suele estar en nivel preliminar. Si usas los datos en un estudio formal, revisa esta columna antes de tu análisis.</p>
         <h3>El archivo resumen_descarga.csv</h3>
-        <p>Una fila por estación con su nombre, cantidad probable, clase, si quedó <em>Guardada</em> u <em>Omitida</em>, dónde quedó en el ZIP y el detalle. Una estación sale <em>Omitida</em> cuando el IDEAM no devolvió datos para ese rango. Ábrelo con Excel.</p>
+        <p>Una fila por estación con su nombre, cantidad probable, clase de cobertura, si quedó <em>Guardada</em> u <em>Omitida</em>, dónde quedó en el ZIP y el detalle de cada bloque consultado. Ábrelo con Excel.</p>
+      </section>
+
+      <section id="uso-datos">
+        <h2><span class="etiqueta">CONDICIONES</span>Uso de los datos y citación</h2>
+        <p>Los datos provienen del IDEAM y su descarga está autorizada para uso personal, privado y no comercial. No pueden comercializarse ni venderse. El IDEAM no se hace responsable del uso de los datos ni de las interpretaciones o inferencias derivadas de ellos.</p>
+        <p>Los términos de uso del portal exigen citar la fuente en todo trabajo que use los datos, con este formato:</p>
+        <div class="nota">
+          <p><code>Fuente: Ideam. (Año, mes y día). Nombre de la página. URL.</code></p>
+        </div>
+        <p>El ZIP incluye el archivo <code>CITACION.txt</code> con la cita ya armada con la fecha real de tu descarga, por ejemplo:</p>
+        <div class="nota">
+          <p>Fuente: Ideam. (2026, septiembre 23). DHIME – Portal Atención al Ciudadano. http://dhime.ideam.gov.co/atencionciudadano/</p>
+        </div>
+        <p>El Descargador IDEAM es una herramienta independiente: no es un producto oficial del IDEAM ni cuenta con su respaldo.</p>
       </section>
 
       <section id="problemas">
@@ -570,15 +607,15 @@ dl.glosario dd{margin:0;color:var(--ink-2)}
         </details>
         <details>
           <summary>La descarga tarda más de lo estimado</summary>
-          <p>El tiempo depende de qué tan rápido responda el servidor del IDEAM, que a veces está lento. Si tu descarga espera turno, es porque ya hay otras dos en curso.</p>
+          <p>El tiempo depende de qué tan rápido responda el servidor del IDEAM, que a veces está lento. Si tu descarga espera turno, es porque ya hay otras cuatro en curso.</p>
         </details>
         <details>
           <summary>Una estación salió "Omitida"</summary>
-          <p>El IDEAM no devolvió datos para ese rango, aunque el catálogo indicara que la serie existe. Suele pasar con estaciones históricas o suspendidas. El detalle está en <code>resumen_descarga.csv</code>.</p>
+          <p>El IDEAM no devolvió datos para ese rango, aunque el catálogo indicara que la serie existe. Suele pasar con estaciones históricas o suspendidas. El motivo exacto de cada bloque está en la columna «Detalle» de <code>resumen_descarga.csv</code>. El portal limita cada archivo a 5 MB, pero los bloques que pide la herramienta quedan muy por debajo de ese tamaño, así que no es la causa habitual.</p>
         </details>
         <details>
           <summary>El 3D se ve en blanco o se borra al girar</summary>
-          <p>El navegador se quedó sin memoria gráfica. Cierra pestañas y programas que no uses y recarga la página. Si tu equipo es modesto, usa la vista 2D.</p>
+          <p>El navegador se quedó sin memoria gráfica. Usa el botón <span class="ui primario">Recargar vista 3D</span> del aviso, que carga una versión más liviana. Si vuelve a pasar, cierra pestañas y programas que no uses, o trabaja en la vista 2D.</p>
         </details>
         <details>
           <summary>En el celular el relieve 3D sale lleno de púas</summary>
@@ -595,25 +632,15 @@ dl.glosario dd{margin:0;color:var(--ink-2)}
         <dl class="glosario">
           <dt>DHIME</dt><dd>El sistema del IDEAM con las series históricas de sus estaciones hidrometeorológicas. De ahí salen todos los datos.</dd>
           <dt>Serie</dt><dd>La secuencia de datos de un parámetro en una estación, identificada con un código como <code>PTPM_CON</code>.</dd>
-          <dt>Cantidad probable</dt><dd>El porcentaje estimado de datos que tiene la serie en tu rango de fechas frente a los esperados para su frecuencia.</dd>
+          <dt>Cantidad probable</dt><dd>Cuántos datos cabrían entre la primera y la última fecha con registro de la estación dentro de tu rango, según la frecuencia. No descuenta los datos faltantes. La app la muestra como porcentaje de tu periodo.</dd>
+          <dt>Cobertura</dt><dd>Qué parte del periodo consultado abarca el registro de la estación. No mide la densidad de la serie ni sus huecos internos.</dd>
+          <dt>Nivel de aprobación</dt><dd>Estado de revisión de cada dato: preliminar (900), en revisión (1100) o definitivo (1200).</dd>
           <dt>Buffer</dt><dd>Franja alrededor de la cuenca, de 0,5 a 15 km, para incluir estaciones cercanas.</dd>
           <dt>Bloque</dt><dd>Cada tramo de años que el IDEAM entrega por consulta. La app los pide todos y los une.</dd>
           <dt>Estación activa</dt><dd>La que tiene datos del último año. Las demás son históricas.</dd>
           <dt>Altitud inconsistente</dt><dd>Cuando la altitud del catálogo se aleja más de 200 m del terreno real en el punto de la estación.</dd>
         </dl>
-        <p class="pie">Los datos son del IDEAM (Instituto de Hidrología, Meteorología y Estudios Ambientales de Colombia). El Descargador IDEAM solo automatiza las consultas que cualquiera puede hacer a mano en el portal DHIME.</p>
-      </section>
-
-      <section id="contacto">
-        <h2><span class="etiqueta">CRÉDITOS</span>Autor y contacto</h2>
-        <div class="contacto">
-          <p class="quien">Desarrollado por <strong>Juan Real</strong>.</p>
-          <p>¿Deseas una herramienta hecha a tu medida? Contáctame.</p>
-          <ul class="canales">
-            <li><span class="canal">Correo</span><span class="dato">juan.realdata@gmail.com</span></li>
-            <li><span class="canal">LinkedIn</span><a href="https://www.linkedin.com/in/juan-real-54a062415/" target="_blank" rel="noopener">linkedin.com/in/juan-real-54a062415</a></li>
-          </ul>
-        </div>
+        <p class="pie">Los datos son del IDEAM y están protegidos por derechos de autor. Su descarga está autorizada para uso personal, privado y no comercial, y todo trabajo que los utilice debe citar la fuente. El Descargador IDEAM automatiza consultas que cualquiera puede hacer en el portal DHIME y no almacena ni redistribuye los datos por su cuenta.</p>
       </section>
     </main>
   </div>

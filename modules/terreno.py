@@ -1,5 +1,8 @@
 import io
 import math
+import threading
+from collections import OrderedDict
+from concurrent.futures import ThreadPoolExecutor
 import requests
 import pydeck as pdk
 import streamlit as st
@@ -21,6 +24,7 @@ TEXTURAS = {
     "Topográfico": "https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}",
 }
 ZOOM_DEM = 12          # ~35 m por pixel en Colombia
+ZOOM_HORIZONTE = 10    # ~150 m por pixel: basta para ver si hay montanas a varios km (16 veces menos imagenes)
 EXAGERACION = 2.0      # el relieve se ve el doble de alto para notar los desniveles
 ZOOM_MAX_TILES = 15    # nivel mas fino que publica Terrarium (~5 m por pixel de textura)
 # Si la altitud del catalogo se aleja mas que esto del terreno real en ese punto,
@@ -31,7 +35,9 @@ ALTITUD_DUDOSA_M = 200
 ALTO_PIN_SEL = 260          # m reales del pin de la seleccionada (en la escena x EXAGERACION)
 DISTANCIA_ORBITA = 4000     # m de la camara a la estacion
 ALTO_VISOR = 650            # px, alto del mapa 3D en la app (para convertir distancia en zoom)
-PITCH_MIN, PITCH_MAX = 35, 68   # inclinacion de la camara: 35 = casi cenital, 68 = casi a ras
+# inclinacion de la camara: 35 = casi cenital, 60 = de lado (mas inclinada pide relieve hasta el
+# horizonte y llena la memoria grafica)
+PITCH_MIN, PITCH_MAX = 35, 60
 MARGEN_VISTA = 6            # grados de holgura sobre el horizonte de montanas
 DISTANCIAS_HORIZONTE = (100, 200, 350, 550, 800, 1100, 1500, 2000, 2600, 3300, 4000)
 
@@ -40,20 +46,61 @@ def _num(n):
     return f"{n:,.0f}".replace(",", ".")
 
 
-# cache_resource devuelve la misma imagen sin copiarla (cache_data la copiaria en cada
-# consulta, y se consultan cientos de puntos por dibujo)
-@st.cache_resource(show_spinner=False, max_entries=400)
+# Cache propia de imagenes de relieve, compartida por todas las sesiones y segura entre
+# hilos (asi se pueden descargar varias a la vez). Guarda las ultimas MAX_TILES_MEMORIA.
+MAX_TILES_MEMORIA = 400
+_TILES = OrderedDict()
+_TILES_CANDADO = threading.Lock()
+
+
 def _tile(z, x, y):
+    clave = (z, x, y)
+    with _TILES_CANDADO:
+        if clave in _TILES:
+            _TILES.move_to_end(clave)
+            return _TILES[clave]
     respuesta = requests.get(URL_ELEVACION.format(z=z, x=x, y=y), timeout=30)
     respuesta.raise_for_status()
-    return Image.open(io.BytesIO(respuesta.content)).convert("RGB")
+    imagen = Image.open(io.BytesIO(respuesta.content)).convert("RGB")
+    with _TILES_CANDADO:
+        _TILES[clave] = imagen
+        while len(_TILES) > MAX_TILES_MEMORIA:
+            _TILES.popitem(last=False)
+    return imagen
+
+
+def _indice_tile(lon, lat, z):
+    n = 2 ** z
+    xf = (lon + 180) / 360 * n
+    yf = (1 - math.asinh(math.tan(math.radians(lat))) / math.pi) / 2 * n
+    return xf, yf
+
+
+def precargar(puntos, z=ZOOM_DEM):
+    """Descarga en paralelo (8 a la vez) las imagenes de relieve que cubren esos puntos
+    (lon, lat) y aun no estan en memoria. Antes se bajaban de a una: ~1 s cada una."""
+    claves = set()
+    for lon, lat in puntos:
+        xf, yf = _indice_tile(lon, lat, z)
+        claves.add((z, int(xf), int(yf)))
+    with _TILES_CANDADO:
+        faltan = [c for c in claves if c not in _TILES]
+    if not faltan:
+        return
+
+    def bajar(clave):
+        try:
+            _tile(*clave)
+        except Exception:
+            pass  # sin red o tile inexistente: altura_terreno devolvera None en ese punto
+
+    with ThreadPoolExecutor(max_workers=8) as grupo:
+        list(grupo.map(bajar, faltan))
 
 
 def altura_terreno(lon, lat, z=ZOOM_DEM):
     """Altura del terreno en metros (modelo Terrarium) en un punto. None si falla."""
-    n = 2 ** z
-    xf = (lon + 180) / 360 * n
-    yf = (1 - math.asinh(math.tan(math.radians(lat))) / math.pi) / 2 * n
+    xf, yf = _indice_tile(lon, lat, z)
     x, y = int(xf), int(yf)
     try:
         imagen = _tile(z, x, y)
@@ -75,7 +122,7 @@ _ORBITA = """
   const O = __ORBITA__;
   const esperar = ms => new Promise(r => setTimeout(r, ms));
   function buscarDeck() {
-    const lienzo = d.querySelector('[data-testid="stDeckGlJsonChart"] canvas');
+    const lienzo = d.querySelector('[data-testid="stDeckGlJsonChart"] canvas:not(.y2k-avion)');
     if (!lienzo) return null;
     const clave = Object.keys(lienzo).find(k => k.startsWith("__reactFiber$"));
     let fibra = clave && lienzo[clave];
@@ -185,6 +232,189 @@ AVISO_NAVEGADOR = """
 """
 
 
+# Vigia del 3D, activo mientras la vista 3D esta abierta:
+#  1. Pixeles: en pantallas de alta densidad (celulares) el visor dibuja hasta 9 veces mas
+#     pixeles de los que se notan; se limita a 1,5x.
+#  2. Memoria: si el navegador se queda sin memoria grafica (el 3D queda en blanco), avisa
+#     con botones para recargar la vista 3D (en version liviana) o pasar al 2D. Los botones
+#     pulsan botones ocultos de Streamlit, asi Python se entera.
+#  3. Detalle escondido (desactivado, ver AVION_ACTIVO): un avion pixel art vuela entre
+#     estaciones y vuelve. Se dibuja en un lienzo transparente encima del mapa, proyectando
+#     su posicion 3D con la camara actual (no toca el visor). Ctrl + A lo lanza a mano.
+# Avion desactivado en la version que se presenta al IDEAM (True para volver a activarlo)
+AVION_ACTIVO = False
+_EXTRAS_3D = """
+<script>
+(() => {
+  const w = window.parent, d = w.document;
+  const AVION_ACTIVO = __AVION__;
+  if (w.__y2k3d && w.__y2k3d.parar) w.__y2k3d.parar();
+  const estado = {vivo: true, volando: false, temporizador: null, ciclo: null};
+
+  const contenedor = () => d.querySelector('[data-testid="stDeckGlJsonChart"]');
+  function buscarDeck() {
+    const lienzo = d.querySelector('[data-testid="stDeckGlJsonChart"] canvas:not(.y2k-avion)');
+    if (!lienzo) return null;
+    const clave = Object.keys(lienzo).find(k => k.startsWith("__reactFiber$"));
+    let fibra = clave && lienzo[clave];
+    for (let i = 0; fibra && i < 40; i++, fibra = fibra.return) {
+      let gancho = fibra.memoizedState;
+      for (let j = 0; gancho && typeof gancho === "object" && j < 60; j++, gancho = gancho.next) {
+        const v = gancho.memoizedState;
+        if (v && v.current && v.current.deck && typeof v.current.deck.setProps === "function") return v.current.deck;
+      }
+    }
+    return null;
+  }
+
+  // 1. Pixeles
+  function limitarPixeles(deck) {
+    const tope = Math.min(w.devicePixelRatio || 1, 1.5);
+    if (deck && deck.props.useDevicePixels !== tope) deck.setProps({useDevicePixels: tope});
+  }
+
+  // 2. Memoria grafica
+  function avisarSinMemoria(caja) {
+    if (caja.querySelector(".y2k-sin-memoria")) return;
+    const aviso = d.createElement("div");
+    aviso.className = "y2k-sin-memoria";
+    aviso.innerHTML = "<b>El navegador se quedó sin memoria gráfica</b>" +
+      "<span>La vista 3D se detuvo. Al recargarla se usa una versión más liviana.</span>" +
+      "<div><button data-accion='y2k_recargar3d'>Recargar vista 3D</button>" +
+      "<button data-accion='y2k_pasar2d'>Ver en 2D</button></div>";
+    aviso.addEventListener("click", ev => {
+      const accion = ev.target && ev.target.dataset && ev.target.dataset.accion;
+      const boton = accion && d.querySelector(".st-key-" + accion + " button");
+      if (boton) boton.click();
+    });
+    caja.style.position = "relative";
+    caja.appendChild(aviso);
+  }
+  function vigilar() {
+    const caja = contenedor();
+    const lienzo = caja && caja.querySelector("canvas:not(.y2k-avion)");
+    if (!lienzo) return;
+    if (!lienzo.dataset.y2kVigia) {
+      lienzo.dataset.y2kVigia = "1";
+      lienzo.addEventListener("webglcontextlost", () => avisarSinMemoria(caja));
+    }
+    try { const gl = lienzo.getContext("webgl2"); if (gl && gl.isContextLost()) avisarSinMemoria(caja); } catch (e) {}
+  }
+
+  // 3. El avion
+  const AVION = ["....BB......", "....BWB.....", "B....BWB....", "BB...BWWB...", "BWWWWWWWWWWD",
+                 "BB...BWWB...", "B....BWB....", "....BWB.....", "....BB......"];
+  const COLOR = {B: "#1C6FD8", W: "#FFFFFF", D: "#16213A"};
+  function pintarAvion(ctx, x, y, angulo, px) {
+    ctx.save(); ctx.translate(x, y); ctx.rotate(angulo);
+    ctx.translate(-AVION[0].length * px / 2, -AVION.length * px / 2);
+    AVION.forEach((fila, f) => [...fila].forEach((c, k) => {
+      if (COLOR[c]) { ctx.fillStyle = COLOR[c]; ctx.fillRect(k * px, f * px, px, px); }
+    }));
+    ctx.restore();
+  }
+  const suave = t => t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+
+  function volar() {
+    if (estado.volando) return;
+    const caja = contenedor(), deck = buscarDeck();
+    if (!caja || !deck) return;
+    const capa = (deck.props.layers || []).find(l => l && l.id === "estaciones");
+    const datos = capa && capa.props && Array.isArray(capa.props.data) ? capa.props.data : [];
+    const puntos = datos.map(e => e.pos).filter(p => Array.isArray(p) && p.length >= 2);
+    if (puntos.length < 2) return;
+    estado.volando = true;
+    // ruta al azar: 3 a 5 estaciones y de vuelta a la primera
+    const mezcla = puntos.map(p => [Math.random(), p]).sort((a, b) => a[0] - b[0]).map(v => v[1]);
+    const paradas = mezcla.slice(0, Math.min(mezcla.length, 3 + Math.floor(Math.random() * 3)));
+    const ruta = [...paradas, paradas[0]];
+    const techo = Math.max(...ruta.map(p => p[2] || 0)) + 700;
+    const lienzo = d.createElement("canvas");
+    lienzo.className = "y2k-avion";
+    lienzo.style.cssText = "position:absolute;pointer-events:none;z-index:4;image-rendering:pixelated";
+    caja.style.position = "relative";
+    caja.appendChild(lienzo);
+    const ctx = lienzo.getContext("2d");
+    const TRAMO = 1700, total = TRAMO * (ruta.length - 1), estela = [];
+    const inicio = w.performance.now();
+    const enRuta = t => {
+      const i = Math.min(ruta.length - 2, Math.floor(t / TRAMO));
+      const f = suave(Math.min(1, (t - i * TRAMO) / TRAMO));
+      const a = ruta[i], b = ruta[i + 1];
+      return [a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f, techo + Math.sin(Math.PI * f) * 250];
+    };
+    const terminar = () => { lienzo.remove(); estado.volando = false; };
+    const cuadro = ahora => {
+      const deckAhora = buscarDeck();
+      const vp = deckAhora && deckAhora.viewManager && deckAhora.viewManager.getViewports()[0];
+      const base = caja.querySelector("canvas:not(.y2k-avion)");
+      if (!estado.vivo || !vp || !base || !caja.isConnected) return terminar();
+      const t = ahora - inicio;
+      if (t >= total) return terminar();
+      // el lienzo del avion calza exacto sobre el del mapa
+      const rc = caja.getBoundingClientRect(), rb = base.getBoundingClientRect();
+      Object.assign(lienzo.style, {left: (rb.left - rc.left) + "px", top: (rb.top - rc.top) + "px",
+                                   width: rb.width + "px", height: rb.height + "px"});
+      if (lienzo.width !== Math.round(rb.width)) lienzo.width = Math.round(rb.width);
+      if (lienzo.height !== Math.round(rb.height)) lienzo.height = Math.round(rb.height);
+      ctx.clearRect(0, 0, lienzo.width, lienzo.height);
+      const aqui = enRuta(t);
+      estela.push(aqui); if (estela.length > 40) estela.shift();
+      const opacidad = Math.min(1, t / 300, (total - t) / 300);
+      // estela blanca que se desvanece
+      const proyectada = estela.map(p => vp.project(p));
+      for (let k = 1; k < proyectada.length; k++) {
+        ctx.strokeStyle = "rgba(255,255,255," + (0.55 * k / proyectada.length * opacidad) + ")";
+        ctx.lineWidth = 3;
+        ctx.beginPath(); ctx.moveTo(proyectada[k - 1][0], proyectada[k - 1][1]);
+        ctx.lineTo(proyectada[k][0], proyectada[k][1]); ctx.stroke();
+      }
+      const [x, y] = vp.project(aqui);
+      const [x2, y2] = vp.project(enRuta(Math.min(total - 1, t + 40)));
+      ctx.globalAlpha = opacidad;
+      pintarAvion(ctx, x, y, Math.atan2(y2 - y, x2 - x), 4);
+      ctx.globalAlpha = 1;
+      w.requestAnimationFrame(cuadro);
+    };
+    w.requestAnimationFrame(cuadro);
+  }
+
+  // cada uno o dos minutos, al azar, si la pestana esta a la vista
+  function programar() {
+    clearTimeout(estado.temporizador);
+    estado.temporizador = setTimeout(() => {
+      if (estado.vivo && d.visibilityState === "visible" && contenedor()) volar();
+      if (estado.vivo) programar();
+    }, 55000 + Math.random() * 65000);
+  }
+  // Ctrl + A (o Cmd + A) lo lanza a mano, salvo si se esta escribiendo en un campo
+  const tecla = ev => {
+    if (!(ev.ctrlKey || ev.metaKey) || (ev.key || "").toLowerCase() !== "a") return;
+    const t = ev.target;
+    if (t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))) return;
+    if (!contenedor()) return;
+    ev.preventDefault();
+    volar();
+  };
+  if (AVION_ACTIVO) d.addEventListener("keydown", tecla, true);
+
+  estado.ciclo = setInterval(() => { limitarPixeles(buscarDeck()); vigilar(); }, 1500);
+  if (AVION_ACTIVO) programar();
+  w.__y2k3d = {
+    volar,
+    parar: () => {
+      estado.vivo = false;
+      clearInterval(estado.ciclo); clearTimeout(estado.temporizador);
+      d.removeEventListener("keydown", tecla, true);
+    },
+  };
+})();
+</script>
+"""
+EXTRAS_3D = _EXTRAS_3D.replace("__AVION__", "true" if AVION_ACTIVO else "false")
+
+
+
 def orbitar(orbita, turno):
     """Guion que acerca la camara a la estacion y da una vuelta lenta a su alrededor. `turno`
     cambia en cada seleccion nueva, asi el guion solo corre una vez por estacion elegida."""
@@ -240,8 +470,8 @@ def _orbita_grupo(estaciones, zona_gdf, base):
         t0 = base
     alturas = [((altura_terreno(e["lon"], e["lat"]) or t0) - base) * EXAGERACION for e in grupo] or [(t0 - base) * EXAGERACION]
     z_min, z_max = min(alturas), max(alturas) + 170 * EXAGERACION
-    # vista de conjunto: la camara mas alta (inclinacion max. 58) para ver todas las estaciones
-    return _parametros_orbita(lon, lat, t0, z_min, z_max, alcance, pitch_max=58)
+    # vista de conjunto: la camara mas alta (inclinacion max. 55) para ver todas las estaciones
+    return _parametros_orbita(lon, lat, t0, z_min, z_max, alcance, pitch_max=55)
 
 
 def _parametros_orbita(lon, lat, t0, z_min, z_max, alcance, pitch_max=PITCH_MAX):
@@ -253,14 +483,20 @@ def _parametros_orbita(lon, lat, t0, z_min, z_max, alcance, pitch_max=PITCH_MAX)
     escala = distancia / DISTANCIA_ORBITA
 
     # Horizonte de montanas visto desde el centro, cada 10 grados: la camara debe ir por
-    # encima de el para no chocar con el relieve ni perder la estacion detras de un cerro
+    # encima de el para no chocar con el relieve ni perder la estacion detras de un cerro.
+    # Hasta 2 km se mira con el relieve fino; mas lejos basta el de baja resolucion.
+    muestras = [(i, d * escala) for i in range(36) for d in DISTANCIAS_HORIZONTE]
+    zoom_de = {d: (ZOOM_DEM if d <= 2000 else ZOOM_HORIZONTE) for _, d in muestras}
+    puntos = {(i, d): _destino(lon, lat, i * 10, d) for i, d in muestras}
+    for z in (ZOOM_DEM, ZOOM_HORIZONTE):
+        precargar([puntos[m] for m in muestras if zoom_de[m[1]] == z], z)
     inclinaciones = []
     for i in range(36):
         horizonte = 0.0
         for d in DISTANCIAS_HORIZONTE:
             d *= escala
-            x, y = _destino(lon, lat, i * 10, d)
-            altura = altura_terreno(x, y)
+            x, y = puntos[(i, d)]
+            altura = altura_terreno(x, y, zoom_de[d])
             if altura is not None:
                 horizonte = max(horizonte, math.degrees(math.atan2((altura - t0) * EXAGERACION, d)))
         inclinaciones.append(min(pitch_max, max(PITCH_MIN, 90 - horizonte - MARGEN_VISTA)))
@@ -303,7 +539,9 @@ def _rango_terreno(wkt):
     minx, miny, maxx, maxy = zona.bounds
     xs, ys = np.meshgrid(np.linspace(minx, maxx, 30), np.linspace(miny, maxy, 30))
     dentro = contains_xy(zona, xs.ravel(), ys.ravel())
-    alturas = [altura_terreno(x, y) for x, y in zip(xs.ravel()[dentro], ys.ravel()[dentro])]
+    muestra = list(zip(xs.ravel()[dentro], ys.ravel()[dentro]))
+    precargar(muestra)
+    alturas = [altura_terreno(x, y) for x, y in muestra]
     alturas = [max(0.0, a) for a in alturas if a is not None]
     return (min(alturas), max(alturas)) if alturas else None
 
@@ -340,7 +578,7 @@ def _camino_3d(anillo, base):
 def construir_deck(cuenca_gdf, area_gdf, estaciones, seleccionada=None, textura="Satélite", paleta=None,
                    ligero=False):
     """
-    ligero: para celulares (menos memoria grafica): tiles de 512, menos tiles guardados y menos distancia.
+    ligero: celulares, o despues de que el navegador se quedo sin memoria grafica: menos detalle.
     estaciones: lista de dicts con codigo, nombre, lon, lat, altitud, pct, color [r,g,b], ok (bool), zona, alerta.
     Devuelve (deck, orbita). `orbita` trae los parametros de la vuelta de camara (ver `orbitar`):
     alrededor de la estacion seleccionada o, si no hay, del centro de las estaciones.
@@ -351,6 +589,11 @@ def construir_deck(cuenca_gdf, area_gdf, estaciones, seleccionada=None, textura=
     # Toda la escena se baja la altura del terreno en el centro de la cuenca: la camara
     # de deck.gl apunta al nivel 0, y con el relieve a ~5 km (Bogota x2) al acercarse
     # quedaba debajo del terreno y no se veia nada. Asi el suelo de la cuenca queda en 0.
+    # Todas las alturas que se van a consultar (centro, estaciones, contornos) se bajan juntas
+    anillos_area = _anillos(area_gdf) if area_gdf is not None else []
+    anillos_cuenca = _anillos(cuenca_gdf) if cuenca_gdf is not None else []
+    precargar([(lon_c, lat_c)] + [(e["lon"], e["lat"]) for e in estaciones]
+              + [p for a in anillos_area + anillos_cuenca for p in a])
     base = altura_terreno(lon_c, lat_c) or 0
     elegida = next((e for e in estaciones if e["codigo"] == seleccionada), None)
     # Vuelta de camara: alrededor de la estacion elegida o, si no hay, del centro de las estaciones
@@ -363,6 +606,16 @@ def construir_deck(cuenca_gdf, area_gdf, estaciones, seleccionada=None, textura=
                           pitch=orbita["inicio"]["pitch"], bearing=orbita["inicio"]["bearing"],
                           position=[0, 0, orbita["pivote"]], max_pitch=85)
 
+    # Calidad segun la distancia. La memoria grafica se va en tiles de relieve: cada uno es
+    # una malla de triangulos mas una foto. Cerca de una estacion vale la pena el detalle doble;
+    # en la vista de conjunto no se nota y cuesta ~4 veces mas tiles.
+    #   cerca:    tiles de 256 (foto nitida), malla fina, dibuja 3 veces mas lejos
+    #   conjunto: tiles de 512, malla simple, dibuja 2 veces mas lejos
+    #   ligero:   celular o despues de que el navegador se quedo sin memoria
+    cerca = elegida is not None and not ligero
+    detalle = {"tiles": 256 if cerca else 512, "malla": 4 if cerca else (10 if ligero else 8),
+               "guardados": 50 if ligero else (100 if cerca else 80), "lejos": 1.8 if ligero else (3 if cerca else 2)}
+
     capas = [pdk.Layer(
         "TerrainLayer",
         id="terreno",
@@ -370,15 +623,16 @@ def construir_deck(cuenca_gdf, area_gdf, estaciones, seleccionada=None, textura=
                            "bScaler": EXAGERACION / 256, "offset": (-32768 - base) * EXAGERACION},
         elevation_data=URL_ELEVACION,
         texture=TEXTURAS.get(textura, TEXTURAS["Satélite"]),
-        # Los tiles miden 256 px: con tile_size=256 cada pixel de la foto se ve a
-        # su tamano real (el valor por defecto, 512, la estira al doble y se ve pixelada)
-        tile_size=512 if ligero else 256,
+        # Los tiles miden 256 px: con tile_size=256 cada pixel de la foto se ve a su tamano real
+        # (con 512, el valor normal, se estira al doble); cuesta ~4 veces mas tiles
+        tile_size=detalle["tiles"],
         max_zoom=ZOOM_MAX_TILES,
-        # Memoria de la tarjeta grafica: al girar la camara se cargan muchos tiles nuevos y sin
-        # limite el navegador se queda sin memoria y el 3D se borra (GL_OUT_OF_MEMORY). Malla con
-        # error de 4 m (el valor normal) y como mucho 120 tiles guardados a la vez (60 en celular).
-        mesh_max_error=4,
-        max_cache_size=60 if ligero else 120,
+        # Error de la malla en metros (mas alto = menos triangulos) y tope de tiles guardados:
+        # sin tope, al girar la camara el navegador se queda sin memoria y el 3D se borra
+        mesh_max_error=detalle["malla"],
+        max_cache_size=detalle["guardados"],
+        # mientras llega el detalle, no dibujar a la vez la version gruesa y la fina de una zona
+        refinement_strategy="'no-overlap'",
         # Las alturas vienen codificadas en los colores del PNG: el navegador no debe "corregir"
         # esos colores (perfil de color / alfa), porque un cambio minimo en el rojo son 256 m
         # y el relieve se llena de puas
@@ -387,10 +641,10 @@ def construir_deck(cuenca_gdf, area_gdf, estaciones, seleccionada=None, textura=
     )]
 
     if area_gdf is not None:
-        capas.append(pdk.Layer("PathLayer", id="buffer", data=[{"path": _camino_3d(a, base)} for a in _anillos(area_gdf)],
+        capas.append(pdk.Layer("PathLayer", id="buffer", data=[{"path": _camino_3d(a, base)} for a in anillos_area],
                                get_path="path", get_color=[250, 178, 25, 230], width_min_pixels=2, get_width=20))
     if cuenca_gdf is not None:
-        capas.append(pdk.Layer("PathLayer", id="cuenca", data=[{"path": _camino_3d(a, base)} for a in _anillos(cuenca_gdf)],
+        capas.append(pdk.Layer("PathLayer", id="cuenca", data=[{"path": _camino_3d(a, base)} for a in anillos_cuenca],
                                get_path="path", get_color=[90, 162, 245, 255], width_min_pixels=3, get_width=30))
 
     # Pines: tallo desde el terreno y cabeza redonda arriba
@@ -455,7 +709,7 @@ def construir_deck(cuenca_gdf, area_gdf, estaciones, seleccionada=None, textura=
         # montanas por encima de ese suelo, el relieve lejano se cortaba en linea recta al inclinar.
         # far_z_multiplier=3 dibuja 3 veces mas lejos (mas seria pedirle demasiada memoria a la
         # tarjeta grafica); near bajo evita recortes pegados a la camara.
-        views=[pdk.View(type="MapView", controller=True, far_z_multiplier=2 if ligero else 3,
+        views=[pdk.View(type="MapView", controller=True, far_z_multiplier=detalle["lejos"],
                         near_z_multiplier=0.05)],
         map_provider=None,
         # "__MAP_STYLE__" le dice a Streamlit que no ponga su mapa plano de fondo: ese mapa

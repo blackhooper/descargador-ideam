@@ -35,6 +35,13 @@ if not all(ideam_downloader.credenciales_ideam()):
 
 catalogo = ideam_catalog.load_ideam_catalog()
 
+# Condiciones de uso de los datos (terminos del portal DHIME), junto al boton de extraccion
+TEXTO_LEGAL = ("Los datos provienen del IDEAM y su descarga está autorizada para uso personal, privado y no "
+               "comercial. No pueden comercializarse ni venderse. Todo trabajo que los utilice debe citar la "
+               "fuente (el ZIP incluye la cita en CITACION.txt). El IDEAM no se hace responsable del uso de los "
+               "datos ni de las interpretaciones o inferencias derivadas de ellos. Esta es una herramienta "
+               "independiente, no oficial del IDEAM.")
+
 
 # ===========================================================================
 # Utilidades
@@ -78,6 +85,16 @@ def _nombre_archivo(texto, respaldo):
     return limpio or respaldo
 
 
+def _recargar_3d():
+    """El navegador se quedo sin memoria grafica: visor 3D nuevo y en version liviana."""
+    ss.version_3d = ss.get("version_3d", 0) + 1
+    ss.modo_3d_ligero = True
+
+
+def _pasar_a_2d():
+    ss.vista = "2D"
+
+
 def _es_celular():
     """True si la pagina se abrio desde un celular o tablet (segun el navegador)."""
     try:
@@ -94,7 +111,8 @@ def _hex_a_rgb(color):
 
 def _revisar_altitudes(zona):
     """Compara la altitud del catalogo con el terreno real (columnas 'terreno' y 'altitud_dudosa')."""
-    revision = [terreno.revisar_altitud(r.get("altitud"), r.geometry.x, r.geometry.y) for _, r in zona.iterrows()]
+    terreno.precargar(list(zip(zona.geometry.x, zona.geometry.y)))
+    revision =[terreno.revisar_altitud(r.get("altitud"), r.geometry.x, r.geometry.y) for _, r in zona.iterrows()]
     zona["terreno"] = [t for t, _ in revision]
     zona["altitud_dudosa"] = [d for _, d in revision]
 
@@ -204,6 +222,9 @@ def selector_parametro():
     try:
         with st.spinner("Cargando parámetros del IDEAM..."):
             catalogo_param = ideam_parameters.obtener_catalogo_parametros()
+    except ideam_downloader.ErrorAccesoIDEAM as e:
+        st.error(str(e))
+        return None
     except Exception as e:
         st.error(f"No se pudo cargar la lista de parámetros del IDEAM: {e}")
         return None
@@ -261,9 +282,12 @@ def pantalla_estaciones():
             st.error("La fecha de inicio debe ser anterior a la final.")
         st.divider()
         st.markdown("### FILTRO")
-        umbral = st.slider("Cantidad probable mínima", 0, 100, 0, 5, format="%d%%", key="umbral")
-        carpetas = st.checkbox("Carpetas por calidad en el ZIP", value=True, key="carpetas",
-                               help="Alta 70-100 %, Media 50-70 %, Baja 25-50 %, Crítica 0-25 %")
+        umbral = st.slider("Cantidad probable mínima", 0, 100, 0, 5, format="%d%%", key="umbral",
+                           help="Qué parte del periodo consultado debe cubrir el registro de la estación "
+                                "(entre su primer y su último dato). No descuenta los huecos internos.")
+        carpetas = st.checkbox("Carpetas por cobertura en el ZIP", value=True, key="carpetas",
+                               help="Alta 70-100 %, Media 50-70 %, Baja 25-50 %, Crítica 0-25 % "
+                                    "del periodo consultado")
         zona_boton = st.container()
 
     # ---------------- estaciones de la cuenca + evaluacion ----------------
@@ -285,6 +309,9 @@ def pantalla_estaciones():
                                 "Serie DHIME", "Inicio serie", "Fin serie"]:
                     zona[columna] = calidad[columna].values
                 evaluada = True
+            except ideam_downloader.ErrorAccesoIDEAM as e:
+                with col_ctrl:
+                    st.error(str(e))
             except Exception as e:
                 with col_ctrl:
                     st.error(f"No se pudo consultar el IDEAM: {e}")
@@ -298,7 +325,7 @@ def pantalla_estaciones():
     v = ss.get("graf_alt") or {}
     puntos = (v.get("selection") or {}).get("punto", [])
     cambio_sel |= _sincronizar("grafica", puntos, lambda p: p[0].get("Código") if p else None)
-    v = ss.get("mapa3d") or {}
+    v = ss.get(f"mapa3d_{ss.get('version_3d', 0)}") or {}
     objetos = ((v.get("selection") or {}).get("objects") or {}).get("estaciones", [])
     cambio_sel |= _sincronizar("3d", objetos, lambda o: o[0].get("codigo") if o else None)
     # Lista de altitudes dudosas: al elegir una se muestra en el mapa 3D
@@ -324,9 +351,10 @@ def pantalla_estaciones():
                 with st.spinner("Cargando el relieve..."):
                     deck, orbita = terreno.construir_deck(cuenca, area if buffer_on else None,
                                                           _estaciones_3d(zona, umbral), ss.estacion_sel, textura,
-                                                          PALETA, ligero=_es_celular())
+                                                          PALETA, ligero=_es_celular() or ss.get("modo_3d_ligero", False))
+                # La clave cambia con "Recargar vista 3D": asi Streamlit crea un visor nuevo desde cero
                 st.pydeck_chart(deck, height=terreno.ALTO_VISOR, on_select="rerun", selection_mode="single-object",
-                                key="mapa3d")
+                                key=f"mapa3d_{ss.get('version_3d', 0)}")
                 # Vuelta de camara: alrededor de la estacion recien elegida o, sin seleccion, alrededor
                 # del centro de las estaciones (al abrir el 3D, al cambiar las estaciones o al quitar la seleccion)
                 pedida = ss.pop("_orbitar", False)
@@ -344,6 +372,10 @@ def pantalla_estaciones():
                 with st.container(key="y2k_orbita"):
                     components.html(terreno.orbitar(orbita, ss.get("orbita", 0)), height=0)
                     components.html(terreno.AVISO_NAVEGADOR, height=0)
+                    components.html(terreno.EXTRAS_3D, height=0)
+                    # Botones ocultos: los pulsa el aviso de "sin memoria grafica" que pone EXTRAS_3D
+                    st.button("Recargar vista 3D", key="y2k_recargar3d", on_click=_recargar_3d)
+                    st.button("Ver en 2D", key="y2k_pasar2d", on_click=_pasar_a_2d)
                 st.caption("Relieve real exagerado ×2 · la cámara da una vuelta alrededor de las estaciones (o de la "
                            "que elijas) · toca el mapa para detenerla · Ctrl + arrastrar para girar e inclinar")
         else:
@@ -402,16 +434,21 @@ def pantalla_estaciones():
             ss.descarga_en_curso = False
             ss.pop("nombre_zip", None)  # cada descarga nueva arranca con su nombre sugerido
             _ir("descarga")
+        # El portal obliga a aceptar sus terminos antes de cada descarga; la herramienta se salta
+        # esa pantalla, asi que muestra lo esencial aqui, junto al boton (no en un modal)
+        st.markdown(f'<p class="y2k-legal">{TEXTO_LEGAL}</p>', unsafe_allow_html=True)
 
     return "", cuenca is not None, evaluada
 
 
 # ===========================================================================
-# Pantalla 3: la descarga con el tornado
+# Pantalla 3: la descarga
 # ===========================================================================
 def pantalla_descarga():
     d = ss.descarga
-    estilo.ventana(f"Descargando {d['param']['etiqueta']}" if d else "")
+    lista = bool(ss.resultado) and "error" not in ss.resultado
+    estilo.ventana((f"Descarga lista · {d['param']['etiqueta']} · Fuente: IDEAM" if lista
+                    else f"Descargando {d['param']['etiqueta']} · Fuente: IDEAM") if d else "")
     estilo.pasos({4}, {1, 2, 3})
     if d is None:
         st.info("No hay ninguna descarga preparada.")
@@ -428,20 +465,34 @@ def pantalla_descarga():
         # Turno: como mucho MAX_DESCARGAS_SIMULTANEAS descargas a la vez en el servidor (entre
         # todos los usuarios), para no saturar al IDEAM. Si no hay cupo, se espera con aviso.
         cupos = ideam_downloader.cupos_descarga()
+        turnos = ideam_downloader.turnos_descarga()
+        _, _, segundos = ideam_downloader.plan_descarga(d["estaciones"], d["ini"], d["fin"], d["param"])
+        turno = object()
         with col_esc:
             espera = st.empty()
         if not cupos.acquire(blocking=False):
-            with espera.container():
-                aviso = st.empty()
-                st.button("Cancelar y volver", key="cancelar_espera")
-            inicio_espera = time.time()
-            while not cupos.acquire(timeout=2):
-                aviso.info(f"⏳ Ya hay {ideam_downloader.MAX_DESCARGAS_SIMULTANEAS} descargas en curso en el servidor. "
-                           f"La tuya empieza sola apenas se libere un turno · esperando "
-                           f"{ideam_downloader.formatear_duracion(time.time() - inicio_espera)}")
+            with turnos["candado"]:
+                turnos["fila"].append(turno)
+            try:
+                with espera.container():
+                    aviso = st.empty()
+                    st.button("Cancelar y volver", key="cancelar_espera")
+                inicio_espera = time.time()
+                while not cupos.acquire(timeout=2):
+                    puesto, falta = ideam_downloader.espera_estimada(turno)
+                    cuando = (f"≈ {ideam_downloader.formatear_duracion(falta)}" if falta >= 5
+                              else "en cualquier momento")
+                    aviso.info(f"⏳ Hay {ideam_downloader.MAX_DESCARGAS_SIMULTANEAS} descargas en curso en el servidor "
+                               f"y la tuya es la número {puesto} en la fila. Empieza sola {cuando} "
+                               f"(llevas {ideam_downloader.formatear_duracion(time.time() - inicio_espera)} esperando).")
+            finally:
+                with turnos["candado"]:
+                    if turno in turnos["fila"]:
+                        turnos["fila"].remove(turno)
+        with turnos["candado"]:
+            turnos["en_curso"][turno] = (time.time(), segundos)
         try:
             espera.empty()
-            _, _, segundos = ideam_downloader.plan_descarga(d["estaciones"], d["ini"], d["fin"], d["param"])
             with col_esc:
                 escena_descarga.mostrar("vivo", total=len(d["estaciones"]), segundos_estimados=segundos)
                 ui = {"barra": st.empty(), "estado": st.empty(), "oculto": st.empty()}
@@ -452,9 +503,11 @@ def pantalla_descarga():
             resultado = ideam_downloader.procesar_descargas(d["estaciones"], d["carpetas"], d["ini"], d["fin"],
                                                             d["param"], ui)
             ss.descarga_en_curso = False
-            ss.resultado = resultado or {"error": "No se pudo obtener el token del IDEAM. Revisa tu conexión."}
+            ss.resultado = resultado or {"error": "No se pudo completar la descarga."}
         finally:
             # Se libera el turno siempre: al terminar, al oprimir "Detener" o si se cierra la pestaña
+            with turnos["candado"]:
+                turnos["en_curso"].pop(turno, None)
             cupos.release()
         st.rerun()
 
@@ -477,7 +530,8 @@ def pantalla_descarga():
 
     with col_esc:
         escena_descarga.mostrar("final", total=len(resultado["colores"]), colores_finales=resultado["colores"],
-                                subtitulo=f"{resultado['guardadas']} estaciones · {resultado['omitidas']} omitidas")
+                                subtitulo=f"{resultado['guardadas']} estaciones · {resultado['omitidas']} omitidas"
+                                          f" · Fuente: IDEAM · DHIME")
         st.markdown(estilo.barra_pixel(1.0), unsafe_allow_html=True)
         st.markdown(f'<div class="y2k-pmeta"><span><b>100 %</b> · listo en <b>{resultado["duracion"]}</b></span>'
                     f'<span>Guardadas <b>{resultado["guardadas"]}</b> · Omitidas <b>{resultado["omitidas"]}</b></span></div>',
@@ -491,6 +545,8 @@ def pantalla_descarga():
         st.download_button("⬇️ Descargar ZIP con los Excel", data=resultado["zip"], type="primary",
                            file_name=f"{_nombre_archivo(nombre, predeterminado)}.zip",
                            mime="application/zip", use_container_width=True)
+        # Recordatorio de las condiciones de uso del IDEAM en el momento de la entrega
+        st.markdown(f'<p class="y2k-legal">{TEXTO_LEGAL}</p>', unsafe_allow_html=True)
         c1, c2 = st.columns(2)
         if c1.button("← Volver a estaciones", use_container_width=True):
             _ir("estaciones")
@@ -503,7 +559,8 @@ def pantalla_descarga():
         try:
             with zipfile.ZipFile(io.BytesIO(resultado["zip"])) as z:
                 resumen = pd.read_csv(io.BytesIO(z.read("resumen_descarga.csv")))
-            st.dataframe(resumen[["Nombre", "Clase", "Resultado", "Detalle"]], hide_index=True,
+            columnas = [c for c in ["Nombre", "Cobertura", "Clase", "Resultado", "Detalle"] if c in resumen.columns]
+            st.dataframe(resumen[columnas], hide_index=True,
                          use_container_width=True, height=380)
         except Exception:
             st.caption("El detalle está en resumen_descarga.csv dentro del ZIP.")
@@ -521,4 +578,4 @@ else:
         estilo.ventana(meta)
         estilo.pasos({2, 3} if hay_cuenca else {1}, {1} if hay_cuenca else set())
 
-estilo.creditos()
+estilo.pie()

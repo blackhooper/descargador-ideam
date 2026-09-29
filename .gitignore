@@ -12,7 +12,7 @@ __pycache__/
 .vscode/
 
 # Archivos que la app no usa (pesados)
-ladron.gif
+*.gif
 data/estaciones_ideam.geojson
 
 # Salidas de depuracion y descargas locales

@@ -3,6 +3,7 @@ import pandas as pd
 import time
 import io
 import os
+import threading
 import zipfile
 import datetime
 import requests
@@ -47,7 +48,43 @@ def credenciales_ideam():
         return os.environ.get("IDEAM_USUARIO"), os.environ.get("IDEAM_CLAVE")
 
 
+# ---------------------------------------------------------------------------
+# FALLOS DE ACCESO AL PORTAL
+# Si el IDEAM cambia su forma de acceso, la app deja de funcionar de un dia
+# para otro. Ese caso no debe confundirse con "no hay internet" ni con "no hay
+# datos": se distingue el tipo de fallo y se muestra un mensaje honesto.
+# ---------------------------------------------------------------------------
+class ErrorAccesoIDEAM(RuntimeError):
+    """Fallo al pedir acceso al portal del IDEAM. str(e) es el mensaje para el usuario."""
+
+    def __init__(self, tipo, detalle=""):
+        self.tipo = tipo
+        super().__init__(mensaje_acceso(tipo, detalle))
+
+
+def mensaje_acceso(tipo, detalle=""):
+    aviso = " Si el problema continúa, la herramienta necesita una actualización."
+    return {
+        "sin_credenciales": "La aplicación no tiene configurado el acceso al portal del IDEAM.",
+        "red": "El portal del IDEAM no respondió. Revisa tu conexión a internet o inténtalo en unos minutos.",
+        "rechazado": ("El portal del IDEAM rechazó el acceso de la herramienta. Lo más probable es que el portal "
+                      "haya cambiado su forma de acceso y el Descargador necesite actualizarse." + aviso),
+        "servidor": (f"El portal del IDEAM está presentando fallas{f' ({detalle})' if detalle else ''}. "
+                     "Inténtalo más tarde." + aviso),
+    }.get(tipo, "No se pudo acceder al portal del IDEAM." + aviso)
+
+
+# Motivo del ultimo fallo al pedir el token (tipo, detalle), para explicarlo al usuario
+ULTIMO_FALLO_ACCESO = {"tipo": None, "detalle": ""}
+
+
+def error_acceso():
+    """ErrorAccesoIDEAM con el motivo del ultimo intento fallido de obtener_token()."""
+    return ErrorAccesoIDEAM(ULTIMO_FALLO_ACCESO["tipo"] or "red", ULTIMO_FALLO_ACCESO["detalle"])
+
+
 def obtener_token():
+    """Token del portal, o None si falla (el motivo queda en ULTIMO_FALLO_ACCESO)."""
     url = "https://modulopersonalizado.ideam.gov.co/DhimeServicePortal/token"
     headers = {
         "Accept": "application/json, text/javascript, */*; q=0.01",
@@ -56,23 +93,36 @@ def obtener_token():
         "Referer": "https://atencionciudadano.ideam.gov.co/",
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36"
     }
+
+    def fallo(tipo, detalle=""):
+        ULTIMO_FALLO_ACCESO.update(tipo=tipo, detalle=detalle)
+        return None
+
     usuario, clave = credenciales_ideam()
     if not usuario or not clave:
-        return None
+        return fallo("sin_credenciales")
     data = {"username": usuario, "password": clave, "grant_type": "password"}
     try:
         response = requests.post(url, headers=headers, data=data, timeout=15)
-        if response.status_code == 200:
-            token = response.json().get("access_token")
-            if DEPURACION_TERMINAL:
-                print(f"[DEBUG TOKEN] token OK (longitud {len(token or '')})", flush=True)
-            return token
-        if DEPURACION_TERMINAL:
-            print(f"[DEBUG TOKEN] HTTP {response.status_code} {response.reason}: {response.text[:500]}", flush=True)
-    except Exception:
+    except requests.RequestException:
         if DEPURACION_TERMINAL:
             print("[DEBUG TOKEN] Excepcion pidiendo el token:\n" + traceback.format_exc(), flush=True)
-    return None
+        return fallo("red")
+    if DEPURACION_TERMINAL and response.status_code != 200:
+        print(f"[DEBUG TOKEN] HTTP {response.status_code} {response.reason}: {response.text[:500]}", flush=True)
+    if response.status_code in (400, 401, 403):
+        # OAuth responde 400 (invalid_grant) cuando el usuario o la clave ya no sirven
+        return fallo("rechazado", f"HTTP {response.status_code}")
+    if response.status_code != 200:
+        return fallo("servidor", f"HTTP {response.status_code}")
+    try:
+        token = response.json().get("access_token")
+    except ValueError:
+        token = None
+    if not token:
+        return fallo("rechazado", "respuesta sin token")
+    ULTIMO_FALLO_ACCESO.update(tipo=None, detalle="")
+    return token
 
 
 URL_API_IDEAM = "https://modulopersonalizado.ideam.gov.co/DhimeServicePortal/api/"
@@ -85,18 +135,25 @@ def consultar_api(ruta, params=None, token=None):
     """
     token = token or obtener_token()
     if not token:
-        raise RuntimeError("No se pudo obtener el token del IDEAM. Revisa tu conexión.")
-    response = requests.get(
-        URL_API_IDEAM + ruta,
-        params=params,
-        headers={
-            "Authorization": "Bearer " + token,
-            "Origin": "https://atencionciudadano.ideam.gov.co",
-            "Referer": "https://atencionciudadano.ideam.gov.co/",
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36"
-        },
-        timeout=120,
-    )
+        raise error_acceso()
+    try:
+        response = requests.get(
+            URL_API_IDEAM + ruta,
+            params=params,
+            headers={
+                "Authorization": "Bearer " + token,
+                "Origin": "https://atencionciudadano.ideam.gov.co",
+                "Referer": "https://atencionciudadano.ideam.gov.co/",
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36"
+            },
+            timeout=120,
+        )
+    except requests.RequestException as e:
+        raise ErrorAccesoIDEAM("red") from e
+    if response.status_code in (401, 403):
+        raise ErrorAccesoIDEAM("rechazado", f"HTTP {response.status_code}")
+    if response.status_code >= 500:
+        raise ErrorAccesoIDEAM("servidor", f"HTTP {response.status_code}")
     if response.status_code != 200:
         raise RuntimeError(f"El IDEAM respondió HTTP {response.status_code} al consultar {ruta}.")
     return response.json()
@@ -690,9 +747,11 @@ def descargar_excel_ideam(fecha_ini, fecha_fin, token_auth, param, codigo_estaci
         try:
             # Mismo formato que usa el IDEAM en la celda "Fecha consulta:"
             rango_consulta = f"{fecha_ini:%d/%m/%Y} 00:00-{fecha_fin:%d/%m/%Y} 00:00"
-            excel_bytes, filas_por_bloque = fusionar_excels_ideam(
-                [libro for _, libro in libros_xlsx], rango_consulta
-            )
+            # Una fusion de 10 años horarios usa ~155 MB: se limitan las que corren a la vez
+            with FUSIONES_A_LA_VEZ:
+                excel_bytes, filas_por_bloque = fusionar_excels_ideam(
+                    [libro for _, libro in libros_xlsx], rango_consulta
+                )
             for (etiqueta_bloque, _), filas in zip(libros_xlsx, filas_por_bloque):
                 diagnosticos_bloques.append(f"{etiqueta_bloque} OK ({filas} filas)")
             return excel_bytes, " | ".join(diagnosticos_bloques)
@@ -741,14 +800,41 @@ HILOS_DESCARGA = 4
 
 # Descargas que pueden correr a la vez en el servidor, sumando a todos los usuarios
 # (cada una hace HILOS_DESCARGA consultas en paralelo). Las demas esperan turno.
-MAX_DESCARGAS_SIMULTANEAS = 2
+# Todos usan la misma cuenta publica del portal: el trafico se suma al de sus visitantes.
+MAX_DESCARGAS_SIMULTANEAS = 4
 
 
 @st.cache_resource
 def cupos_descarga():
     """Semaforo compartido por todas las sesiones de la app (vive mientras corra el servidor)."""
-    import threading
     return threading.BoundedSemaphore(MAX_DESCARGAS_SIMULTANEAS)
+
+
+@st.cache_resource
+def turnos_descarga():
+    """Quien descarga y quien espera, para decirle a cada uno su puesto y cuanto falta.
+    en_curso: {turno: (inicio, segundos_estimados)} · fila: [turno, ...] en orden de llegada."""
+    return {"candado": threading.Lock(), "en_curso": {}, "fila": []}
+
+
+def espera_estimada(turno):
+    """(puesto en la fila, segundos estimados hasta que empiece) para un turno que espera."""
+    t = turnos_descarga()
+    with t["candado"]:
+        puesto = t["fila"].index(turno) + 1 if turno in t["fila"] else 1
+        ahora = time.time()
+        restantes = sorted(max(0.0, inicio + estimado - ahora) for inicio, estimado in t["en_curso"].values())
+        promedio = (sum(e for _, e in t["en_curso"].values()) / len(t["en_curso"])) if t["en_curso"] else 60
+    if not restantes:
+        return puesto, 0
+    vuelta, lugar = divmod(puesto - 1, MAX_DESCARGAS_SIMULTANEAS)
+    return puesto, restantes[min(lugar, len(restantes) - 1)] + vuelta * promedio
+
+
+# Uniones de bloques (fusionar_excels_ideam) que pueden correr a la vez en todo el
+# servidor: una serie horaria de 10 años usa ~155 MB al unirse, y sin tope 4 descargas
+# x 4 hilos podrian pasar de 2 GB
+FUSIONES_A_LA_VEZ = threading.BoundedSemaphore(2)
 # Estimado inicial de segundos por bloque (ya contando los hilos). Se usa
 # antes de descargar y hasta tener mediciones reales; luego se corrige solo.
 # Medido el 2026-09-22 (precipitacion diaria, caudal diario, temperatura
@@ -770,6 +856,79 @@ def formatear_duracion(segundos):
     horas, resto = divmod(segundos, 3600)
     minutos, seg = divmod(resto, 60)
     return f"{horas}:{minutos:02d}:{seg:02d}" if horas else f"{minutos:02d}:{seg:02d}"
+
+
+# ---------------------------------------------------------------------------
+# CITACION Y REGISTRO DE DESCARGAS
+# ---------------------------------------------------------------------------
+# Los terminos de uso del IDEAM exigen citar la fuente con este formato:
+#   Fuente: Ideam. (Año, mes y día). Nombre de la página. URL.
+PAGINA_FUENTE = "DHIME – Portal Atención al Ciudadano"
+URL_FUENTE = "http://dhime.ideam.gov.co/atencionciudadano/"
+MESES = ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto",
+         "septiembre", "octubre", "noviembre", "diciembre"]
+
+
+def _ahora_colombia():
+    try:
+        from zoneinfo import ZoneInfo
+        return datetime.datetime.now(ZoneInfo("America/Bogota"))
+    except Exception:
+        return datetime.datetime.now(datetime.timezone(datetime.timedelta(hours=-5)))
+
+
+def texto_citacion(param, fecha_ini, fecha_fin, n_estaciones):
+    """Contenido de CITACION.txt: la cita ya armada con la fecha real de descarga."""
+    hoy = _ahora_colombia()
+    cita = f"Fuente: Ideam. ({hoy.year}, {MESES[hoy.month - 1]} {hoy.day}). {PAGINA_FUENTE}. {URL_FUENTE}"
+    return (
+        "CÓMO CITAR ESTOS DATOS\n"
+        "======================\n\n"
+        "Los datos de este archivo provienen del IDEAM. Según sus términos de uso, todo trabajo que\n"
+        "los utilice debe citar la fuente así:\n\n"
+        f"    {cita}\n\n"
+        "CONDICIONES DE USO\n"
+        "------------------\n"
+        "La descarga está autorizada para uso personal, privado y no comercial. Los datos no pueden\n"
+        "comercializarse ni venderse. El IDEAM no se hace responsable del uso de los datos ni de las\n"
+        "interpretaciones o inferencias derivadas de ellos.\n\n"
+        "Cada dato tiene un nivel de aprobación (columna «Nivel de Aprobación» de cada Excel):\n"
+        "Preliminar (900), En revisión (1100) o Definitivo (1200). Los datos preliminares están\n"
+        "sujetos a cambios o reemplazo.\n\n"
+        "CONSULTA\n"
+        "--------\n"
+        f"Parámetro: {param.get('descripcion', '')} ({param['etiqueta']}, {param.get('unidad', '')})\n"
+        f"Periodo: {fecha_ini:%d/%m/%Y} a {fecha_fin:%d/%m/%Y}\n"
+        f"Estaciones: {n_estaciones}\n"
+        f"Fecha de descarga: {hoy:%d/%m/%Y %H:%M} (hora de Colombia)\n\n"
+        "Descargado con el Descargador IDEAM, una herramienta independiente que automatiza consultas\n"
+        "del portal DHIME. No es un producto oficial del IDEAM ni cuenta con su respaldo.\n"
+    )
+
+
+def registrar_descargas_ideam(param, cantidad, token):
+    """Hace lo mismo que el portal despues de cada descarga: le avisa al IDEAM, sin datos de
+    la persona, que se descargo esta serie (parametro, etiqueta y fecha), asi las descargas
+    hechas con la herramienta cuentan en sus estadisticas. Corre aparte y nunca falla hacia afuera."""
+    if not cantidad or not token:
+        return
+    fecha = _ahora_colombia().strftime("%Y-%m-%dT%H:%M:00-05:00")
+    datos = {"Status": "true", "TipoDescarga": "Datos_variables_H_y_M", "Parametro": param["variable"],
+             "Etiqueta": param["etiqueta"], "FechaDescarga": fecha}
+    cabeceras = {"Authorization": "bearer " + token.replace("Bearer ", ""),
+                 "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
+                 "Origin": "https://atencionciudadano.ideam.gov.co",
+                 "Referer": "https://atencionciudadano.ideam.gov.co/"}
+
+    def enviar():
+        for _ in range(cantidad):
+            try:
+                requests.post(URL_API_IDEAM + "GestionDatos/GuardarInformacionDescargas",
+                              data=datos, headers=cabeceras, timeout=20)
+            except Exception:
+                pass
+
+    threading.Thread(target=enviar, daemon=True).start()
 
 
 def plan_descarga(estaciones_df, fecha_ini, fecha_fin, param):
@@ -799,7 +958,7 @@ def procesar_descargas(estaciones_df, clasificar_en_carpetas, fecha_ini, fecha_f
     """
     Descarga todas las estaciones (4 a la vez) y arma el ZIP.
     ui: dict de st.empty() donde se dibuja el avance: "barra", "estado",
-        "consola" y "oculto" (este ultimo lo lee la escena del tornado).
+        "consola" y "oculto" (este ultimo lo lee la escena de la descarga).
     Devuelve un dict con el zip y el resumen, o None si no hubo token.
     """
     dias_bloque = param.get("dias_bloque", DIAS_POR_BLOQUE_DEFECTO)
@@ -825,8 +984,9 @@ def procesar_descargas(estaciones_df, clasificar_en_carpetas, fecha_ini, fecha_f
 
     token_auth = obtener_token()
     if not token_auth:
-        log("No se pudo obtener el token del IDEAM. Revisa tu conexión.", "w")
-        return None
+        mensaje = str(error_acceso())
+        log(mensaje, "w")
+        return {"error": mensaje}
 
     # Los hilos avisan por esta cola cada bloque terminado (Streamlit solo se
     # puede actualizar desde el hilo principal)
@@ -877,7 +1037,7 @@ def procesar_descargas(estaciones_df, clasificar_en_carpetas, fecha_ini, fecha_f
 
                     # Token vencido: se pide uno nuevo y se repite la estacion (una vez)
                     if excel_data == "TOKEN_EXPIRED" and not item.get("reintentada"):
-                        log(f"Token expirado en est={codigo}. Renovando llave maestra...")
+                        log(f"La sesión con el portal venció (est={codigo}). Renovándola...")
                         token_nuevo = obtener_token()
                         if token_nuevo:
                             token_auth = token_nuevo
@@ -893,7 +1053,7 @@ def procesar_descargas(estaciones_df, clasificar_en_carpetas, fecha_ini, fecha_f
                         log(f"OMITIDA {codigo}: {diagnostico}", "w")
                         resumen.append({
                             "Código": codigo, "Nombre": item["nombre"],
-                            "Cantidad probable (%)": item["pct"], "Clase": clase["nombre"],
+                            "Cantidad probable (%)": item["pct"], "Cobertura": clase["nombre"],
                             "Resultado": "Omitida", "Archivo": "", "Detalle": diagnostico,
                         })
                         continue
@@ -909,7 +1069,7 @@ def procesar_descargas(estaciones_df, clasificar_en_carpetas, fecha_ini, fecha_f
                     log(f"GUARDADO {ruta_en_zip}")
                     resumen.append({
                         "Código": codigo, "Nombre": item["nombre"],
-                        "Cantidad probable (%)": item["pct"], "Clase": clase["nombre"],
+                        "Cantidad probable (%)": item["pct"], "Cobertura": clase["nombre"],
                         "Resultado": "Guardada", "Archivo": ruta_en_zip, "Detalle": diagnostico,
                     })
 
@@ -924,12 +1084,16 @@ def procesar_descargas(estaciones_df, clasificar_en_carpetas, fecha_ini, fecha_f
 
             # Lista de lo que se descargo y lo que no (con el motivo)
             zip_file.writestr("resumen_descarga.csv", pd.DataFrame(resumen).to_csv(index=False).encode("utf-8-sig"))
+            # Cita obligatoria segun los terminos de uso del IDEAM, ya armada con la fecha de hoy
+            zip_file.writestr("CITACION.txt", texto_citacion(param, fecha_ini, fecha_fin, guardadas).encode("utf-8-sig"))
     finally:
         # Si el usuario aborta, no se espera a que terminen las descargas pendientes
         pool.shutdown(wait=False, cancel_futures=True)
 
+    # Igual que el portal: el IDEAM registra cada serie descargada (sin datos de la persona)
+    registrar_descargas_ideam(param, guardadas, token_auth)
     duracion = formatear_duracion(time.time() - inicio)
-    log(f"ZIP listo en {duracion} · incluye resumen_descarga.csv", "w")
+    log(f"ZIP listo en {duracion} · incluye resumen_descarga.csv y CITACION.txt", "w")
     pintar(1.0, 0, terminado=True)
     return {
         "zip": zip_buffer.getvalue(),

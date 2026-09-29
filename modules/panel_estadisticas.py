@@ -165,7 +165,7 @@ def tarjeta_seleccionada(fila, rango=None, vista="2D"):
                     st.button("Verla en el mapa 3D", key="ver_3d", icon=":material/landscape:",
                               use_container_width=True, on_click=_ver_en_3d)
         if fila.get("Serie DHIME") == "Sí":
-            st.caption(f"Cantidad probable **{fila['Porcentaje (%)']:.0f} %** ({fila.get('Clase calidad', '')}) · "
+            st.caption(f"Cantidad probable **{fila['Porcentaje (%)']:.0f} %** (cobertura {str(fila.get('Clase calidad', '')).lower()}) · "
                        f"serie {str(fila.get('Inicio serie'))[:4]}–{str(fila.get('Fin serie'))[:4]}")
         else:
             st.caption("Sin serie de este parámetro en DHIME")
@@ -196,13 +196,19 @@ def mostrar_panel(zona, seleccion, param, fecha_ini, fecha_fin, umbral, seleccio
     _cifras([
         ("Estaciones", len(seleccion), f"de {len(zona)} en la zona",
          f"Estaciones que se van a descargar, de {len(zona)} en la cuenca y el buffer"),
-        ("Calidad media", f"{seleccion['Porcentaje (%)'].mean():.0f} %" if len(seleccion) else "–", "cantidad probable",
-         "Promedio de la cantidad probable de datos de las estaciones a descargar"),
+        ("Cobertura media", f"{seleccion['Porcentaje (%)'].mean():.0f} %" if len(seleccion) else "–", "del periodo",
+         "Promedio de la cantidad probable: qué parte del periodo consultado cubre el registro de las estaciones "
+         "a descargar (no descuenta huecos internos)"),
         ("Tiempo", ideam_downloader.formatear_duracion(segundos), f"{bloques} consultas",
          f"{bloques} consultas al IDEAM de hasta {param['dias_bloque']} días. Depende de qué tan rápido responda su servidor."),
         ("Datos", f"{round(datos / 1000)}k" if datos >= 100_000 else _num(datos), "registros probables",
-         "Cantidad de registros que el IDEAM dice tener en el rango de fechas"),
+         "Registros que cabrían entre el primer y el último dato de cada estación dentro del rango, según la "
+         "frecuencia. El IDEAM no descuenta los datos faltantes."),
     ])
+    # Nivel de aprobacion del dato (ver manual): mucho dato reciente sigue siendo preliminar
+    st.markdown('<p class="y2k-hint">Los datos del IDEAM tienen un nivel de aprobación (preliminar, en revisión '
+                'o definitivo) y los recientes pueden estar en nivel preliminar, sujetos a cambios. '
+                'Cada Excel lo trae en la columna «Nivel de Aprobación».</p>', unsafe_allow_html=True)
 
     # Estaciones cuya altitud del catalogo no cuadra con el relieve real
     if dudosas is not None and len(dudosas):
@@ -239,9 +245,10 @@ def mostrar_panel(zona, seleccion, param, fecha_ini, fecha_fin, umbral, seleccio
         st.warning(f"Ninguna estación supera {umbral} % de cantidad probable. Baja el mínimo o cambia las fechas.")
         return
 
-    st.markdown("**Calidad aproximada de los datos**")
-    st.markdown('<p class="y2k-hint">Estaciones por clase, según la cantidad probable de datos que el IDEAM '
-                'reporta para el rango de fechas (100 % = serie completa).</p>', unsafe_allow_html=True)
+    st.markdown("**Cobertura del periodo consultado**")
+    st.markdown('<p class="y2k-hint">Estaciones por clase, según qué parte de tu periodo cubre su registro '
+                '(entre su primer y su último dato). 100 % = el registro abarca todo el periodo, aunque '
+                'puede tener huecos internos.</p>', unsafe_allow_html=True)
     st.altair_chart(_grafica_clases(seleccion, paleta), use_container_width=True)
 
     grafica, minimo, maximo = _grafica_altitud(tabla, seleccionada, paleta)

@@ -1,15 +1,19 @@
 # ===========================================================================
-# CLASES DE CALIDAD (segun el % de cantidad probable en el rango pedido)
+# CLASES DE COBERTURA (segun el % de cantidad probable en el rango pedido)
+# La cantidad probable del IDEAM mide que parte del periodo consultado abarca el
+# registro de la estacion (entre su primer y su ultimo dato); NO descuenta huecos
+# internos. Por eso las clases hablan de "cobertura" y no de calidad del dato.
 # Se usan en el mapa, en el panel de estadisticas y en las carpetas del ZIP.
+# (En el codigo se conserva el nombre interno "calidad".)
 # ===========================================================================
 
 # (limite_inferior, nombre, rango, carpeta_en_zip, color)
 # Colores: paleta de estado (bien / advertencia / serio / critico)
 CLASES_CALIDAD = [
-    (70, "Alta", "70-100 %", "1_Calidad_Alta_70_100", "#0ca30c"),
-    (50, "Media", "50-70 %", "2_Calidad_Media_50_70", "#fab219"),
-    (25, "Baja", "25-50 %", "3_Calidad_Baja_25_50", "#ec835a"),
-    (0, "Crítica", "0-25 %", "4_Calidad_Critica_0_25", "#d03b3b"),
+    (70, "Alta", "70-100 %", "1_Cobertura_Alta_70_100", "#0ca30c"),
+    (50, "Media", "50-70 %", "2_Cobertura_Media_50_70", "#fab219"),
+    (25, "Baja", "25-50 %", "3_Cobertura_Baja_25_50", "#ec835a"),
+    (0, "Crítica", "0-25 %", "4_Cobertura_Critica_0_25", "#d03b3b"),
 ]
 
 

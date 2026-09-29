@@ -96,7 +96,7 @@ def _tarjeta(row, codigo):
         if row.get("Serie DHIME") == "No":
             partes.append("<span style='color:#D03B3B'>Sin serie en DHIME</span>")
         else:
-            partes.append(f"Cantidad probable <b>{row['Porcentaje (%)']:.0f} %</b> · {row.get('Clase calidad', '')}")
+            partes.append(f"Cantidad probable <b>{row['Porcentaje (%)']:.0f} %</b> · cobertura {row.get('Clase calidad', '').lower()}")
             if row.get("Inicio serie"):
                 partes.append(f"<span style='color:#7C87A3'>Serie {str(row['Inicio serie'])[:4]}–{str(row['Fin serie'])[:4]}</span>")
     if row.get("zona"):

@@ -9,13 +9,10 @@ import streamlit.components.v1 as components
 # variables CSS; los de Streamlit salen de [theme.light]/[theme.dark].
 # ===========================================================================
 
-# Creditos que se ven abajo a la izquierda. Deja un enlace vacio ("") para no mostrarlo.
-CREDITOS = {
-    "autor": "Juan Real",
-    "linkedin": "https://www.linkedin.com/in/juan-real-54a062415/",
-    "correo": "juan.realdata@gmail.com",
-    "mensaje": "¿Deseas una herramienta hecha a tu medida?",
-    "codigo": "",
+# Pie de pagina institucional: fuente de los datos y condiciones de uso
+FUENTE = {
+    "nombre": "IDEAM · DHIME",
+    "url": "http://dhime.ideam.gov.co/atencionciudadano/",
     "version": "1.0",
 }
 
@@ -76,6 +73,17 @@ html, body, .stApp, [class*="st-"], button, input, textarea, select{font-family:
 .y2k-manual:hover{color:var(--y2k-accent) !important;border-color:var(--y2k-accent)}
 .y2k-manual svg{width:16px;height:16px}
 .st-key-y2k_orbita{height:0;overflow:hidden;margin:0}
+/* aviso cuando el navegador se queda sin memoria grafica (lo pone el vigia del 3D) */
+.y2k-sin-memoria{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:6;width:min(360px,86%);
+  display:flex;flex-direction:column;gap:6px;padding:16px 18px;border-radius:14px;text-align:center;
+  background:var(--y2k-surface);border:1px solid #EC835A;color:var(--y2k-ink);font-size:13px;
+  box-shadow:0 18px 40px -18px var(--y2k-sombra)}
+.y2k-sin-memoria b{font-size:15px}
+.y2k-sin-memoria span{color:var(--y2k-ink-2)}
+.y2k-sin-memoria div{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:6px}
+.y2k-sin-memoria button{border-radius:999px;padding:6px 14px;font:600 13px Figtree,sans-serif;cursor:pointer;
+  border:1px solid var(--y2k-line-2);background:var(--y2k-surface);color:var(--y2k-ink)}
+.y2k-sin-memoria button[data-accion="y2k_recargar3d"]{background:var(--y2k-gel);color:#fff;border-color:rgba(0,50,120,.35)}
 /* tarjetas de cifras del resumen: la etiqueta se parte en dos lineas si no cabe */
 .y2k-cifras{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin:2px 0 8px}
 .y2k-cifra{background:var(--y2k-surface-2);border:1px solid var(--y2k-line);border-radius:10px;padding:8px 11px;min-width:0}
@@ -84,17 +92,17 @@ html, body, .stApp, [class*="st-"], button, input, textarea, select{font-family:
 .y2k-cifra .s{font-size:11.5px;color:var(--y2k-ink-3);margin-top:2px;line-height:1.3}
 .y2k-alerta{border:1px solid #EC835A;background:rgba(236,131,90,.12);border-radius:10px;padding:8px 11px;font-size:13px;color:var(--y2k-ink);margin:0 0 8px}
 .y2k-alerta b{color:var(--y2k-ink)}
-/* creditos: pestana fija abajo a la izquierda (al final de la pagina en celular) */
-.block-container{padding-bottom:4.5rem !important}
-.y2k-creditos{position:fixed;left:14px;bottom:12px;z-index:999990;font-size:12px;line-height:1.4;color:var(--y2k-ink-3);
-  background:var(--y2k-surface);border:1px solid var(--y2k-line-2);border-radius:12px;padding:6px 13px;
-  box-shadow:0 1px 0 var(--y2k-brillo) inset,0 6px 16px -10px var(--y2k-sombra)}
-.y2k-creditos b{color:var(--y2k-ink);font-weight:600}
-.y2k-creditos a{color:var(--y2k-accent) !important;text-decoration:none}
-.y2k-creditos a:hover{text-decoration:underline}
-.y2k-creditos .contacto{margin-top:2px;color:var(--y2k-ink-2)}
-.y2k-creditos .contacto a{font-weight:600}
-@media (max-width:640px){.y2k-creditos{position:static;display:inline-block;border-radius:12px;margin-top:10px}}
+/* condiciones de uso de los datos, bajo el boton de extraccion */
+.y2k-legal,[data-testid="stMarkdownContainer"] p.y2k-legal{font-size:11.5px !important;line-height:1.45 !important;
+  color:var(--y2k-ink-3) !important;margin:8px 0 0 !important;padding:8px 10px;border:1px dashed var(--y2k-line-2);border-radius:10px}
+/* pie institucional: al final de la pagina (en el flujo normal: nunca tapa nada) */
+.y2k-pie{margin-top:22px;padding:12px 16px;font-size:12px;line-height:1.55;color:var(--y2k-ink-3);
+  background:var(--y2k-surface);border:1px solid var(--y2k-line-2);border-radius:12px;
+  box-shadow:0 1px 0 var(--y2k-brillo) inset,0 6px 16px -12px var(--y2k-sombra)}
+.y2k-pie b{color:var(--y2k-ink);font-weight:600}
+.y2k-pie a{color:var(--y2k-accent) !important;text-decoration:none}
+.y2k-pie a:hover{text-decoration:underline}
+.y2k-pie .fila{display:flex;flex-wrap:wrap;gap:4px 14px}
 /* alertas compactas de altitud: un desplegable naranja de una linea */
 .st-key-alerta_altura [data-testid="stExpander"] details,.st-key-alerta_ficha [data-testid="stExpander"] details{
   border-color:#EC835A !important;background:rgba(236,131,90,.10)}
@@ -233,23 +241,18 @@ def control_tema():
         unsafe_allow_html=True)
 
 
-def creditos():
-    """Pestana de creditos: autor, enlaces y origen de los datos."""
-    c = CREDITOS
-    partes = [f'Creado por <b>{c["autor"]}</b>']
-    if c.get("linkedin"):
-        partes.append(f'<a href="{c["linkedin"]}" target="_blank" rel="noopener">LinkedIn</a>')
-    if c.get("codigo"):
-        partes.append(f'<a href="{c["codigo"]}" target="_blank" rel="noopener">Código</a>')
-    partes.append("Datos: IDEAM · DHIME")
-    if c.get("version"):
-        partes.append(f'v{c["version"]}')
-    contacto = ""
-    if c.get("correo"):
-        asunto = "Descargador IDEAM"
-        contacto = (f'<div class="contacto">{c.get("mensaje", "")} Contáctame: '
-                    f'<a href="mailto:{c["correo"]}?subject={asunto.replace(" ", "%20")}">{c["correo"]}</a></div>')
-    st.markdown(f'<div class="y2k-creditos"><div>{" · ".join(partes)}</div>{contacto}</div>', unsafe_allow_html=True)
+def pie():
+    """Pie institucional: de donde vienen los datos, condiciones de uso y manual."""
+    f = FUENTE
+    st.markdown(
+        '<div class="y2k-pie">'
+        f'<div class="fila"><span>Datos: <b>{f["nombre"]}</b> · '
+        f'<a href="{f["url"]}" target="_blank" rel="noopener">Instituto de Hidrología, Meteorología y Estudios '
+        'Ambientales</a></span><span><a href="app/static/manual.html" target="_blank" rel="noopener">Manual de '
+        f'usuario</a> · v{f["version"]}</span></div>'
+        '<div>Uso personal, privado y no comercial. Todo trabajo que use los datos debe citar la fuente '
+        '(el ZIP incluye CITACION.txt). Herramienta independiente, no oficial del IDEAM.</div>'
+        '</div>', unsafe_allow_html=True)
 
 
 def ventana(meta=""):

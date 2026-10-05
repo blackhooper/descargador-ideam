@@ -16,6 +16,25 @@ FUENTE = {
     "version": "1.0",
 }
 
+# Creditos de las capas de mapa (cada proveedor pide su atribucion). Los textos cortos van en el
+# borde de cada mapa; este bloque es la version completa del pie. Revisar los textos de Esri en
+# https://developers.arcgis.com/documentation/mapping-apis-and-services/deployment/basemap-attribution/
+ATRIB_ESRI_SATELITE = "Powered by Esri · Esri, Maxar, Earthstar Geographics y la comunidad de usuarios de GIS"
+ATRIB_ESRI_RELIEVE = ("Powered by Esri · Esri, HERE, Garmin, FAO, NOAA, USGS, © colaboradores de OpenStreetMap "
+                      "y la comunidad de usuarios de GIS")
+ATRIB_NASA = "NASA EOSDIS GIBS"
+ATRIB_RELIEVE_3D = ("Relieve 3D: modelo de elevación Terrarium (Mapzen, AWS Open Data), construido con datos SRTM y "
+                    "GMTED2010, cortesía del U.S. Geological Survey, entre otras fuentes")
+CREDITOS_MAPAS = (
+    "<b>Datos:</b> IDEAM · DHIME. "
+    "<b>Mapas base:</b> Satélite y Relieve, Esri (Maxar, Earthstar Geographics, HERE, Garmin, FAO, NOAA, USGS y la "
+    "comunidad de usuarios de GIS); Calles, © colaboradores de OpenStreetMap; Satélite de noche, NASA EOSDIS GIBS "
+    "(“We acknowledge the use of imagery provided by services from NASA's Global Imagery Browse Services (GIBS), "
+    "part of NASA's Earth Science Data and Information System (ESDIS)”). "
+    f"<b>Relieve 3D:</b> {ATRIB_RELIEVE_3D.split(': ', 1)[1]}. "
+    "Estas capas pertenecen a sus proveedores y no están respaldadas por el IDEAM."
+)
+
 # Colores que usan las graficas y los mapas (no pueden leer variables CSS)
 PALETAS = {
     "claro": {"tinta": "#16213A", "tinta_3": "#7C87A3", "rejilla": "#E3E7EE", "superficie": "#FBFCFE",
@@ -93,12 +112,21 @@ html, body, .stApp, [class*="st-"], button, input, textarea, select{font-family:
 .y2k-alerta{border:1px solid #EC835A;background:rgba(236,131,90,.12);border-radius:10px;padding:8px 11px;font-size:13px;color:var(--y2k-ink);margin:0 0 8px}
 .y2k-alerta b{color:var(--y2k-ink)}
 /* condiciones de uso de los datos, bajo el boton de extraccion */
-.y2k-legal,[data-testid="stMarkdownContainer"] p.y2k-legal{font-size:11.5px !important;line-height:1.45 !important;
-  color:var(--y2k-ink-3) !important;margin:8px 0 0 !important;padding:8px 10px;border:1px dashed var(--y2k-line-2);border-radius:10px}
+/* aviso legal: una linea; el texto completo se despliega al tocarla */
+details.y2k-legal{font-size:11.5px;line-height:1.45;color:var(--y2k-ink-3);margin:6px 0 0}
+details.y2k-legal summary{cursor:pointer;list-style:none;display:flex;flex-wrap:wrap;gap:2px 8px;align-items:baseline}
+details.y2k-legal summary::-webkit-details-marker{display:none}
+details.y2k-legal summary u{color:var(--y2k-accent);text-underline-offset:2px}
+details.y2k-legal[open] summary u{display:none}
+details.y2k-legal p{margin:4px 0 0 !important;font-size:11.5px !important;line-height:1.45 !important;color:var(--y2k-ink-3) !important}
 /* pie institucional: al final de la pagina (en el flujo normal: nunca tapa nada) */
-.y2k-pie{margin-top:22px;padding:12px 16px;font-size:12px;line-height:1.55;color:var(--y2k-ink-3);
-  background:var(--y2k-surface);border:1px solid var(--y2k-line-2);border-radius:12px;
-  box-shadow:0 1px 0 var(--y2k-brillo) inset,0 6px 16px -12px var(--y2k-sombra)}
+.y2k-pie{margin-top:18px;padding:8px 4px 0;font-size:11.5px;line-height:1.5;color:var(--y2k-ink-3);
+  border-top:1px solid var(--y2k-line-2)}
+.y2k-pie details{margin-top:2px}
+.y2k-pie summary{cursor:pointer;list-style:none;color:var(--y2k-accent)}
+.y2k-pie summary::-webkit-details-marker{display:none}
+.y2k-pie summary:hover{text-decoration:underline}
+.y2k-pie details div{margin-top:3px}
 .y2k-pie b{color:var(--y2k-ink);font-weight:600}
 .y2k-pie a{color:var(--y2k-accent) !important;text-decoration:none}
 .y2k-pie a:hover{text-decoration:underline}
@@ -252,7 +280,15 @@ def pie():
         f'usuario</a> · v{f["version"]}</span></div>'
         '<div>Uso personal, privado y no comercial. Todo trabajo que use los datos debe citar la fuente '
         '(el ZIP incluye CITACION.txt). Herramienta independiente, no oficial del IDEAM.</div>'
+        f'<details><summary>Fuentes y créditos de mapas</summary><div>{CREDITOS_MAPAS}</div></details>'
         '</div>', unsafe_allow_html=True)
+
+
+def aviso_legal(texto):
+    """Condiciones de uso en una sola linea; el texto completo se despliega al tocarla."""
+    st.markdown(
+        '<details class="y2k-legal"><summary><span>Datos del IDEAM · uso personal y no comercial · citar la '
+        f'fuente.</span> <u>Ver condiciones</u></summary><p>{texto}</p></details>', unsafe_allow_html=True)
 
 
 def ventana(meta=""):

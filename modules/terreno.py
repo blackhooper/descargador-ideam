@@ -208,19 +208,32 @@ AVISO_NAVEGADOR = """
   let distintos = 0;
   for (let i = 0; i < leido.length; i++) if (leido[i] !== img.data[i]) distintos++;
   if (!distintos) return;
-  const d = window.parent.document;
+  const w = window.parent, d = w.document;
+  // Si el usuario ya lo cerro, no vuelve a salir en esta sesion
+  try { if (w.sessionStorage.getItem("y2k_aviso3d_cerrado")) return; } catch (e) {}
+  if (w.__y2kAviso3dCerrado) return;
   for (let i = 0; i < 50; i++) {
     const mapa = d.querySelector('[data-testid="stDeckGlJsonChart"]');
     if (mapa) {
       if (mapa.querySelector(".y2k-aviso3d")) return;
       const aviso = d.createElement("div");
       aviso.className = "y2k-aviso3d";
-      aviso.textContent = "⚠ Tu navegador altera las imágenes por privacidad (Safari en modo privado o con " +
-        "protección contra rastreo, Brave…). Por eso el relieve puede verse con púas. Ábrelo en una pestaña " +
-        "normal, desactiva esa protección para este sitio o usa Chrome.";
-      aviso.style.cssText = "position:absolute;left:10px;right:10px;bottom:10px;z-index:5;padding:8px 12px;" +
-        "border-radius:10px;background:rgba(255,243,236,.95);color:#16213A;border:1px solid #EC835A;" +
-        "font:13px Figtree,system-ui,sans-serif;pointer-events:none";
+      aviso.style.cssText = "position:absolute;left:10px;bottom:10px;z-index:5;max-width:min(420px,calc(100% - 20px));" +
+        "display:flex;align-items:flex-start;gap:8px;padding:5px 6px 5px 10px;border-radius:8px;" +
+        "background:rgba(255,243,236,.92);color:#16213A;border:1px solid #EC835A;" +
+        "font:12px/1.35 Figtree,system-ui,sans-serif";
+      const texto = d.createElement("span");
+      texto.textContent = "⚠ Tu navegador altera las imágenes por privacidad y el relieve puede verse con púas. " +
+        "Prueba en una pestaña normal o con Chrome.";
+      const cerrar = d.createElement("button");
+      cerrar.type = "button"; cerrar.textContent = "×"; cerrar.setAttribute("aria-label", "Cerrar aviso");
+      cerrar.style.cssText = "all:unset;cursor:pointer;font:600 16px/1 Figtree,system-ui,sans-serif;padding:0 6px;color:#16213A";
+      cerrar.onclick = () => {
+        w.__y2kAviso3dCerrado = true;
+        try { w.sessionStorage.setItem("y2k_aviso3d_cerrado", "1"); } catch (e) {}
+        aviso.remove();
+      };
+      aviso.append(texto, cerrar);
       mapa.style.position = "relative";
       mapa.appendChild(aviso);
       return;

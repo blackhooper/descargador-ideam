@@ -377,7 +377,8 @@ def pantalla_estaciones():
                     st.button("Recargar vista 3D", key="y2k_recargar3d", on_click=_recargar_3d)
                     st.button("Ver en 2D", key="y2k_pasar2d", on_click=_pasar_a_2d)
                 st.caption("Relieve real exagerado ×2 · la cámara da una vuelta alrededor de las estaciones (o de la "
-                           "que elijas) · toca el mapa para detenerla · Ctrl + arrastrar para girar e inclinar")
+                           "que elijas) · toca el mapa para detenerla · Ctrl + arrastrar para girar e inclinar. "
+                           f"{estilo.ATRIB_RELIEVE_3D}. Imagen: {estilo.ATRIB_ESRI_SATELITE.split(' · ', 1)[0]}.")
         else:
             base = map_view.mapa_base(cuenca, ss.tema)
             capa = map_view.capa_dinamica(area if (buffer_on and cuenca is not None) else None, zona, umbral,
@@ -436,7 +437,7 @@ def pantalla_estaciones():
             _ir("descarga")
         # El portal obliga a aceptar sus terminos antes de cada descarga; la herramienta se salta
         # esa pantalla, asi que muestra lo esencial aqui, junto al boton (no en un modal)
-        st.markdown(f'<p class="y2k-legal">{TEXTO_LEGAL}</p>', unsafe_allow_html=True)
+        estilo.aviso_legal(TEXTO_LEGAL)
 
     return "", cuenca is not None, evaluada
 
@@ -546,7 +547,7 @@ def pantalla_descarga():
                            file_name=f"{_nombre_archivo(nombre, predeterminado)}.zip",
                            mime="application/zip", use_container_width=True)
         # Recordatorio de las condiciones de uso del IDEAM en el momento de la entrega
-        st.markdown(f'<p class="y2k-legal">{TEXTO_LEGAL}</p>', unsafe_allow_html=True)
+        estilo.aviso_legal(TEXTO_LEGAL)
         c1, c2 = st.columns(2)
         if c1.button("← Volver a estaciones", use_container_width=True):
             _ir("estaciones")

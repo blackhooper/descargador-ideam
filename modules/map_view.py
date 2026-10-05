@@ -3,6 +3,7 @@ import pandas as pd
 from folium.plugins import Draw, FastMarkerCluster
 from shapely.geometry import shape
 import geopandas as gpd
+from modules.estilo import ATRIB_ESRI_RELIEVE, ATRIB_ESRI_SATELITE, ATRIB_NASA
 from modules.calidad import clasificar_calidad
 from modules.ideam_downloader import codigo_de_estacion
 
@@ -31,15 +32,16 @@ def mapa_base(cuenca_gdf=None, tema="claro"):
     # Mapas base sin clave (CARTO ahora exige API key y muestra una marca de agua)
     esri = "https://server.arcgisonline.com/ArcGIS/rest/services/{}/MapServer/tile/{{z}}/{{y}}/{{x}}"
     # Satelite arranca visible; los demas se eligen en el boton de capas (arriba a la derecha)
-    folium.TileLayer(tiles=esri.format("World_Imagery"), attr="Esri, Maxar", name="Satélite").add_to(m)
-    folium.TileLayer(tiles=esri.format("World_Topo_Map"), attr="Esri", name="Relieve", show=False).add_to(m)
+    folium.TileLayer(tiles=esri.format("World_Imagery"), attr=ATRIB_ESRI_SATELITE, name="Satélite").add_to(m)
+    folium.TileLayer(tiles=esri.format("World_Topo_Map"), attr=ATRIB_ESRI_RELIEVE, name="Relieve",
+                     show=False).add_to(m)
     folium.TileLayer("OpenStreetMap", name="Calles", show=False).add_to(m)
     # Luces nocturnas de la NASA (VIIRS Black Marble 2016): solo trae detalle hasta el nivel 8,
     # de cerca se ve borroso pero muestra bien los pueblos y ciudades iluminados
     folium.TileLayer(
         tiles="https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/VIIRS_Black_Marble/default/2016-01-01/"
               "GoogleMapsCompatible_Level8/{z}/{y}/{x}.png",
-        attr="NASA EOSDIS GIBS", name="Satélite de noche", show=False, max_native_zoom=8, max_zoom=19,
+        attr=ATRIB_NASA, name="Satélite de noche", show=False, max_native_zoom=8, max_zoom=19,
     ).add_to(m)
 
     # La cuenca va dentro del grupo de dibujo: asi se pueden mover sus

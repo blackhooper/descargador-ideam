@@ -36,3 +36,14 @@ Conecta este repositorio en [share.streamlit.io](https://share.streamlit.io), co
 - Esta herramienta automatiza consultas que cualquiera puede hacer en el portal DHIME. No almacena ni redistribuye los datos por su cuenta.
 - Como hace el portal, cada serie descargada se registra de forma anónima en las estadísticas de descargas del IDEAM.
 - El servidor permite como máximo 4 descargas a la vez para no saturar el servicio del IDEAM. Las demás esperan turno.
+
+## Fuentes y créditos de los mapas
+
+Las capas de mapa no son del IDEAM y pertenecen a sus proveedores:
+
+- **Satélite y Relieve:** Esri (Maxar, Earthstar Geographics, HERE, Garmin, FAO, NOAA, USGS y la comunidad de usuarios de GIS). Se consultan por el punto de acceso público `server.arcgisonline.com`, sin clave. Esri lo considera un servicio antiguo y recomienda uno con clave; conviene revisar sus términos antes de un uso amplio.
+- **Calles:** © colaboradores de OpenStreetMap.
+- **Satélite de noche:** NASA EOSDIS GIBS.
+- **Relieve 3D:** modelo de elevación Terrarium (Mapzen, AWS Open Data), construido con datos SRTM y GMTED2010, cortesía del U.S. Geological Survey, entre otras fuentes.
+
+La aplicación muestra estos créditos en el pie de página y en el borde de cada mapa.

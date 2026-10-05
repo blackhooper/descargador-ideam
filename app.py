@@ -348,13 +348,16 @@ def pantalla_estaciones():
             if zona is None or zona.empty:
                 st.info("Dibuja tu cuenca para verla en 3D.")
             else:
-                with st.spinner("Cargando el relieve..."):
+                # La cubierta "Alistando las estaciones" se ve mientras el servidor arma la escena y el
+                # navegador baja el relieve; el guion de terreno.py la levanta cuando el relieve esta listo
+                with st.container(key="y2k_visor3d"):
+                    estilo.cubierta_3d()
                     deck, orbita = terreno.construir_deck(cuenca, area if buffer_on else None,
                                                           _estaciones_3d(zona, umbral), ss.estacion_sel, textura,
                                                           PALETA, ligero=_es_celular() or ss.get("modo_3d_ligero", False))
-                # La clave cambia con "Recargar vista 3D": asi Streamlit crea un visor nuevo desde cero
-                st.pydeck_chart(deck, height=terreno.ALTO_VISOR, on_select="rerun", selection_mode="single-object",
-                                key=f"mapa3d_{ss.get('version_3d', 0)}")
+                    # La clave cambia con "Recargar vista 3D": asi Streamlit crea un visor nuevo desde cero
+                    st.pydeck_chart(deck, height=terreno.ALTO_VISOR, on_select="rerun", selection_mode="single-object",
+                                    key=f"mapa3d_{ss.get('version_3d', 0)}")
                 # Vuelta de camara: alrededor de la estacion recien elegida o, sin seleccion, alrededor
                 # del centro de las estaciones (al abrir el 3D, al cambiar las estaciones o al quitar la seleccion)
                 pedida = ss.pop("_orbitar", False)
@@ -369,16 +372,23 @@ def pantalla_estaciones():
                 if disparar:
                     ss.saltos += 1
                     ss.orbita = ss.saltos
+                # Secuencia de entrada (lasers, caida de pines, alertas): una sola vez por cuenca/buffer.
+                # Se ata al turno de la vuelta para que el guion no cambie entre una recarga y otra
+                firma_intro = json.dumps([[round(float(c), 5) for c in area.total_bounds], bool(buffer_on)])
+                if disparar and ss.get("_intro_firma") != firma_intro:
+                    ss._intro_firma = firma_intro
+                    ss._intro_turno = ss.orbita
+                intro = ss.get("_intro_turno") == ss.get("orbita")
                 with st.container(key="y2k_orbita"):
-                    components.html(terreno.orbitar(orbita, ss.get("orbita", 0)), height=0)
+                    components.html(terreno.orbitar(orbita, ss.get("orbita", 0), intro), height=0)
                     components.html(terreno.AVISO_NAVEGADOR, height=0)
                     components.html(terreno.EXTRAS_3D, height=0)
                     # Botones ocultos: los pulsa el aviso de "sin memoria grafica" que pone EXTRAS_3D
                     st.button("Recargar vista 3D", key="y2k_recargar3d", on_click=_recargar_3d)
                     st.button("Ver en 2D", key="y2k_pasar2d", on_click=_pasar_a_2d)
-                st.caption("Relieve real exagerado ×2 · la cámara da una vuelta alrededor de las estaciones (o de la "
-                           "que elijas) · toca el mapa para detenerla · Ctrl + arrastrar para girar e inclinar. "
-                           f"{estilo.ATRIB_RELIEVE_3D}. Imagen: {estilo.ATRIB_ESRI_SATELITE.split(' · ', 1)[0]}.")
+                st.caption("Relieve ×2 · toca el mapa para detener la vuelta · Ctrl + arrastrar para girar e inclinar")
+                st.markdown(f'<p class="y2k-hint" style="margin-top:10px !important;text-align:right">'
+                            f'{estilo.ATRIB_RELIEVE_3D_CORTO}</p>', unsafe_allow_html=True)
         else:
             base = map_view.mapa_base(cuenca, ss.tema)
             capa = map_view.capa_dinamica(area if (buffer_on and cuenca is not None) else None, zona, umbral,

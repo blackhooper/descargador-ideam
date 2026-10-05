@@ -25,6 +25,7 @@ ATRIB_ESRI_RELIEVE = ("Powered by Esri · Esri, HERE, Garmin, FAO, NOAA, USGS, �
 ATRIB_NASA = "NASA EOSDIS GIBS"
 ATRIB_RELIEVE_3D = ("Relieve 3D: modelo de elevación Terrarium (Mapzen, AWS Open Data), construido con datos SRTM y "
                     "GMTED2010, cortesía del U.S. Geological Survey, entre otras fuentes")
+ATRIB_RELIEVE_3D_CORTO = "Relieve: Terrarium (Mapzen · AWS · SRTM/USGS) · Imagen: Esri"
 CREDITOS_MAPAS = (
     "<b>Datos:</b> IDEAM · DHIME. "
     "<b>Mapas base:</b> Satélite y Relieve, Esri (Maxar, Earthstar Geographics, HERE, Garmin, FAO, NOAA, USGS y la "
@@ -195,8 +196,35 @@ h3{font-size:14px !important;padding:0 0 2px !important}
 .y2k-pmeta b{color:var(--y2k-ink)}
 .ideam-estado{display:none}
 .y2k-hint,[data-testid="stMarkdownContainer"] p.y2k-hint{font-size:12.5px !important;line-height:1.45 !important;color:var(--y2k-ink-3) !important;margin:0 0 4px !important}
+/* visor 3D: cubierta "Alistando estaciones" mientras el servidor arma la escena y llega el relieve.
+   La levanta el guion de terreno.py (data-listo); si algo falla, se va sola a los 25 s */
+.st-key-y2k_visor3d{position:relative;min-height:650px}
+/* los envoltorios de st.html no deben ser el "padre" de la cubierta: tiene que cubrir todo el visor */
+.st-key-y2k_visor3d .stHtml,.st-key-y2k_visor3d [data-testid="stElementContainer"]:has(.y2k-cubierta){position:static !important}
+.y2k-cubierta{position:absolute;inset:0;z-index:20;display:flex;flex-direction:column;align-items:center;
+  justify-content:center;gap:14px;border-radius:12px;color:#E6ECF7;font:600 14px Figtree,system-ui,sans-serif;
+  background:radial-gradient(120% 90% at 50% 20%,#1C3A6E 0%,#0C1220 75%);
+  transition:opacity .6s ease;animation:y2k-cub-fuera .6s ease 25s forwards}
+.st-key-y2k_visor3d[data-listo="1"] .y2k-cubierta{opacity:0;pointer-events:none}
+.y2k-cubierta .pines{display:flex;gap:20px;height:92px;align-items:flex-end;border-bottom:2px solid #5AA2F5;padding:0 14px}
+.y2k-cubierta .pines i{position:relative;margin-bottom:24px;width:12px;height:12px;border-radius:50%;background:#5AA2F5;
+  animation:y2k-cae 1.6s cubic-bezier(.5,0,1,.6) infinite;opacity:0}
+.y2k-cubierta .pines i::after{content:"";position:absolute;left:5px;top:12px;width:2px;height:22px;background:rgba(230,236,247,.65)}
+.y2k-cubierta .pines i:nth-child(2){animation-delay:.25s;background:#0ca30c}
+.y2k-cubierta .pines i:nth-child(3){animation-delay:.5s;background:#EC835A}
+.y2k-cubierta .pines i:nth-child(4){animation-delay:.75s;background:#5AA2F5}
+.y2k-cubierta .pines i:nth-child(5){animation-delay:1s;background:#0ca30c}
+@keyframes y2k-cae{0%{transform:translateY(-70px);opacity:0}15%{opacity:1}55%,100%{transform:translateY(0);opacity:1}}
+@keyframes y2k-cub-fuera{to{opacity:0;visibility:hidden}}
+@media (prefers-reduced-motion:reduce){.y2k-cubierta .pines i{animation:none;opacity:1}}
 </style>
 """
+
+
+def cubierta_3d():
+    """Pantalla de espera del visor 3D: pines que caen mientras se arma la escena."""
+    st.html('<div class="y2k-cubierta"><div class="pines"><i></i><i></i><i></i><i></i><i></i></div>'
+            '<div>Alistando las estaciones…</div></div>')
 
 
 def aplicar(tema="claro"):

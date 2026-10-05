@@ -115,12 +115,21 @@ def altura_terreno(lon, lat, z=ZOOM_DEM):
 # dentro de React) y le cambia la vista cuadro a cuadro. Si el usuario toca el mapa, para.
 # La camara de deck.gl gira alrededor del punto al que mira; "position" sube ese punto a la
 # mitad del pin de la estacion, asi la estacion queda en el centro y la camara la rodea.
+# Al abrir el 3D (O.intro) antes de la vuelta corre la secuencia de entrada: mientras llega el relieve
+# se ve la cubierta "Alistando..."; luego las lineas se dibujan como lasers, caen los pines y suben los
+# haces naranjas de las altitudes dudosas. Las capas se esconden/animan con layer.clone() sobre las que
+# mando Python y al final se devuelven tal cual.
 _ORBITA = """
 <script>
 (async () => {
   const w = window.parent, d = w.document;
   const O = __ORBITA__;
   const esperar = ms => new Promise(r => setTimeout(r, ms));
+  // Cada ejecucion del guion tiene su numero: si arranca otra, la anterior se detiene
+  const miId = w.__y2kOrbitaId = (w.__y2kOrbitaId || 0) + 1;
+  const vigente = () => miId === w.__y2kOrbitaId;
+  const visor = d.querySelector(".st-key-y2k_visor3d");
+  const levantarCubierta = () => { if (visor) visor.dataset.listo = "1"; };
   function buscarDeck() {
     const lienzo = d.querySelector('[data-testid="stDeckGlJsonChart"] canvas:not(.y2k-avion)');
     if (!lienzo) return null;
@@ -137,7 +146,121 @@ _ORBITA = """
   }
   let deck = null;
   for (let i = 0; i < 80 && !deck; i++) { deck = buscarDeck(); if (!deck) await esperar(150); }
-  if (!deck) return;
+  if (!deck) { levantarCubierta(); return; }
+
+  // Las capas "originales" son las que mando Python; las que pone este guion llevan una marca
+  const puestas = deck.props.layers;
+  const originales = (puestas && puestas.__y2k ? deck.__y2kOriginales : puestas) || [];
+  deck.__y2kOriginales = originales;
+  const poner = lista => { lista.__y2k = true; deck.setProps({layers: lista}); };
+  if (puestas && puestas.__y2k) poner(originales.slice());
+
+  // ---- 1. Secuencia de entrada: lineas como lasers, caen los pines, suben las alertas ----
+  const quiereMenosMovimiento = w.matchMedia && w.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const conIntro = O.intro && !quiereMenosMovimiento && originales.length > 0;
+  const capa = id => originales.find(l => l && l.id === id);
+  const ID_SECUENCIA = ["cuenca", "buffer", "tallos", "estaciones", "saltos", "fantasmas", "fantasmas_texto"];
+  const reemplazos = {};
+  const refrescar = extra => poner(originales.map(l => reemplazos[l.id] || l).concat(extra || []));
+  if (conIntro) {
+    ID_SECUENCIA.forEach(id => { const l = capa(id); if (l) reemplazos[id] = l.clone({visible: false}); });
+    refrescar();
+  }
+
+  // ---- 2. Esperar a que el relieve este dibujado (la cubierta "Alistando..." sigue encima) ----
+  if (!visor || visor.dataset.listo !== "1") {
+    const t0 = w.performance.now();
+    let seguidas = 0;
+    while (vigente() && w.performance.now() - t0 < 15000) {
+      const l = deck.layerManager && deck.layerManager.getLayers().find(x => x.id === "terreno");
+      seguidas = l && l.isLoaded ? seguidas + 1 : 0;
+      if (seguidas >= 3 && w.performance.now() - t0 > 1200) break;
+      await esperar(150);
+    }
+  }
+  if (!vigente()) return;
+  levantarCubierta();
+
+  if (conIntro) {
+    await esperar(500);
+    try {
+      const ease = t => t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+      const cuadro = () => new Promise(r => w.requestAnimationFrame(r));
+      const durante = async (ms, f) => {
+        const t0 = w.performance.now();
+        let t;
+        do { await cuadro(); t = Math.min(1, (w.performance.now() - t0) / ms); f(t); } while (t < 1 && vigente());
+      };
+      const Punto = (capa("estaciones") || capa("fantasmas") || {}).constructor;
+      const Linea = (capa("tallos") || capa("saltos") || {}).constructor;
+
+      // Las lineas de la cuenca y del buffer se dibujan de a poco, con un punto brillante en la punta
+      const trazos = ["cuenca", "buffer"].map(capa).filter(Boolean);
+      if (trazos.length && Punto) {
+        await durante(2600, t => {
+          const p = ease(t), puntas = [];
+          trazos.forEach(l => {
+            const datos = l.props.data.map(r => {
+              const n = r.path.length, k = Math.min(n, Math.max(2, Math.round(p * (n - 1)) + 1));
+              const tramo = r.path.slice(0, k);
+              puntas.push({p: tramo[tramo.length - 1]});
+              return {...r, path: tramo};
+            });
+            reemplazos[l.id] = l.clone({visible: true, data: datos});
+          });
+          refrescar([new Punto({id: "laser", data: puntas, getPosition: x => x.p, getFillColor: [255, 255, 255, 255],
+                                getRadius: 80, radiusMinPixels: 6, radiusMaxPixels: 12, billboard: true,
+                                parameters: {depthCompare: "always"}})]);
+        });
+        trazos.forEach(l => { reemplazos[l.id] = l.clone({visible: true}); });
+        refrescar();
+      }
+
+      // Los pines caen del cielo uno tras otro
+      const cab = capa("estaciones"), tal = capa("tallos");
+      if (cab && vigente()) {
+        const datosC = cab.props.data, datosT = tal ? tal.props.data : [];
+        const n = datosC.length, PASO = Math.min(110, 1500 / Math.max(1, n)), CAIDA = 800, ALTURA = 3000;
+        const total = (n - 1) * PASO + CAIDA;
+        await durante(total, t => {
+          const ms = t * total, idx = [], desp = [];
+          for (let i = 0; i < n; i++) {
+            const u = (ms - i * PASO) / CAIDA;
+            if (u <= 0) continue;
+            idx.push(i); desp.push(u >= 1 ? 0 : ALTURA * (1 - u * u));
+          }
+          reemplazos.estaciones = cab.clone({visible: true, data: idx.map(i => datosC[i]),
+            getPosition: (x, o) => [x.pos[0], x.pos[1], x.pos[2] + desp[o.index]], updateTriggers: {getPosition: [ms]}});
+          if (tal) reemplazos.tallos = tal.clone({visible: true, data: idx.map(i => datosT[i]).filter(Boolean),
+            getSourcePosition: (x, o) => [x.desde[0], x.desde[1], x.desde[2] + desp[o.index]],
+            getTargetPosition: (x, o) => [x.hasta[0], x.hasta[1], x.hasta[2] + desp[o.index]],
+            updateTriggers: {getSourcePosition: [ms], getTargetPosition: [ms]}});
+          refrescar();
+        });
+        reemplazos.estaciones = cab.clone({visible: true});
+        if (tal) reemplazos.tallos = tal.clone({visible: true});
+        refrescar();
+      }
+
+      // Al final, las alertas de altitud suben como haces de luz naranja
+      const sal = capa("saltos");
+      if (sal && Linea && vigente()) {
+        await durante(1000, t => {
+          refrescar([new Linea({id: "haces", data: sal.props.data, getSourcePosition: x => x.desde,
+            getTargetPosition: x => [x.desde[0], x.desde[1], x.desde[2] + 2200 * ease(t)],
+            getColor: [236, 131, 90, 230], getWidth: 6, widthMinPixels: 4, parameters: {depthCompare: "always"},
+            updateTriggers: {getTargetPosition: [t]}})]);
+        });
+        ["saltos", "fantasmas", "fantasmas_texto"].forEach(id => { const l = capa(id); if (l) reemplazos[id] = l.clone({visible: true}); });
+        refrescar();
+        await esperar(600);
+      }
+    } catch (e) { /* si algo falla, se muestra todo de una vez */ }
+    if (vigente()) poner(originales.slice());
+  }
+  if (!vigente()) return;
+
+  // ---- 3. Vuelta de camara ----
   await esperar(300);
   let parar = false;
   const detener = () => { parar = true; };
@@ -171,7 +294,7 @@ _ORBITA = """
     }
   };
   const cuadro = ahora => {
-    if (parar) return;
+    if (parar || !vigente()) return;
     const t = Math.min(ahora - inicio, VUELTA);
     const a = suave(Math.min(1, t / ACERCAMIENTO));
     const rumbo = O.inicio.bearing + (O.rumbo + giro(t) - O.inicio.bearing) * a;
@@ -428,11 +551,12 @@ EXTRAS_3D = _EXTRAS_3D.replace("__AVION__", "true" if AVION_ACTIVO else "false")
 
 
 
-def orbitar(orbita, turno):
+def orbitar(orbita, turno, intro=False):
     """Guion que acerca la camara a la estacion y da una vuelta lenta a su alrededor. `turno`
-    cambia en cada seleccion nueva, asi el guion solo corre una vez por estacion elegida."""
+    cambia en cada seleccion nueva, asi el guion solo corre una vez por estacion elegida.
+    intro: antes de la vuelta, corre la secuencia de entrada (lasers, caida de pines, alertas)."""
     import json
-    return _ORBITA.replace("__ORBITA__", json.dumps(orbita)) + f"<!-- turno {turno} -->"
+    return _ORBITA.replace("__ORBITA__", json.dumps({**orbita, "intro": bool(intro)})) + f"<!-- turno {turno} -->"
 
 
 def _destino(lon, lat, azimut, distancia):

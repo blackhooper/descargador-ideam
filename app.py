@@ -347,8 +347,15 @@ def pantalla_estaciones():
         vista = c_vista.segmented_control("Vista", ["2D", "3D"], default="2D", key="vista",
                                           label_visibility="collapsed") or "2D"
         if vista == "3D":
-            textura = c_tex.segmented_control("Textura", ["Satélite", "Topográfico"], default="Satélite",
+            textura = c_tex.segmented_control("Textura", ["Satélite", "Topográfico", "Altura"], default="Satélite",
                                               key="textura", label_visibility="collapsed") or "Satélite"
+            # Textura "Altura": colores segun la altitud, con la escala de la zona o la de todo Colombia
+            altura, escala_alt = None, None
+            if textura == "Altura":
+                escala_alt = st.segmented_control("Escala de altura", ["Rango de la zona", "Rango de Colombia"],
+                                                  default="Rango de la zona", key="escala_altura",
+                                                  label_visibility="collapsed") or "Rango de la zona"
+                altura = rango if (escala_alt == "Rango de la zona" and rango and rango[1] > rango[0]) else terreno.ALTURA_COLOMBIA
             if zona is None or zona.empty:
                 st.info("Dibuja tu cuenca para verla en 3D.")
             else:
@@ -356,9 +363,13 @@ def pantalla_estaciones():
                 # navegador baja el relieve; el guion de terreno.py la levanta cuando el relieve esta listo
                 with st.container(key="y2k_visor3d"):
                     # (sin cubierta de carga: la espera ya la cubre el escaner; la animacion arranca sola cuando llega el relieve)
+                    # el guion que colorea el relieve se instala siempre (no cuesta nada): asi ya esta listo cuando se elige "Altura"
+                    with st.container(key="y2k_hipso"):
+                        components.html(terreno.HIPSOMETRICO, height=0)
                     deck, orbita = terreno.construir_deck(cuenca, area if buffer_on else None,
                                                           _estaciones_3d(zona, umbral), ss.estacion_sel, textura,
-                                                          PALETA, ligero=_es_celular() or ss.get("modo_3d_ligero", False))
+                                                          PALETA, ligero=_es_celular() or ss.get("modo_3d_ligero", False),
+                                                          altura=altura)
                     # La clave cambia con "Recargar vista 3D": asi Streamlit crea un visor nuevo desde cero
                     st.pydeck_chart(deck, height=terreno.ALTO_VISOR, on_select="rerun", selection_mode="single-object",
                                     key=f"mapa3d_{ss.get('version_3d', 0)}")
@@ -395,6 +406,10 @@ def pantalla_estaciones():
                 # TEMPORAL: para ver la animacion de entrada otra vez mientras se ajusta
                 st.button("▶ Repetir animación (temporal)", key="y2k_repetir_intro",
                           on_click=lambda: ss.update(_repetir_intro=True))
+                if altura:
+                    st.markdown(terreno.leyenda_altura(altura[0], altura[1],
+                                                       "escala de Colombia" if altura == terreno.ALTURA_COLOMBIA
+                                                       else "escala de la zona"), unsafe_allow_html=True)
                 st.caption("Relieve ×2 · toca el mapa para detener la vuelta · Ctrl + arrastrar para girar e inclinar")
                 st.markdown(f'<p class="y2k-hint" style="margin-top:10px !important;text-align:right">'
                             f'{estilo.ATRIB_RELIEVE_3D_CORTO}</p>', unsafe_allow_html=True)

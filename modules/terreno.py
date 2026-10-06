@@ -1,4 +1,5 @@
 import io
+import json
 import math
 import threading
 from collections import OrderedDict
@@ -44,6 +45,96 @@ DISTANCIAS_HORIZONTE = (100, 200, 350, 550, 800, 1100, 1500, 2000, 2600, 3300, 4
 
 def _num(n):
     return f"{n:,.0f}".replace(",", ".")
+
+
+# ---- Textura "Altura": el relieve se pinta segun su altitud (hipsometrico) con sombreado de ladera ----
+# Colombia: del nivel del mar al Pico Cristobal Colon (Sierra Nevada de Santa Marta, ~5.730 m)
+ALTURA_COLOMBIA = (0, 5730)
+# Verde bajo, amarillo/ocre medio, marron alto y nieve arriba: tonos apagados, estilo atlas
+RAMPA_ALTURA = [(0.00, "#2E7D5B"), (0.12, "#6FA36B"), (0.27, "#B7C77A"), (0.42, "#E3D98F"),
+                (0.57, "#D9AE6B"), (0.72, "#B77B4E"), (0.86, "#8C6B5E"), (1.00, "#F4F1EC")]
+# La marca "y2k_hipso" en la direccion la reconoce el guion de abajo; S3 ignora lo que va despues del "?"
+URL_ALTURA = URL_ELEVACION + "?y2k_hipso=1&px=__PX__&min=__MIN__&max=__MAX__"
+
+# deck.gl pide las imagenes con fetch. Este guion (se instala una sola vez en la pagina) intercepta
+# las que llevan la marca, baja el mismo tile de elevacion y devuelve una imagen coloreada por altura con
+# sombreado de ladera. La imagen sale a 128 px (la mitad): un poco pixelada, pero un cuarto de memoria.
+_HIPSOMETRICO = """
+<script>
+(() => {
+  const w = window.parent;
+  if (w.__y2kHipso) return;
+  const original = w.fetch.bind(w);
+  const pasos = __RAMPA__.map(p => [p[0], [parseInt(p[1].slice(1, 3), 16), parseInt(p[1].slice(3, 5), 16), parseInt(p[1].slice(5, 7), 16)]]);
+  const color = t => {
+    let k = 0;
+    while (k < pasos.length - 2 && t > pasos[k + 1][0]) k++;
+    const a = pasos[k], b = pasos[k + 1], f = Math.min(1, Math.max(0, (t - a[0]) / (b[0] - a[0])));
+    return [a[1][0] + (b[1][0] - a[1][0]) * f, a[1][1] + (b[1][1] - a[1][1]) * f, a[1][2] + (b[1][2] - a[1][2]) * f];
+  };
+  const N = 256, EXAG = 2;
+  const LX = -0.55, LY = -0.55, LZ = 0.63;
+  async function colorear(url, opciones) {
+    const partes = url.split("?"), base = partes[0], q = new URLSearchParams(partes[1] || "");
+    const trozos = base.split("/");
+    const y = parseInt(trozos[trozos.length - 1]), x = parseInt(trozos[trozos.length - 2]), z = parseInt(trozos[trozos.length - 3]);
+    const mn = parseFloat(q.get("min")), mx = parseFloat(q.get("max"));
+    const SALIDA = parseInt(q.get("px")) || N, PASO = N / SALIDA;
+    const resp = await original(base, {mode: "cors", signal: opciones && opciones.signal});
+    if (!resp.ok) return resp;
+    const bmp = await w.createImageBitmap(await resp.blob(), {colorSpaceConversion: "none", premultiplyAlpha: "none"});
+    const origen = w.document.createElement("canvas");
+    origen.width = origen.height = N;
+    const oc = origen.getContext("2d", {willReadFrequently: true});
+    oc.drawImage(bmp, 0, 0, N, N);
+    bmp.close();
+    const px = oc.getImageData(0, 0, N, N).data, H = new Float32Array(N * N);
+    for (let i = 0; i < N * N; i++) H[i] = Math.max(0, px[i * 4] * 256 + px[i * 4 + 1] + px[i * 4 + 2] / 256 - 32768);
+    const lat = Math.atan(Math.sinh(Math.PI * (1 - 2 * (y + 0.5) / Math.pow(2, z))));
+    const mpp = 156543.03392 * Math.cos(lat) / Math.pow(2, z);
+    const salida = w.document.createElement("canvas");
+    salida.width = salida.height = SALIDA;
+    const sc = salida.getContext("2d"), img = sc.createImageData(SALIDA, SALIDA), d = img.data;
+    const s = PASO, esc = 2 * s * mpp;
+    for (let j = 0; j < SALIDA; j++) {
+      for (let i = 0; i < SALIDA; i++) {
+        const ix = i * PASO, iy = j * PASO, c = iy * N + ix;
+        const h = H[c];
+        const dx = (H[iy * N + Math.min(N - 1, ix + s)] - H[iy * N + Math.max(0, ix - s)]) * EXAG / esc;
+        const dy = (H[Math.min(N - 1, iy + s) * N + ix] - H[Math.max(0, iy - s) * N + ix]) * EXAG / esc;
+        const luz = (-dx * LX - dy * LY + LZ) / Math.sqrt(dx * dx + dy * dy + 1) / LZ;
+        const lit = Math.min(1.3, Math.max(0.35, 0.3 + 0.7 * luz));
+        const col = color(Math.min(1, Math.max(0, (h - mn) / (mx - mn))));
+        const o = (j * SALIDA + i) * 4;
+        d[o] = Math.min(255, col[0] * lit); d[o + 1] = Math.min(255, col[1] * lit); d[o + 2] = Math.min(255, col[2] * lit); d[o + 3] = 255;
+      }
+    }
+    sc.putImageData(img, 0, 0);
+    const blob = await new Promise(r => salida.toBlob(r, "image/png"));
+    return new Response(blob, {status: 200, headers: {"Content-Type": "image/png"}});
+  }
+  w.fetch = (entrada, opciones) => {
+    const url = typeof entrada === "string" ? entrada : (entrada && entrada.url) || "";
+    if (url.indexOf("y2k_hipso=") < 0) return original(entrada, opciones);
+    return colorear(url, opciones).catch(() => original(entrada, opciones));
+  };
+  w.__y2kHipso = true;
+  w.__y2kHipsoHora = w.performance.now();
+})();
+</script>
+"""
+HIPSOMETRICO = _HIPSOMETRICO.replace("__RAMPA__", json.dumps(RAMPA_ALTURA))
+
+
+def leyenda_altura(minimo, maximo, escala):
+    """Barra de colores con la escala de altitudes (HTML para st.markdown)."""
+    gradiente = ", ".join(f"{c} {t * 100:.0f}%" for t, c in RAMPA_ALTURA)
+    marcas = "".join(f"<span>{_num(minimo + (maximo - minimo) * f)}</span>" for f in (0, 0.25, 0.5, 0.75, 1))
+    return (f'<div style="margin:8px 0 2px"><div style="font-size:12.5px;color:var(--y2k-ink-2)">'
+            f'Altitud (m) · {escala}</div>'
+            f'<div style="height:12px;border-radius:6px;margin:5px 0 3px;border:1px solid var(--y2k-line);'
+            f'background:linear-gradient(90deg,{gradiente})"></div>'
+            f'<div style="display:flex;justify-content:space-between;font-size:12px;color:var(--y2k-ink-3)">{marcas}</div></div>')
 
 
 # Cache propia de imagenes de relieve, compartida por todas las sesiones y segura entre
@@ -154,6 +245,18 @@ _ORBITA = """
   deck.__y2kOriginales = originales;
   const poner = lista => { lista.__y2k = true; deck.setProps({layers: lista}); };
   if (puestas && puestas.__y2k) poner(originales.slice());
+  // Modo "Altura": si el guion que colorea el relieve se instalo tarde, las primeras imagenes llegaron sin colorear;
+  // se vuelve a pedir el relieve una sola vez
+  const terr = originales.find(l => l && l.id === "terreno");
+  const esAltura = !!(terr && typeof terr.props.texture === "string" && terr.props.texture.indexOf("y2k_hipso") >= 0);
+  if (esAltura && w.__y2kHipsoHora && !w.__y2kHipsoRecargado && w.performance.now() - w.__y2kHipsoHora < 20000) {
+    w.__y2kHipsoRecargado = true;
+    const i = originales.findIndex(l => l && l.id === "terreno");
+    if (i >= 0 && typeof originales[i].props.texture === "string") {
+      originales[i] = originales[i].clone({texture: originales[i].props.texture + "&v=2"});
+      poner(originales.slice());
+    }
+  }
 
   // ---- 1. Secuencia de entrada: lineas como lasers, caen los pines, suben las alertas ----
   const quiereMenosMovimiento = w.matchMedia && w.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -827,9 +930,10 @@ def _camino_3d(anillo, base):
 
 
 def construir_deck(cuenca_gdf, area_gdf, estaciones, seleccionada=None, textura="Satélite", paleta=None,
-                   ligero=False):
+                   ligero=False, altura=None):
     """
     ligero: celulares, o despues de que el navegador se quedo sin memoria grafica: menos detalle.
+    altura: (minimo, maximo) en metros para la textura "Altura" (colores segun la altitud del relieve).
     estaciones: lista de dicts con codigo, nombre, lon, lat, altitud, pct, color [r,g,b], ok (bool), zona, alerta.
     Devuelve (deck, orbita). `orbita` trae los parametros de la vuelta de camara (ver `orbitar`):
     alrededor de la estacion seleccionada o, si no hay, del centro de las estaciones.
@@ -864,7 +968,11 @@ def construir_deck(cuenca_gdf, area_gdf, estaciones, seleccionada=None, textura=
     #   conjunto: tiles de 512, malla simple, dibuja 2 veces mas lejos
     #   ligero:   celular o despues de que el navegador se quedo sin memoria
     cerca = elegida is not None and not ligero
-    detalle = {"tiles": 256 if cerca else 512, "malla": 4 if cerca else (10 if ligero else 8),
+    # Modo "Altura": con la escala de Colombia (vista general) se pixela un poco: tiles de 512 (cuatro veces menos),
+    # un nivel menos de detalle e imagen a 128 px. Con la escala de la zona se queda con todo el detalle
+    por_altura = textura == "Altura" and altura is not None
+    pixelado = por_altura and tuple(altura) == ALTURA_COLOMBIA
+    detalle = {"tiles": 256 if (cerca and not pixelado) else 512, "malla": 4 if cerca else (10 if ligero else 8),
                "guardados": 50 if ligero else (100 if cerca else 80), "lejos": 1.8 if ligero else (3 if cerca else 2)}
 
     capas = [pdk.Layer(
@@ -873,11 +981,13 @@ def construir_deck(cuenca_gdf, area_gdf, estaciones, seleccionada=None, textura=
         elevation_decoder={"rScaler": 256 * EXAGERACION, "gScaler": EXAGERACION,
                            "bScaler": EXAGERACION / 256, "offset": (-32768 - base) * EXAGERACION},
         elevation_data=URL_ELEVACION,
-        texture=TEXTURAS.get(textura, TEXTURAS["Satélite"]),
+        texture=(URL_ALTURA.replace("__MIN__", f"{altura[0]:.0f}").replace("__MAX__", f"{altura[1]:.0f}")
+                 .replace("__PX__", "128" if pixelado else "256") if por_altura
+                 else TEXTURAS.get(textura, TEXTURAS["Satélite"])),
         # Los tiles miden 256 px: con tile_size=256 cada pixel de la foto se ve a su tamano real
         # (con 512, el valor normal, se estira al doble); cuesta ~4 veces mas tiles
         tile_size=detalle["tiles"],
-        max_zoom=ZOOM_MAX_TILES,
+        max_zoom=ZOOM_MAX_TILES - 1 if pixelado else ZOOM_MAX_TILES,
         # Error de la malla en metros (mas alto = menos triangulos) y tope de tiles guardados:
         # sin tope, al girar la camara el navegador se queda sin memoria y el 3D se borra
         mesh_max_error=detalle["malla"],

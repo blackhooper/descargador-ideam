@@ -355,7 +355,7 @@ def pantalla_estaciones():
                 # La cubierta "Alistando las estaciones" se ve mientras el servidor arma la escena y el
                 # navegador baja el relieve; el guion de terreno.py la levanta cuando el relieve esta listo
                 with st.container(key="y2k_visor3d"):
-                    estilo.cubierta_3d()
+                    # (sin cubierta de carga: la espera ya la cubre el escaner; la animacion arranca sola cuando llega el relieve)
                     deck, orbita = terreno.construir_deck(cuenca, area if buffer_on else None,
                                                           _estaciones_3d(zona, umbral), ss.estacion_sel, textura,
                                                           PALETA, ligero=_es_celular() or ss.get("modo_3d_ligero", False))

@@ -336,19 +336,19 @@ _ORBITA = """
             const d = s.desde, h = s.hasta, tope = [d[0], d[1], d[2] + (h[2] - d[2]) * k];
             nucleo.push({a: d, b: tope, c: [255, 205, 150, 255]});
             aura.push({a: d, b: tope, c: [255, 122, 26, 90]});
-            bases.push({p: d, r: 130 * E, c: [255, 122, 26, Math.round(150 + 70 * Math.sin(ms / 160))]});
+            bases.push({p: d, r: 80 * E, c: [255, 122, 26, Math.round(110 + 50 * Math.sin(ms / 160))]});
             const k1 = lim(ms / 1100), k2 = lim((ms - 220) / 1250);
-            if (k1 < 1) ondas.push({p: d, r: (100 + 900 * salida(k1)) * E, c: [255, 122, 26, Math.round(230 * (1 - k1) * (1 - k1))]});
-            if (k2 > 0 && k2 < 1) ondas.push({p: d, r: (100 + 1300 * salida(k2)) * E, c: [255, 150, 70, Math.round(230 * (1 - k2) * (1 - k2))]});
+            if (k1 < 1) ondas.push({p: d, r: (60 + 520 * salida(k1)) * E, c: [255, 122, 26, Math.round(150 * (1 - k1) * (1 - k1))]});
+            if (k2 > 0 && k2 < 1) ondas.push({p: d, r: (60 + 750 * salida(k2)) * E, c: [255, 150, 70, Math.round(130 * (1 - k2) * (1 - k2))]});
             const fk = ms / 500;
-            if (fk < 1) destellos.push({p: d, r: (150 + 450 * fk) * E, c: [255, 170, 90, Math.round(200 * (1 - fk))]});
+            if (fk < 1) destellos.push({p: d, r: (100 + 250 * fk) * E, c: [255, 170, 90, Math.round(130 * (1 - fk))]});
           });
           // el fantasma (altitud del catalogo) aparece con un pequeno "pop" cuando el haz llega arriba
           if (fan && ms > SUBIDA * 0.75) {
             const h = lim((ms - SUBIDA * 0.75) / 500), pop = 1 + 0.6 * Math.sin(Math.PI * h) * (1 - 0.4 * h);
             reemplazos.fantasmas = fan.clone({visible: true, radiusMinPixels: 6 * pop, radiusMaxPixels: 14 * pop});
           }
-          refrescar([disco("alerta_destello", destellos), anillo("alerta_ondas", ondas, 3), anillo("alerta_base", bases, 2),
+          refrescar([disco("alerta_destello", destellos), anillo("alerta_ondas", ondas, 2), anillo("alerta_base", bases, 2),
                      dibujaHaz("haces_aura", aura, 12, 8), dibujaHaz("haces", nucleo, 4, 3)]);
         });
         ["saltos", "fantasmas", "fantasmas_texto"].forEach(id => { const l = capa(id); if (l) reemplazos[id] = l.clone({visible: true}); });

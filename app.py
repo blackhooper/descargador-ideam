@@ -11,7 +11,7 @@ import streamlit as st
 import streamlit.components.v1 as components
 from streamlit_folium import st_folium
 
-from modules import (estilo, geo_input, geo_utils, map_view, ideam_catalog, ideam_parameters,
+from modules import (escaner, estilo, geo_input, geo_utils, map_view, ideam_catalog, ideam_parameters,
                      ideam_downloader, panel_estadisticas, terreno, escena_descarga)
 from modules.calidad import filtrar_descargables, clasificar_calidad
 
@@ -22,6 +22,10 @@ for clave, valor in {"paso": "inicio", "cuenca": None, "version_mapa": 0, "estac
                      "_prev_sel": {}, "descarga": None, "resultado": None, "descarga_en_curso": False,
                      "saltos": 0, "tema": "oscuro" if st.query_params.get("tema") == "oscuro" else "claro"}.items():
     ss.setdefault(clave, valor)
+
+# Para saber si el mapa 2D sigue montado en el navegador: si la corrida anterior lo dibujo, es el mismo
+ss._mapa_en_run_anterior = ss.get("_mapa_en_esta_run", False)
+ss._mapa_en_esta_run = False
 
 estilo.aplicar(ss.tema)
 estilo.control_tema()
@@ -170,8 +174,8 @@ def pantalla_inicio():
     _, c1, c2, _ = st.columns([0.5, 2, 2, 0.5], gap="medium")
     with c1, st.container(border=True):
         st.markdown(f'<div class="y2k-card-head">{estilo.ICONO_DIBUJAR}<div><h2>Dibujar en el mapa</h2>'
-                    '<p>Traza un polígono o un rectángulo, mueve sus esquinas y bórralo cuando quieras.</p></div></div>'
-                    '<div class="y2k-chips"><span class="y2k-chip">polígono</span><span class="y2k-chip">rectángulo</span>'
+                    '<p>Traza un rectángulo, mueve sus esquinas y bórralo cuando quieras.</p></div></div>'
+                    '<div class="y2k-chips"><span class="y2k-chip">rectángulo</span>'
                     '<span class="y2k-chip">editar</span><span class="y2k-chip">buffer</span></div>', unsafe_allow_html=True)
         if st.button("Dibujar mi cuenca", type="primary", use_container_width=True):
             ss.cuenca = None
@@ -258,8 +262,8 @@ def pantalla_estaciones():
     with col_ctrl, st.container(border=True):
         st.markdown("### CUENCA")
         if cuenca is None:
-            st.markdown('<p class="y2k-hint">Dibuja tu cuenca con el <b>polígono</b> o el <b>rectángulo</b> (arriba a la '
-                        'izquierda del mapa). Con el <b>lápiz</b> mueves sus esquinas y con la <b>basurita</b> la borras.</p>',
+            st.markdown('<p class="y2k-hint">Dibuja tu cuenca con el <b>rectángulo</b> (arriba a la izquierda del mapa). '
+                        'Con el <b>lápiz</b> mueves sus esquinas y con la <b>basurita</b> la borras.</p>',
                         unsafe_allow_html=True)
         buffer_on = st.toggle("Buffer alrededor de la cuenca", value=True, key="buf_on")
         buffer_km = st.slider("Distancia del buffer (km)", 0.5, 15.0, 2.0, 0.5, key="buf_km", disabled=not buffer_on)
@@ -390,7 +394,15 @@ def pantalla_estaciones():
                 st.markdown(f'<p class="y2k-hint" style="margin-top:10px !important;text-align:right">'
                             f'{estilo.ATRIB_RELIEVE_3D_CORTO}</p>', unsafe_allow_html=True)
         else:
-            base = map_view.mapa_base(cuenca, ss.tema)
+            # El mapa base solo lleva la cuenca cuando el mapa se monta de cero (archivo, volver del 3D,
+            # "Borrar cuenca"). Un rectangulo recien dibujado ya vive en el navegador: meterlo al mapa
+            # base cambiaria el hash del componente y Streamlit lo reconstruiria (pantalla en blanco y
+            # salto de zoom), ademas de llevarse el escaner. Las estaciones y el buffer van aparte.
+            viva = ss._mapa_en_run_anterior and ss.get("_mapa_version") == ss.version_mapa
+            if not viva:
+                ss._base_cuenca = cuenca
+                ss._mapa_version = ss.version_mapa
+            base = map_view.mapa_base(ss.get("_base_cuenca"), ss.tema)
             capa = map_view.capa_dinamica(area if (buffer_on and cuenca is not None) else None, zona, umbral,
                                           ss.estacion_sel, catalogo if cuenca is None else None)
             centro = zoom = None
@@ -405,12 +417,25 @@ def pantalla_estaciones():
             retorno = st_folium(base, key=f"mapa2d_{ss.version_mapa}", height=650, use_container_width=True,
                                 feature_group_to_add=capa, center=centro, zoom=zoom,
                                 returned_objects=["all_drawings", "last_object_clicked"])
+            ss._mapa_en_esta_run = True
             if retorno and retorno.get("all_drawings") is not None:
                 nueva = map_view.cuenca_desde_dibujos(retorno["all_drawings"])
                 if _firma(nueva) != _firma(cuenca):
                     ss.cuenca = nueva
                     ss.estacion_sel = None
                     st.rerun()
+            # Escaner del mapa: el controlador se instala una vez y, al terminar el calculo, se le avisa
+            with st.container(key="y2k_escaner"):
+                escaner.instalar()
+                if cuenca is not None and zona is not None:
+                    hay = len(seleccion) if evaluada and seleccion is not None else len(zona)
+                    if hay:
+                        texto = f"{hay} estación{'es' if hay != 1 else ''} encontrada{'s' if hay != 1 else ''}"
+                    elif zona.empty:
+                        texto = "Sin estaciones aquí · prueba ampliar el buffer"
+                    else:
+                        texto = "Ninguna estación cumple el filtro"
+                    escaner.listo(hay, texto)
             clic = (retorno or {}).get("last_object_clicked")
             if _sincronizar("mapa2d", clic, lambda c: _estacion_cercana(zona, c)):
                 st.rerun()

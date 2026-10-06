@@ -22,6 +22,7 @@ GRIS = "#7C87A3"
 
 
 def mapa_base(cuenca_gdf=None, tema="claro"):
+    """Mapa base de Leaflet. Si `cuenca_gdf` cambia, el componente se reconstruye (ver app.py)."""
     if cuenca_gdf is not None and not cuenca_gdf.empty:
         minx, miny, maxx, maxy = cuenca_gdf.total_bounds
         centro, zoom = [(miny + maxy) / 2, (minx + maxx) / 2], 11
@@ -62,13 +63,16 @@ def mapa_base(cuenca_gdf=None, tema="claro"):
         feature_group=editables,
         position="topleft",
         draw_options={
-            "polyline": False, "circle": False, "circlemarker": False, "marker": False,
-            "polygon": {"allowIntersection": False, "showArea": True, "shapeOptions": estilo},
+            "polyline": False, "circle": False, "circlemarker": False, "marker": False, "polygon": False,
             "rectangle": {"shapeOptions": estilo},
         },
         edit_options={"edit": True, "remove": True},
     ).add_to(m)
     folium.LayerControl(position="topright", collapsed=True).add_to(m)
+    # Creditos de las capas: una linea chica en el borde (el texto completo va en el pie de la app)
+    m.get_root().header.add_child(folium.Element(
+        "<style>.leaflet-control-attribution{font:10px/1.4 Figtree,system-ui,sans-serif !important;"
+        "white-space:nowrap;max-width:75%;overflow:hidden;text-overflow:ellipsis}</style>"))
     if cuenca_gdf is not None and not cuenca_gdf.empty:
         minx, miny, maxx, maxy = cuenca_gdf.total_bounds
         m.fit_bounds([[miny, minx], [maxy, maxx]], padding=(30, 30))
@@ -116,6 +120,16 @@ def _altitud_txt(row):
         return "altitud sin dato"
 
 
+def _marca(marcador, pin=False):
+    """Marca el marcador como estacion ("pin") para que el escaner (modules/escaner.py) lo revele.
+    folium descarta los kwargs que no conoce, por eso se escribe directo en las opciones.
+    OJO: no usar un panel propio para los pines: con prefer_canvas cada panel tiene su canvas del
+    tamano del mapa y el de encima se come los clics del lapiz y la basurita del dibujo."""
+    if pin:
+        marcador.options["y2k"] = "pin"
+    return marcador
+
+
 def capa_dinamica(area_gdf=None, estaciones=None, umbral=0, seleccionada=None, catalogo=None):
     """Capa que cambia sin recargar el mapa: buffer, estaciones y la seleccionada."""
     fg = folium.FeatureGroup(name="Estaciones")
@@ -139,9 +153,9 @@ def capa_dinamica(area_gdf=None, estaciones=None, umbral=0, seleccionada=None, c
             if evaluadas and umbral > 0 and not ok and not es_sel:
                 continue
             if es_sel:
-                folium.CircleMarker(location=[row.geometry.y, row.geometry.x], radius=16, color=AZUL, weight=3,
-                                    fill=True, fill_color="#FFFFFF", fill_opacity=0.35).add_to(fg)
-            folium.CircleMarker(
+                _marca(folium.CircleMarker(location=[row.geometry.y, row.geometry.x], radius=16, color=AZUL,
+                                              weight=3, fill=True, fill_color="#FFFFFF", fill_opacity=0.35)).add_to(fg)
+            _marca(folium.CircleMarker(
                 location=[row.geometry.y, row.geometry.x],
                 radius=9 if es_sel else 7 if ok else 5,
                 # borde naranja = altitud dudosa
@@ -149,7 +163,7 @@ def capa_dinamica(area_gdf=None, estaciones=None, umbral=0, seleccionada=None, c
                 weight=2.5 if es_sel or row.get("altitud_dudosa") else 1.2,
                 fill=ok or es_sel, fill_color=color, fill_opacity=0.95 if ok else 0.4,
                 tooltip=folium.Tooltip(_tarjeta(row, codigo), sticky=True),
-            ).add_to(fg)
+            ), pin=True).add_to(fg)
     elif catalogo is not None and not catalogo.empty:
         # Sin cuenca todavia: el catalogo nacional agrupado, para ubicarse
         FastMarkerCluster(data=list(zip(catalogo.geometry.y, catalogo.geometry.x)), name="Catálogo nacional").add_to(fg)

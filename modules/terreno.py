@@ -193,63 +193,159 @@ _ORBITA = """
       };
       const Punto = (capa("estaciones") || capa("fantasmas") || {}).constructor;
       const Linea = (capa("tallos") || capa("saltos") || {}).constructor;
+      const Trazo = (capa("cuenca") || capa("buffer") || {}).constructor;
+      const encima = {depthCompare: "always"};
+      const lim = (v, a = 0, b = 1) => Math.min(b, Math.max(a, v));
+      const seno = x => -(Math.cos(Math.PI * x) - 1) / 2;
+      const salida = x => 1 - Math.pow(1 - x, 3);
+      const conAlfa = (c, a) => [c[0], c[1], c[2], Math.round(lim(a, 0, 255))];
 
-      // Las lineas de la cuenca y del buffer se dibujan de a poco, con un punto brillante en la punta
-      const trazos = ["cuenca", "buffer"].map(capa).filter(Boolean);
-      if (trazos.length && Punto) {
-        await durante(2600, t => {
-          const p = ease(t), puntas = [];
-          trazos.forEach(l => {
-            const datos = l.props.data.map(r => {
-              const n = r.path.length, k = Math.min(n, Math.max(2, Math.round(p * (n - 1)) + 1));
-              const tramo = r.path.slice(0, k);
-              puntas.push({p: tramo[tramo.length - 1]});
-              return {...r, path: tramo};
-            });
-            reemplazos[l.id] = l.clone({visible: true, data: datos});
+      // Haz vertical con degradado: segmentos apilados que se desvanecen hacia arriba
+      const haz = (base, alto, color, alfa, partes = 8) => {
+        const r = [];
+        for (let k = 0; k < partes; k++) {
+          r.push({a: [base[0], base[1], base[2] + alto * k / partes], b: [base[0], base[1], base[2] + alto * (k + 1) / partes],
+                  c: conAlfa(color, alfa * Math.pow(1 - k / partes, 1.6))});
+        }
+        return r;
+      };
+      const dibujaHaz = (id, datos, ancho, minPx) => new Linea({id, data: datos, getSourcePosition: d => d.a,
+        getTargetPosition: d => d.b, getColor: d => d.c, getWidth: ancho, widthMinPixels: minPx, parameters: encima});
+      // Circulo plano sobre el terreno: solo contorno (onda) o relleno (destello)
+      const anillo = (id, datos, px) => new Punto({id, data: datos, getPosition: d => d.p, getRadius: d => d.r, filled: false,
+        stroked: true, getLineColor: d => d.c, getLineWidth: px, lineWidthUnits: "pixels", billboard: false, parameters: encima});
+      const disco = (id, datos) => new Punto({id, data: datos, getPosition: d => d.p, getRadius: d => d.r, getFillColor: d => d.c,
+        filled: true, stroked: false, billboard: false, parameters: encima});
+
+      // Largo acumulado de un camino (en grados, corregido por la latitud) y recorte hasta una fraccion
+      const largo = (a, b) => Math.hypot((b[0] - a[0]) * Math.cos(a[1] * Math.PI / 180), b[1] - a[1]);
+      const medir = camino => { const ac = [0]; for (let i = 1; i < camino.length; i++) ac.push(ac[i - 1] + largo(camino[i - 1], camino[i])); return ac; };
+      const recortar = (camino, ac, f) => {
+        const n = camino.length, L = ac[n - 1] * f;
+        let i = 1; while (i < n - 1 && ac[i] < L) i++;
+        const s = lim((L - ac[i - 1]) / ((ac[i] - ac[i - 1]) || 1)), a = camino[i - 1], b = camino[i];
+        const punta = [a[0] + (b[0] - a[0]) * s, a[1] + (b[1] - a[1]) * s, (a[2] || 0) + ((b[2] || 0) - (a[2] || 0)) * s];
+        return [camino.slice(0, i).concat([punta]), punta];
+      };
+
+      // ---- Fase 1: dos lasers (cuenca azul, buffer amarillo) bajan del cielo y dibujan su perimetro ----
+      const ALTO_HAZ = 2600;
+      const LASERES = [{id: "cuenca", color: [90, 162, 245], ini: 0, dur: 1900},
+                       {id: "buffer", color: [250, 178, 25], ini: 350, dur: 1900}]
+        .map(d => ({...d, capa: capa(d.id)})).filter(d => d.capa);
+      if (LASERES.length && Punto && Linea && Trazo && vigente()) {
+        LASERES.forEach(L => { L.medidas = L.capa.props.data.map(r => medir(r.path)); });
+        const COLA = 700, TOTAL_L = Math.max(...LASERES.map(L => L.ini + L.dur)) + COLA;
+        await durante(TOTAL_L, t => {
+          const ms = t * TOTAL_L, extra = [];
+          LASERES.forEach(L => {
+            const lt = (ms - L.ini) / L.dur, dt = ms - (L.ini + L.dur);
+            if (lt <= 0) { reemplazos[L.id] = L.capa.clone({visible: false}); return; }
+            const f = lt >= 1 ? 1 : seno(lt), puntas = [];
+            const datos = L.capa.props.data.map((r, i) => { const [tramo, punta] = recortar(r.path, L.medidas[i], f); puntas.push(punta); return {...r, path: tramo}; });
+            reemplazos[L.id] = L.capa.clone({visible: true, data: datos});
+            // resplandor del trazo: constante mientras dibuja; al cerrarse destella y se apaga en 0,6 s
+            const brillo = lt < 1 ? 1 : lim(1 - dt / 600), pulso = lt < 1 ? 1 : 1 + 0.9 * Math.exp(-dt / 140);
+            if (brillo > 0.001) {
+              extra.push(new Trazo({id: "glow_" + L.id, data: datos, getPath: r => r.path, getColor: conAlfa(L.color, 70 * brillo * pulso),
+                getWidth: 140 * pulso, widthMinPixels: 12 * pulso, capRounded: true, jointRounded: true, parameters: encima}));
+            }
+            // haz de luz desde el cielo hasta la punta; al cerrar la figura se eleva y se desvanece
+            const subida = lt < 1 ? 0 : lim(dt / 300), alfaH = lt < 1 ? lim(lt / 0.08) : 1 - subida;
+            if (alfaH > 0.001) {
+              const alzar = ALTO_HAZ * subida * subida, ps = puntas.slice(0, 4), fl = 1 + 0.12 * Math.sin(ms / 25);
+              const nucleo = [], aura = [];
+              ps.forEach(p => { const b = [p[0], p[1], p[2] + alzar]; nucleo.push(...haz(b, ALTO_HAZ, [255, 255, 255], 255 * alfaH)); aura.push(...haz(b, ALTO_HAZ, L.color, 150 * alfaH)); });
+              extra.push(dibujaHaz("haz_g_" + L.id, aura, 14, 8), dibujaHaz("haz_n_" + L.id, nucleo, 3, 2));
+              const pts = ps.map(p => ({p}));
+              extra.push(new Punto({id: "flare_" + L.id, data: pts, getPosition: d => d.p, getFillColor: conAlfa(L.color, 120 * alfaH), getRadius: 90,
+                              radiusMinPixels: 14 * fl, radiusMaxPixels: (30 + 20 * subida) * fl, billboard: true, parameters: encima}),
+                         new Punto({id: "punta_" + L.id, data: pts, getPosition: d => d.p, getFillColor: conAlfa([255, 255, 255], 255 * alfaH), getRadius: 40,
+                              radiusMinPixels: 5, radiusMaxPixels: 10, billboard: true, parameters: encima}));
+            }
           });
-          refrescar([new Punto({id: "laser", data: puntas, getPosition: x => x.p, getFillColor: [255, 255, 255, 255],
-                                getRadius: 80, radiusMinPixels: 6, radiusMaxPixels: 12, billboard: true,
-                                parameters: {depthCompare: "always"}})]);
+          refrescar(extra);
         });
-        trazos.forEach(l => { reemplazos[l.id] = l.clone({visible: true}); });
+        LASERES.forEach(L => { reemplazos[L.id] = L.capa.clone({visible: true}); });
+        refrescar();
+      } else {
+        ["cuenca", "buffer"].forEach(id => { const l = capa(id); if (l) reemplazos[id] = l.clone({visible: true}); });
         refrescar();
       }
+      await esperar(150);
 
-      // Los pines caen del cielo uno tras otro
+      // ---- Fase 2: las estaciones caen una tras otra (el ultimo aterriza siempre al mismo tiempo, sea cual sea N) ----
       const cab = capa("estaciones"), tal = capa("tallos");
-      if (cab && vigente()) {
+      if (cab && Punto && Linea && vigente()) {
         const datosC = cab.props.data, datosT = tal ? tal.props.data : [];
-        const n = datosC.length, PASO = Math.min(110, 1500 / Math.max(1, n)), CAIDA = 800, ALTURA = 3000;
-        const total = (n - 1) * PASO + CAIDA;
+        const n = datosC.length, CAIDA = 900, REPARTO = 3200, ALTURA = 3000, COLA_D = 750;
+        const paso = n > 1 ? (REPARTO - CAIDA) / (n - 1) : 0;
+        // orden aleatorio, pero siempre el mismo para un mismo conjunto
+        let sem = 12345; const azar = () => { sem = (Math.imul(sem, 1664525) + 1013904223) >>> 0; return sem / 4294967296; };
+        const orden = datosC.map((_, i) => i);
+        for (let i = n - 1; i > 0; i--) { const j = Math.floor(azar() * (i + 1)); [orden[i], orden[j]] = [orden[j], orden[i]]; }
+        const inicio = new Array(n);
+        orden.forEach((si, k) => { inicio[si] = k * paso; });
+        const total = (n > 1 ? REPARTO : CAIDA) + COLA_D;
         await durante(total, t => {
-          const ms = t * total, idx = [], desp = [];
+          const ms = t * total, idx = [], desp = [], esc = [], opaco = [], estelas = [], sombras = [], ondas = [];
           for (let i = 0; i < n; i++) {
-            const u = (ms - i * PASO) / CAIDA;
+            const u = (ms - inicio[i]) / CAIDA;
             if (u <= 0) continue;
-            idx.push(i); desp.push(u >= 1 ? 0 : ALTURA * (1 - u * u));
+            const q = lim(u), dt = ms - inicio[i] - CAIDA, c = datosC[i], tl = datosT[i];
+            let dz = q < 1 ? ALTURA * (1 - q * q) : 0, e = 1;
+            if (dt >= 0) {
+              if (dt < 320) dz += 90 * Math.sin(Math.PI * dt / 320) * (1 - dt / 320);   // rebote
+              e = 1 + 0.35 * (1 - lim(dt / 180));                                         // golpe al aterrizar
+            }
+            idx.push(i); desp.push(dz); esc.push(e); opaco.push(255 * lim(q * 6));
+            const suelo = tl ? tl.desde : c.pos, col = c.rgb || [255, 255, 255];
+            if (q < 1) estelas.push(...haz([c.pos[0], c.pos[1], c.pos[2] + dz], 500 + 1500 * q, col, 200 * q, 5));
+            const so = q < 1 ? 0.45 * q * q : 0.45 * lim(1 - dt / 400);
+            if (so > 0.005) sombras.push({p: suelo, r: 140 * (2.4 - 1.4 * q), c: [0, 0, 0, Math.round(255 * so)]});
+            if (dt >= 0 && dt < 700) { const k = dt / 700; ondas.push({p: suelo, r: 80 + 800 * salida(k), c: conAlfa(col, 230 * (1 - k) * (1 - k))}); }
           }
           reemplazos.estaciones = cab.clone({visible: true, data: idx.map(i => datosC[i]),
-            getPosition: (x, o) => [x.pos[0], x.pos[1], x.pos[2] + desp[o.index]], updateTriggers: {getPosition: [ms]}});
-          if (tal) reemplazos.tallos = tal.clone({visible: true, data: idx.map(i => datosT[i]).filter(Boolean),
+            getPosition: (x, o) => [x.pos[0], x.pos[1], x.pos[2] + desp[o.index]],
+            getRadius: (x, o) => x.radio * esc[o.index],
+            getFillColor: (x, o) => [...x.rgb, opaco[o.index]],
+            updateTriggers: {getPosition: [ms], getRadius: [ms], getFillColor: [ms]}});
+          if (tal && datosT.length === n) reemplazos.tallos = tal.clone({visible: true, data: idx.map(i => datosT[i]),
             getSourcePosition: (x, o) => [x.desde[0], x.desde[1], x.desde[2] + desp[o.index]],
             getTargetPosition: (x, o) => [x.hasta[0], x.hasta[1], x.hasta[2] + desp[o.index]],
             updateTriggers: {getSourcePosition: [ms], getTargetPosition: [ms]}});
-          refrescar();
+          refrescar([disco("sombras", sombras), dibujaHaz("estelas", estelas, 3, 2), anillo("ondas_pin", ondas, 3)]);
         });
         reemplazos.estaciones = cab.clone({visible: true});
         if (tal) reemplazos.tallos = tal.clone({visible: true});
         refrescar();
       }
 
-      // Al final, las alertas de altitud suben como haces de luz naranja
-      const sal = capa("saltos");
-      if (sal && Linea && vigente()) {
-        await durante(1000, t => {
-          refrescar([new Linea({id: "haces", data: sal.props.data, getSourcePosition: x => x.desde,
-            getTargetPosition: x => [x.desde[0], x.desde[1], x.desde[2] + 2200 * ease(t)],
-            getColor: [236, 131, 90, 230], getWidth: 6, widthMinPixels: 4, parameters: {depthCompare: "always"},
-            updateTriggers: {getTargetPosition: [t]}})]);
+      // ---- Fase 3: las altitudes dudosas salen del suelo a la vez como haces naranjas, con doble onda y destello ----
+      const sal = capa("saltos"), fan = capa("fantasmas");
+      if (sal && Linea && Punto && vigente()) {
+        const datosS = sal.props.data, SUBIDA = 1300, TOTAL_A = 2000;
+        await durante(TOTAL_A, t => {
+          const ms = t * TOTAL_A, k = salida(lim(ms / SUBIDA));
+          const nucleo = [], aura = [], bases = [], ondas = [], destellos = [];
+          datosS.forEach(s => {
+            const d = s.desde, h = s.hasta, tope = [d[0], d[1], d[2] + (h[2] - d[2]) * k];
+            nucleo.push({a: d, b: tope, c: [255, 205, 150, 255]});
+            aura.push({a: d, b: tope, c: [255, 122, 26, 90]});
+            bases.push({p: d, r: 130, c: [255, 122, 26, Math.round(150 + 70 * Math.sin(ms / 160))]});
+            const k1 = lim(ms / 1100), k2 = lim((ms - 220) / 1250);
+            if (k1 < 1) ondas.push({p: d, r: 100 + 900 * salida(k1), c: [255, 122, 26, Math.round(230 * (1 - k1) * (1 - k1))]});
+            if (k2 > 0 && k2 < 1) ondas.push({p: d, r: 100 + 1300 * salida(k2), c: [255, 150, 70, Math.round(230 * (1 - k2) * (1 - k2))]});
+            const fk = ms / 500;
+            if (fk < 1) destellos.push({p: d, r: 150 + 450 * fk, c: [255, 170, 90, Math.round(200 * (1 - fk))]});
+          });
+          // el fantasma (altitud del catalogo) aparece con un pequeno "pop" cuando el haz llega arriba
+          if (fan && ms > SUBIDA * 0.75) {
+            const h = lim((ms - SUBIDA * 0.75) / 500), pop = 1 + 0.6 * Math.sin(Math.PI * h) * (1 - 0.4 * h);
+            reemplazos.fantasmas = fan.clone({visible: true, radiusMinPixels: 6 * pop, radiusMaxPixels: 14 * pop});
+          }
+          refrescar([disco("alerta_destello", destellos), anillo("alerta_ondas", ondas, 3), anillo("alerta_base", bases, 2),
+                     dibujaHaz("haces_aura", aura, 12, 8), dibujaHaz("haces", nucleo, 4, 3)]);
         });
         ["saltos", "fantasmas", "fantasmas_texto"].forEach(id => { const l = capa(id); if (l) reemplazos[id] = l.clone({visible: true}); });
         refrescar();

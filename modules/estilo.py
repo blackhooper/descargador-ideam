@@ -19,9 +19,8 @@ FUENTE = {
 # Creditos de las capas de mapa (cada proveedor pide su atribucion). Los textos cortos van en el
 # borde de cada mapa; este bloque es la version completa del pie. Revisar los textos de Esri en
 # https://developers.arcgis.com/documentation/mapping-apis-and-services/deployment/basemap-attribution/
-ATRIB_ESRI_SATELITE = "Powered by Esri · Esri, Maxar, Earthstar Geographics y la comunidad de usuarios de GIS"
-ATRIB_ESRI_RELIEVE = ("Powered by Esri · Esri, HERE, Garmin, FAO, NOAA, USGS, © colaboradores de OpenStreetMap "
-                      "y la comunidad de usuarios de GIS")
+ATRIB_ESRI_SATELITE = "Powered by Esri · Maxar, Earthstar Geographics"
+ATRIB_ESRI_RELIEVE = "Powered by Esri · HERE, Garmin, FAO, NOAA, USGS, OpenStreetMap"
 ATRIB_NASA = "NASA EOSDIS GIBS"
 ATRIB_RELIEVE_3D = ("Relieve 3D: modelo de elevación Terrarium (Mapzen, AWS Open Data), construido con datos SRTM y "
                     "GMTED2010, cortesía del U.S. Geological Survey, entre otras fuentes")
@@ -92,7 +91,7 @@ html, body, .stApp, [class*="st-"], button, input, textarea, select{font-family:
   box-shadow:0 1px 0 var(--y2k-brillo) inset,0 4px 12px -6px var(--y2k-sombra)}
 .y2k-manual:hover{color:var(--y2k-accent) !important;border-color:var(--y2k-accent)}
 .y2k-manual svg{width:16px;height:16px}
-.st-key-y2k_orbita{height:0;overflow:hidden;margin:0}
+.st-key-y2k_orbita,.st-key-y2k_escaner{height:0;overflow:hidden;margin:0}
 /* aviso cuando el navegador se queda sin memoria grafica (lo pone el vigia del 3D) */
 .y2k-sin-memoria{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:6;width:min(360px,86%);
   display:flex;flex-direction:column;gap:6px;padding:16px 18px;border-radius:14px;text-align:center;

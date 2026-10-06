@@ -158,6 +158,9 @@ _ORBITA = """
   // ---- 1. Secuencia de entrada: lineas como lasers, caen los pines, suben las alertas ----
   const quiereMenosMovimiento = w.matchMedia && w.matchMedia("(prefers-reduced-motion: reduce)").matches;
   const conIntro = O.intro && !quiereMenosMovimiento && originales.length > 0;
+  let enIntro = conIntro, vueltaIniciada = false;
+  // Tamano de los efectos segun lo lejos que mira la camara (E = 1 a 4 km)
+  const DIST = O.distancia || 4000, E = DIST / 4000;
   const capa = id => originales.find(l => l && l.id === id);
   const ID_SECUENCIA = ["cuenca", "buffer", "tallos", "estaciones", "saltos", "fantasmas", "fantasmas_texto"];
   const reemplazos = {};
@@ -183,6 +186,7 @@ _ORBITA = """
 
   if (conIntro) {
     await esperar(500);
+    vuelta();   // la camara empieza a moverse con los lasers, antes de que caigan los pines
     try {
       const ease = t => t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
       const cuadro = () => new Promise(r => w.requestAnimationFrame(r));
@@ -229,7 +233,7 @@ _ORBITA = """
       };
 
       // ---- Fase 1: dos lasers (cuenca azul, buffer amarillo) bajan del cielo y dibujan su perimetro ----
-      const ALTO_HAZ = 2600;
+      const ALTO_HAZ = 0.65 * DIST;
       const LASERES = [{id: "cuenca", color: [90, 162, 245], ini: 0, dur: 1900},
                        {id: "buffer", color: [250, 178, 25], ini: 350, dur: 1900}]
         .map(d => ({...d, capa: capa(d.id)})).filter(d => d.capa);
@@ -278,7 +282,7 @@ _ORBITA = """
       const cab = capa("estaciones"), tal = capa("tallos");
       if (cab && Punto && Linea && vigente()) {
         const datosC = cab.props.data, datosT = tal ? tal.props.data : [];
-        const n = datosC.length, CAIDA = 900, REPARTO = 3200, ALTURA = 3000, COLA_D = 750;
+        const n = datosC.length, CAIDA = 1500, REPARTO = 3800, ALTURA = 0.7 * DIST, COLA_D = 850;
         const paso = n > 1 ? (REPARTO - CAIDA) / (n - 1) : 0;
         // orden aleatorio, pero siempre el mismo para un mismo conjunto
         let sem = 12345; const azar = () => { sem = (Math.imul(sem, 1664525) + 1013904223) >>> 0; return sem / 4294967296; };
@@ -295,15 +299,15 @@ _ORBITA = """
             const q = lim(u), dt = ms - inicio[i] - CAIDA, c = datosC[i], tl = datosT[i];
             let dz = q < 1 ? ALTURA * (1 - q * q) : 0, e = 1;
             if (dt >= 0) {
-              if (dt < 320) dz += 90 * Math.sin(Math.PI * dt / 320) * (1 - dt / 320);   // rebote
+              if (dt < 320) dz += 90 * E * Math.sin(Math.PI * dt / 320) * (1 - dt / 320);   // rebote
               e = 1 + 0.35 * (1 - lim(dt / 180));                                         // golpe al aterrizar
             }
             idx.push(i); desp.push(dz); esc.push(e); opaco.push(255 * lim(q * 6));
             const suelo = tl ? tl.desde : c.pos, col = c.rgb || [255, 255, 255];
-            if (q < 1) estelas.push(...haz([c.pos[0], c.pos[1], c.pos[2] + dz], 500 + 1500 * q, col, 200 * q, 5));
+            if (q < 1) estelas.push(...haz([c.pos[0], c.pos[1], c.pos[2] + dz], (500 + 1500 * q) * E, col, 200 * q, 5));
             const so = q < 1 ? 0.45 * q * q : 0.45 * lim(1 - dt / 400);
-            if (so > 0.005) sombras.push({p: suelo, r: 140 * (2.4 - 1.4 * q), c: [0, 0, 0, Math.round(255 * so)]});
-            if (dt >= 0 && dt < 700) { const k = dt / 700; ondas.push({p: suelo, r: 80 + 800 * salida(k), c: conAlfa(col, 230 * (1 - k) * (1 - k))}); }
+            if (so > 0.005) sombras.push({p: suelo, r: 140 * E * (2.4 - 1.4 * q), c: [0, 0, 0, Math.round(255 * so)]});
+            if (dt >= 0 && dt < 700) { const k = dt / 700; ondas.push({p: suelo, r: (80 + 800 * salida(k)) * E, c: conAlfa(col, 230 * (1 - k) * (1 - k))}); }
           }
           reemplazos.estaciones = cab.clone({visible: true, data: idx.map(i => datosC[i]),
             getPosition: (x, o) => [x.pos[0], x.pos[1], x.pos[2] + desp[o.index]],
@@ -332,12 +336,12 @@ _ORBITA = """
             const d = s.desde, h = s.hasta, tope = [d[0], d[1], d[2] + (h[2] - d[2]) * k];
             nucleo.push({a: d, b: tope, c: [255, 205, 150, 255]});
             aura.push({a: d, b: tope, c: [255, 122, 26, 90]});
-            bases.push({p: d, r: 130, c: [255, 122, 26, Math.round(150 + 70 * Math.sin(ms / 160))]});
+            bases.push({p: d, r: 130 * E, c: [255, 122, 26, Math.round(150 + 70 * Math.sin(ms / 160))]});
             const k1 = lim(ms / 1100), k2 = lim((ms - 220) / 1250);
-            if (k1 < 1) ondas.push({p: d, r: 100 + 900 * salida(k1), c: [255, 122, 26, Math.round(230 * (1 - k1) * (1 - k1))]});
-            if (k2 > 0 && k2 < 1) ondas.push({p: d, r: 100 + 1300 * salida(k2), c: [255, 150, 70, Math.round(230 * (1 - k2) * (1 - k2))]});
+            if (k1 < 1) ondas.push({p: d, r: (100 + 900 * salida(k1)) * E, c: [255, 122, 26, Math.round(230 * (1 - k1) * (1 - k1))]});
+            if (k2 > 0 && k2 < 1) ondas.push({p: d, r: (100 + 1300 * salida(k2)) * E, c: [255, 150, 70, Math.round(230 * (1 - k2) * (1 - k2))]});
             const fk = ms / 500;
-            if (fk < 1) destellos.push({p: d, r: 150 + 450 * fk, c: [255, 170, 90, Math.round(200 * (1 - fk))]});
+            if (fk < 1) destellos.push({p: d, r: (150 + 450 * fk) * E, c: [255, 170, 90, Math.round(200 * (1 - fk))]});
           });
           // el fantasma (altitud del catalogo) aparece con un pequeno "pop" cuando el haz llega arriba
           if (fan && ms > SUBIDA * 0.75) {
@@ -355,9 +359,13 @@ _ORBITA = """
     if (vigente()) poner(originales.slice());
   }
   if (!vigente()) return;
+  enIntro = false;
+  vuelta();   // si ya arranco durante la intro, no hace nada
 
   // ---- 3. Vuelta de camara ----
-  await esperar(300);
+  function vuelta() {
+  if (vueltaIniciada) return;
+  vueltaIniciada = true;
   let parar = false;
   const detener = () => { parar = true; };
   const zona = d.querySelector('[data-testid="stDeckGlJsonChart"]');
@@ -383,7 +391,10 @@ _ORBITA = """
   const mover = cambios => {
     const actual = deck.props.viewState || {};
     const nueva = {...actual, ...cambios};
-    if (typeof deck.props.onViewStateChange === "function") {
+    if (enIntro) {
+      // durante la intro Streamlit no debe re-dibujar (borraria las capas animadas): se mueve la vista directo
+      deck.setProps({viewState: nueva});
+    } else if (typeof deck.props.onViewStateChange === "function") {
       deck.props.onViewStateChange({viewState: nueva, oldViewState: actual, interactionState: {}, viewId: "default-view"});
     } else {
       deck.setProps({viewState: nueva});
@@ -403,6 +414,7 @@ _ORBITA = """
     if (t < VUELTA) w.requestAnimationFrame(cuadro);
   };
   w.requestAnimationFrame(cuadro);
+  }
 })();
 </script>
 """
@@ -741,7 +753,7 @@ def _parametros_orbita(lon, lat, t0, z_min, z_max, alcance, pitch_max=PITCH_MAX)
     abierto = max(range(n), key=lambda i: suaves[i])   # arranca por el lado mas despejado
     rumbo = ((abierto * 10 + 180) + 180) % 360 - 180    # la camara mira hacia el lado opuesto
     return {
-        "lon": lon, "lat": lat, "zoom": round(zoom, 3), "pivote": round((z_min + z_max) / 2, 1),
+        "distancia": round(distancia), "lon": lon, "lat": lat, "zoom": round(zoom, 3), "pivote": round((z_min + z_max) / 2, 1),
         "rumbo": rumbo, "pitch": [round(p, 1) for p in suaves],
         "inicio": {"zoom": round(zoom - 1.2, 3), "pitch": round(max(25.0, suaves[abierto] - 20), 1),
                    "bearing": rumbo - 35},
@@ -795,16 +807,22 @@ def _anillos(gdf):
             if parte.geom_type != "Polygon":
                 continue
             borde = parte.exterior
-            n = max(40, min(160, int(borde.length / 0.002)))
+            n = max(40, min(3000, int(borde.length / 0.0006)))
             anillos.append([borde.interpolate(i / n, normalized=True).coords[0] for i in range(n + 1)])
     return anillos
 
 
 def _camino_3d(anillo, base):
+    """Contorno pegado al relieve. El relieve que dibuja el navegador es mas fino y distinto al que
+    se consulta aqui (nivel 12), asi que se toma el punto mas alto de los alrededores y se sube un
+    poco: de otro modo las lomas tapaban tramos de la linea."""
     puntos = []
+    d = 0.0003  # ~33 m
     for lon, lat in anillo:
-        z = altura_terreno(lon, lat)
-        puntos.append([lon, lat, ((z if z is not None else base) - base) * EXAGERACION + 25])
+        alturas = [altura_terreno(lon + dx, lat + dy) for dx, dy in ((0, 0), (d, 0), (-d, 0), (0, d), (0, -d))]
+        alturas = [a for a in alturas if a is not None]
+        z = max(alturas) if alturas else None
+        puntos.append([lon, lat, ((z if z is not None else base) - base) * EXAGERACION + 60])
     return puntos
 
 
@@ -875,10 +893,12 @@ def construir_deck(cuenca_gdf, area_gdf, estaciones, seleccionada=None, textura=
 
     if area_gdf is not None:
         capas.append(pdk.Layer("PathLayer", id="buffer", data=[{"path": _camino_3d(a, base)} for a in anillos_area],
-                               get_path="path", get_color=[250, 178, 25, 230], width_min_pixels=2, get_width=20))
+                               get_path="path", get_color=[250, 178, 25, 230], width_min_pixels=2, get_width=20,
+                               billboard=True))
     if cuenca_gdf is not None:
         capas.append(pdk.Layer("PathLayer", id="cuenca", data=[{"path": _camino_3d(a, base)} for a in anillos_cuenca],
-                               get_path="path", get_color=[90, 162, 245, 255], width_min_pixels=3, get_width=30))
+                               get_path="path", get_color=[90, 162, 245, 255], width_min_pixels=3, get_width=30,
+                               billboard=True))
 
     # Pines: tallo desde el terreno y cabeza redonda arriba
     tallos, cabezas = [], []
@@ -888,8 +908,13 @@ def construir_deck(cuenca_gdf, area_gdf, estaciones, seleccionada=None, textura=
         es_sel = e["codigo"] == seleccionada
         alto = ALTO_PIN_SEL if es_sel else 170 if e["ok"] else 90
         color = [255, 255, 255] if es_sel else e["color"] if e["ok"] else [150, 160, 180]
-        tallos.append({"desde": [e["lon"], e["lat"], z], "hasta": [e["lon"], e["lat"], z + alto * EXAGERACION]})
-        cabezas.append({**e, "pos": [e["lon"], e["lat"], z + alto * EXAGERACION], "rgb": color,
+        # Si la altitud es dudosa, el pin marca el terreno real: sin tallo y casi al ras del suelo, para que
+        # no parezca que la estacion esta elevada; lo unico vertical es el haz naranja hacia el catalogo
+        con_fantasma = bool(e.get("dudosa") and e.get("altitud") is not None and e.get("terreno") is not None)
+        alto_z = 35 if con_fantasma else alto * EXAGERACION
+        # el tallo se queda en la lista (con largo cero) porque la animacion de entrada lo busca por posicion
+        tallos.append({"desde": [e["lon"], e["lat"], z], "hasta": [e["lon"], e["lat"], z + (0 if con_fantasma else alto_z)]})
+        cabezas.append({**e, "pos": [e["lon"], e["lat"], z + alto_z], "rgb": color,
                         "radio": 90 if es_sel else 60 if e["ok"] else 35,
                         "borde": [22, 33, 58] if not es_sel else [28, 111, 216]})
     capas.append(pdk.Layer("LineLayer", id="tallos", data=tallos, get_source_position="desde",

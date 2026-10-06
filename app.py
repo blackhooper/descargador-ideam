@@ -365,6 +365,7 @@ def pantalla_estaciones():
                 # Vuelta de camara: alrededor de la estacion recien elegida o, sin seleccion, alrededor
                 # del centro de las estaciones (al abrir el 3D, al cambiar las estaciones o al quitar la seleccion)
                 pedida = ss.pop("_orbitar", False)
+                repetir = ss.pop("_repetir_intro", False)   # boton temporal "Repetir animacion"
                 entro_3d = ss.get("_vista_prev") != "3D"
                 if ss.estacion_sel:
                     disparar = cambio_sel or pedida or entro_3d
@@ -373,13 +374,14 @@ def pantalla_estaciones():
                     disparar = entro_3d or firma != ss.get("_orbita_firma") or ss.get("_sel_prev") is not None
                     ss._orbita_firma = firma
                 ss._sel_prev = ss.estacion_sel
+                disparar = disparar or repetir
                 if disparar:
                     ss.saltos += 1
                     ss.orbita = ss.saltos
                 # Secuencia de entrada (lasers, caida de pines, alertas): una sola vez por cuenca/buffer.
                 # Se ata al turno de la vuelta para que el guion no cambie entre una recarga y otra
                 firma_intro = json.dumps([[round(float(c), 5) for c in area.total_bounds], bool(buffer_on)])
-                if disparar and ss.get("_intro_firma") != firma_intro:
+                if disparar and (ss.get("_intro_firma") != firma_intro or repetir):
                     ss._intro_firma = firma_intro
                     ss._intro_turno = ss.orbita
                 intro = ss.get("_intro_turno") == ss.get("orbita")
@@ -390,6 +392,9 @@ def pantalla_estaciones():
                     # Botones ocultos: los pulsa el aviso de "sin memoria grafica" que pone EXTRAS_3D
                     st.button("Recargar vista 3D", key="y2k_recargar3d", on_click=_recargar_3d)
                     st.button("Ver en 2D", key="y2k_pasar2d", on_click=_pasar_a_2d)
+                # TEMPORAL: para ver la animacion de entrada otra vez mientras se ajusta
+                st.button("▶ Repetir animación (temporal)", key="y2k_repetir_intro",
+                          on_click=lambda: ss.update(_repetir_intro=True))
                 st.caption("Relieve ×2 · toca el mapa para detener la vuelta · Ctrl + arrastrar para girar e inclinar")
                 st.markdown(f'<p class="y2k-hint" style="margin-top:10px !important;text-align:right">'
                             f'{estilo.ATRIB_RELIEVE_3D_CORTO}</p>', unsafe_allow_html=True)

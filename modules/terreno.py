@@ -186,7 +186,6 @@ _ORBITA = """
 
   if (conIntro) {
     await esperar(500);
-    vuelta();   // la camara empieza a moverse con los lasers, antes de que caigan los pines
     try {
       const ease = t => t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
       const cuadro = () => new Promise(r => w.requestAnimationFrame(r));
@@ -277,6 +276,7 @@ _ORBITA = """
         refrescar();
       }
       await esperar(150);
+      vuelta();   // la camara empieza a moverse justo antes de que caigan los pines
 
       // ---- Fase 2: las estaciones caen una tras otra (el ultimo aterriza siempre al mismo tiempo, sea cual sea N) ----
       const cab = capa("estaciones"), tal = capa("tallos");
@@ -307,7 +307,7 @@ _ORBITA = """
             if (q < 1) estelas.push(...haz([c.pos[0], c.pos[1], c.pos[2] + dz], (500 + 1500 * q) * E, col, 200 * q, 5));
             const so = q < 1 ? 0.45 * q * q : 0.45 * lim(1 - dt / 400);
             if (so > 0.005) sombras.push({p: suelo, r: 140 * E * (2.4 - 1.4 * q), c: [0, 0, 0, Math.round(255 * so)]});
-            if (dt >= 0 && dt < 700) { const k = dt / 700; ondas.push({p: suelo, r: (80 + 800 * salida(k)) * E, c: conAlfa(col, 230 * (1 - k) * (1 - k))}); }
+            if (dt >= 0 && dt < 700) { const k = dt / 700; ondas.push({p: suelo, r: (40 + 340 * salida(k)) * E, c: conAlfa(col, 120 * (1 - k) * (1 - k))}); }
           }
           reemplazos.estaciones = cab.clone({visible: true, data: idx.map(i => datosC[i]),
             getPosition: (x, o) => [x.pos[0], x.pos[1], x.pos[2] + desp[o.index]],
@@ -318,7 +318,7 @@ _ORBITA = """
             getSourcePosition: (x, o) => [x.desde[0], x.desde[1], x.desde[2] + desp[o.index]],
             getTargetPosition: (x, o) => [x.hasta[0], x.hasta[1], x.hasta[2] + desp[o.index]],
             updateTriggers: {getSourcePosition: [ms], getTargetPosition: [ms]}});
-          refrescar([disco("sombras", sombras), dibujaHaz("estelas", estelas, 3, 2), anillo("ondas_pin", ondas, 3)]);
+          refrescar([disco("sombras", sombras), dibujaHaz("estelas", estelas, 3, 2), anillo("ondas_pin", ondas, 2)]);
         });
         reemplazos.estaciones = cab.clone({visible: true});
         if (tal) reemplazos.tallos = tal.clone({visible: true});

@@ -50,9 +50,9 @@ def _num(n):
 # ---- Textura "Altura": el relieve se pinta segun su altitud (hipsometrico) con sombreado de ladera ----
 # Colombia: del nivel del mar al Pico Cristobal Colon (Sierra Nevada de Santa Marta, ~5.730 m)
 ALTURA_COLOMBIA = (0, 5730)
-# Verde bajo, amarillo/ocre medio, marron alto y nieve arriba: tonos apagados, estilo atlas
-RAMPA_ALTURA = [(0.00, "#2E7D5B"), (0.12, "#6FA36B"), (0.27, "#B7C77A"), (0.42, "#E3D98F"),
-                (0.57, "#D9AE6B"), (0.72, "#B77B4E"), (0.86, "#8C6B5E"), (1.00, "#F4F1EC")]
+# Verdes abajo, amarillos y naranjas en medio, rojos terracota y vino arriba, con un blanco rosado en las cumbres
+RAMPA_ALTURA = [(0.00, "#1F7A4D"), (0.10, "#4E9A55"), (0.22, "#8DB45A"), (0.34, "#CFCB6B"), (0.46, "#E8B75B"),
+                (0.58, "#DB8A4B"), (0.70, "#C0603F"), (0.82, "#94403A"), (0.93, "#6B2E35"), (1.00, "#EFE8E4")]
 # La marca "y2k_hipso" en la direccion la reconoce el guion de abajo; S3 ignora lo que va despues del "?"
 URL_ALTURA = URL_ELEVACION + "?y2k_hipso=1&px=__PX__&min=__MIN__&max=__MAX__"
 
@@ -114,9 +114,10 @@ _HIPSOMETRICO = """
     return new Response(blob, {status: 200, headers: {"Content-Type": "image/png"}});
   }
   w.fetch = (entrada, opciones) => {
-    const url = typeof entrada === "string" ? entrada : (entrada && entrada.url) || "";
+    const url = typeof entrada === "string" ? entrada : entrada ? (entrada.url || entrada.href || String(entrada)) : "";
     if (url.indexOf("y2k_hipso=") < 0) return original(entrada, opciones);
-    return colorear(url, opciones).catch(() => original(entrada, opciones));
+    // si algo falla, queda el error en la consola del navegador (F12) y en window.__y2kHipsoError
+    return colorear(url, opciones).catch(e => { console.error("y2k_hipso", e); w.__y2kHipsoError = String((e && e.message) || e); return original(entrada, opciones); });
   };
   w.__y2kHipso = true;
   w.__y2kHipsoHora = w.performance.now();

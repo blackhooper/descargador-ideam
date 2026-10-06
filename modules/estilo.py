@@ -91,6 +91,10 @@ html, body, .stApp, [class*="st-"], button, input, textarea, select{font-family:
   box-shadow:0 1px 0 var(--y2k-brillo) inset,0 4px 12px -6px var(--y2k-sombra)}
 .y2k-manual:hover{color:var(--y2k-accent) !important;border-color:var(--y2k-accent)}
 .y2k-manual svg{width:16px;height:16px}
+/* Streamlit atenua lo que esta recalculando (en el tema oscuro parece una pantalla negra) y muestra los iconos de "Running":
+   aqui el mapa y el escaner son los que avisan que algo esta cargando */
+[data-stale="true"]{opacity:1 !important;transition:none !important}
+[data-testid="stStatusWidget"]{display:none !important}
 .st-key-y2k_orbita,.st-key-y2k_escaner,.st-key-y2k_hipso{height:0;overflow:hidden;margin:0}
 /* aviso cuando el navegador se queda sin memoria grafica (lo pone el vigia del 3D) */
 .y2k-sin-memoria{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:6;width:min(360px,86%);

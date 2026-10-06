@@ -29,6 +29,10 @@ ss._mapa_en_esta_run = False
 
 estilo.aplicar(ss.tema)
 estilo.control_tema()
+# Guion que colorea el relieve en la textura "Altura": se instala desde el arranque de la pagina (no cuesta nada
+# si no se usa) para que ya este puesto antes de que el visor 3D pida sus imagenes
+with st.container(key="y2k_hipso"):
+    components.html(terreno.HIPSOMETRICO, height=0)
 PALETA = estilo.PALETAS[ss.tema]
 
 if not all(ideam_downloader.credenciales_ideam()):
@@ -363,9 +367,6 @@ def pantalla_estaciones():
                 # navegador baja el relieve; el guion de terreno.py la levanta cuando el relieve esta listo
                 with st.container(key="y2k_visor3d"):
                     # (sin cubierta de carga: la espera ya la cubre el escaner; la animacion arranca sola cuando llega el relieve)
-                    # el guion que colorea el relieve se instala siempre (no cuesta nada): asi ya esta listo cuando se elige "Altura"
-                    with st.container(key="y2k_hipso"):
-                        components.html(terreno.HIPSOMETRICO, height=0)
                     deck, orbita = terreno.construir_deck(cuenca, area if buffer_on else None,
                                                           _estaciones_3d(zona, umbral), ss.estacion_sel, textura,
                                                           PALETA, ligero=_es_celular() or ss.get("modo_3d_ligero", False),

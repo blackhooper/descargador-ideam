@@ -202,6 +202,10 @@ def altura_terreno(lon, lat, z=ZOOM_DEM):
     return r * 256 + g + b / 256 - 32768
 
 
+# Capas que la secuencia de entrada esconde y va mostrando (mismos ids que ID_SECUENCIA del guion)
+CAPAS_SECUENCIA = ("cuenca", "buffer", "tallos", "estaciones", "saltos", "fantasmas", "fantasmas_texto")
+
+
 # Vuelta de camara alrededor de la estacion elegida. Streamlit no deja animar la vista
 # desde Python, asi que este guion busca el visor deck.gl ya dibujado en la pagina (por
 # dentro de React) y le cambia la vista cuadro a cuadro. Si el usuario toca el mapa, para.
@@ -268,6 +272,8 @@ _ORBITA = """
   const capa = id => originales.find(l => l && l.id === id);
   const ID_SECUENCIA = ["cuenca", "buffer", "tallos", "estaciones", "saltos", "fantasmas", "fantasmas_texto"];
   const reemplazos = {};
+  // Devuelve las capas de la secuencia a su estado normal (Python las pudo mandar escondidas)
+  const restaurar = () => poner(originales.map(l => l && ID_SECUENCIA.indexOf(l.id) >= 0 ? l.clone({visible: true}) : l));
   const refrescar = extra => poner(originales.map(l => reemplazos[l.id] || l).concat(extra || []));
   if (conIntro) {
     ID_SECUENCIA.forEach(id => { const l = capa(id); if (l) reemplazos[id] = l.clone({visible: false}); });
@@ -298,6 +304,23 @@ _ORBITA = """
         let t;
         do { await cuadro(); t = Math.min(1, (w.performance.now() - t0) / ms); f(t); } while (t < 1 && vigente());
       };
+      // Antes de los lasers la camara sube suave a la posicion inicial (al repetir la animacion puede estar en cualquier lado)
+      {
+        const I = O.inicio, v = deck.props.viewState || (deck.viewManager && deck.viewManager.getViewState && deck.viewManager.getViewState("default-view")) || {};
+        const nz = (x, def) => (x === undefined || x === null ? def : x);
+        const a = {lon: nz(v.longitude, O.lon), lat: nz(v.latitude, O.lat), zoom: nz(v.zoom, I.zoom), pitch: nz(v.pitch, I.pitch), bearing: nz(v.bearing, I.bearing)};
+        const dB = ((I.bearing - a.bearing + 540) % 360) - 180;
+        const lejos = Math.abs(a.zoom - I.zoom) > 0.05 || Math.abs(dB) > 2 || Math.abs(a.pitch - I.pitch) > 1
+          || Math.abs(a.lon - O.lon) > 1e-4 || Math.abs(a.lat - O.lat) > 1e-4;
+        if (lejos && vigente()) {
+          await durante(1700, t => {
+            const k = ease(t), mezcla = (p, q) => p + (q - p) * k;
+            deck.setProps({viewState: {...(deck.props.viewState || {}), longitude: mezcla(a.lon, O.lon), latitude: mezcla(a.lat, O.lat),
+              zoom: mezcla(a.zoom, I.zoom), pitch: mezcla(a.pitch, I.pitch), bearing: a.bearing + dB * k, position: [0, 0, O.pivote], maxPitch: 85}});
+          });
+          await esperar(200);
+        }
+      }
       const Punto = (capa("estaciones") || capa("fantasmas") || {}).constructor;
       const Linea = (capa("tallos") || capa("saltos") || {}).constructor;
       const Trazo = (capa("cuenca") || capa("buffer") || {}).constructor;
@@ -460,7 +483,9 @@ _ORBITA = """
         await esperar(600);
       }
     } catch (e) { /* si algo falla, se muestra todo de una vez */ }
-    if (vigente()) poner(originales.slice());
+    if (vigente()) restaurar();
+  } else if (O.intro) {
+    restaurar();   // movimiento reducido: sin secuencia, pero Python las mando escondidas
   }
   if (!vigente()) return;
   enIntro = false;

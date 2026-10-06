@@ -226,6 +226,9 @@ _ORBITA = """
   const vigente = () => miId === w.__y2kOrbitaId;
   const visor = d.querySelector(".st-key-y2k_visor3d");
   const levantarCubierta = () => { if (visor) visor.dataset.listo = "1"; };
+  // Al arrancar la secuencia, Python tapa el visor (CSS) hasta que este guion haya escondido las capas: asi no se alcanza
+  // a ver el resultado final antes de los lasers. Se destapa marcando el visor con el numero de turno
+  const mostrar = () => { if (visor) visor.dataset.mostrar = String(O.turno); };
   function buscarDeck() {
     const lienzo = d.querySelector('[data-testid="stDeckGlJsonChart"] canvas:not(.y2k-avion)');
     if (!lienzo) return null;
@@ -242,7 +245,7 @@ _ORBITA = """
   }
   let deck = null;
   for (let i = 0; i < 80 && !deck; i++) { deck = buscarDeck(); if (!deck) await esperar(150); }
-  if (!deck) { levantarCubierta(); return; }
+  if (!deck) { levantarCubierta(); mostrar(); return; }
 
   // Las capas "originales" son las que mando Python; las que pone este guion llevan una marca
   const puestas = deck.props.layers;
@@ -272,13 +275,12 @@ _ORBITA = """
   const capa = id => originales.find(l => l && l.id === id);
   const ID_SECUENCIA = ["cuenca", "buffer", "tallos", "estaciones", "saltos", "fantasmas", "fantasmas_texto"];
   const reemplazos = {};
-  // Devuelve las capas de la secuencia a su estado normal (Python las pudo mandar escondidas)
-  const restaurar = () => poner(originales.map(l => l && ID_SECUENCIA.indexOf(l.id) >= 0 ? l.clone({visible: true}) : l));
   const refrescar = extra => poner(originales.map(l => reemplazos[l.id] || l).concat(extra || []));
   if (conIntro) {
     ID_SECUENCIA.forEach(id => { const l = capa(id); if (l) reemplazos[id] = l.clone({visible: false}); });
     refrescar();
   }
+  mostrar();
 
   // ---- 2. Esperar a que el relieve este dibujado (la cubierta "Alistando..." sigue encima) ----
   if (!visor || visor.dataset.listo !== "1") {
@@ -483,9 +485,7 @@ _ORBITA = """
         await esperar(600);
       }
     } catch (e) { /* si algo falla, se muestra todo de una vez */ }
-    if (vigente()) restaurar();
-  } else if (O.intro) {
-    restaurar();   // movimiento reducido: sin secuencia, pero Python las mando escondidas
+    if (vigente()) poner(originales.slice());
   }
   if (!vigente()) return;
   enIntro = false;
@@ -793,7 +793,7 @@ def orbitar(orbita, turno, intro=False):
     cambia en cada seleccion nueva, asi el guion solo corre una vez por estacion elegida.
     intro: antes de la vuelta, corre la secuencia de entrada (lasers, caida de pines, alertas)."""
     import json
-    return _ORBITA.replace("__ORBITA__", json.dumps({**orbita, "intro": bool(intro)})) + f"<!-- turno {turno} -->"
+    return _ORBITA.replace("__ORBITA__", json.dumps({**orbita, "intro": bool(intro), "turno": turno})) + f"<!-- turno {turno} -->"
 
 
 def _destino(lon, lat, azimut, distancia):

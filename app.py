@@ -33,6 +33,8 @@ estilo.control_tema()
 # si no se usa) para que ya este puesto antes de que el visor 3D pida sus imagenes
 with st.container(key="y2k_hipso"):
     components.html(terreno.HIPSOMETRICO, height=0)
+# Aqui (arriba, sin alto) se pone despues el CSS que tapa el visor 3D mientras arranca la secuencia de entrada
+velo_3d = st.container(key="y2k_velo")
 PALETA = estilo.PALETAS[ss.tema]
 
 if not all(ideam_downloader.credenciales_ideam()):
@@ -394,12 +396,13 @@ def pantalla_estaciones():
                         ss._intro_firma = firma_intro
                         ss._intro_turno = ss.orbita
                     intro = ss.get("_intro_turno") == ss.get("orbita")
-                    # Al arrancar la secuencia las capas salen escondidas desde el servidor (el guion las va mostrando):
-                    # asi no se alcanza a ver el resultado final antes de que empiecen los lasers
+                    # Al arrancar la secuencia el visor se tapa (CSS) hasta que el guion de terreno.py esconde las capas
+                    # y lo marca con este turno; si algo falla, se destapa solo a los 12 s
                     if intro and disparar:
-                        for capa in deck.layers:
-                            if capa.id in terreno.CAPAS_SECUENCIA:
-                                capa.visible = False
+                        with velo_3d:
+                            st.html('<style>.st-key-y2k_visor3d:not([data-mostrar="' + str(ss.orbita) + '"]) '
+                                    '[data-testid="stDeckGlJsonChart"]{visibility:hidden;animation:y2k-mostrar 0s linear 12s forwards}'
+                                    '@keyframes y2k-mostrar{to{visibility:visible}}</style>')
                     # La clave cambia con "Recargar vista 3D": asi Streamlit crea un visor nuevo desde cero
                     st.pydeck_chart(deck, height=terreno.ALTO_VISOR, on_select="rerun", selection_mode="single-object",
                                     key=f"mapa3d_{ss.get('version_3d', 0)}")

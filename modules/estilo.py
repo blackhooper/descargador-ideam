@@ -95,7 +95,7 @@ html, body, .stApp, [class*="st-"], button, input, textarea, select{font-family:
    aqui el mapa y el escaner son los que avisan que algo esta cargando */
 [data-stale="true"]{opacity:1 !important;transition:none !important}
 [data-testid="stStatusWidget"]{display:none !important}
-.st-key-y2k_orbita,.st-key-y2k_escaner,.st-key-y2k_hipso{height:0;overflow:hidden;margin:0}
+.st-key-y2k_orbita,.st-key-y2k_escaner,.st-key-y2k_hipso,.st-key-y2k_velo{height:0;overflow:hidden;margin:0}
 /* aviso cuando el navegador se queda sin memoria grafica (lo pone el vigia del 3D) */
 .y2k-sin-memoria{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:6;width:min(360px,86%);
   display:flex;flex-direction:column;gap:6px;padding:16px 18px;border-radius:14px;text-align:center;
@@ -139,7 +139,9 @@ details.y2k-legal p{margin:4px 0 0 !important;font-size:11.5px !important;line-h
 .st-key-alerta_altura [data-testid="stExpander"] details,.st-key-alerta_ficha [data-testid="stExpander"] details{
   border-color:#EC835A !important;background:rgba(236,131,90,.10)}
 .st-key-alerta_altura summary p,.st-key-alerta_ficha summary p{font-size:13px !important;font-weight:600}
-header[data-testid="stHeader"]{background:transparent}
+header[data-testid="stHeader"]{background:transparent;pointer-events:none}
+/* la barra transparente de Streamlit tapaba los clics de lo que queda debajo: solo sus botones reciben clics */
+header[data-testid="stHeader"] button,header[data-testid="stHeader"] a,header[data-testid="stHeader"] [role="button"]{pointer-events:auto}
 .block-container{padding-top:1.2rem;padding-bottom:2rem;max-width:1560px}
 h1,h2,h3,h4,h1 *,h2 *,h3 *,h4 *{font-family:"Silkscreen","Courier New",monospace !important;font-weight:400 !important;letter-spacing:.03em;color:var(--y2k-ink)}
 h3{font-size:14px !important;padding:0 0 2px !important}

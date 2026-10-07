@@ -185,7 +185,7 @@ _INTRO_SATELITAL = """
         d.head.appendChild(s);
       });
     }
-    await w.__y2kSat.reproducir({visor: visor, lon: P.lon, lat: P.lat, turno: P.turno, panel: P.panel, version: P.version});
+    await w.__y2kSat.reproducir({visor: visor, lon: P.lon, lat: P.lat, bbox: P.bbox, estaciones: P.estaciones, turno: P.turno, panel: P.panel, version: P.version});
   } catch (e) {
     console.error("intro satelital", e);
     fin(); previo.remove();
@@ -195,11 +195,51 @@ _INTRO_SATELITAL = """
 """
 
 
-def intro_satelital(turno, lon, lat):
+def _datos_satelite(bbox, estaciones):
+    """Lo que necesita la intro de la cuenca: caja envolvente y estaciones ([lon, lat, 1 si cumple]) para dibujarlas."""
+    x0, y0, x1, y1 = (float(v) for v in bbox)
+    return {"lon": round((x0 + x1) / 2, 4), "lat": round((y0 + y1) / 2, 4),
+            "bbox": [round(x0, 5), round(y0, 5), round(x1, 5), round(y1, 5)],
+            "estaciones": [[round(float(e["lon"]), 4), round(float(e["lat"]), 4), 1 if e.get("ok") else 0] for e in estaciones[:250]],
+            "panel": bool(PANEL_SATELITE), "version": _version_satelite()}
+
+
+def intro_satelital(turno, bbox, estaciones):
     """Guion (para components.html) que reproduce la intro satelital sobre el visor 3D de este turno."""
-    datos = {"turno": turno, "lon": round(float(lon), 4), "lat": round(float(lat), 4),
-             "panel": bool(PANEL_SATELITE), "version": _version_satelite()}
+    datos = {"turno": turno, **_datos_satelite(bbox, estaciones)}
     return _INTRO_SATELITAL.replace("__PARAMS__", json.dumps(datos)) + f"<!-- turno {turno} -->"
+
+
+# Se manda en cuanto se confirma la cuenca (ya no se va a mover): baja en silencio lo que pesa de la intro y arma el
+# mosaico de satelite de la zona, para que al pasar a 3D no haya que esperar. No crea nada en la tarjeta grafica.
+_PRECALENTAR_SATELITE = """
+<script>
+(async () => {
+  const w = window.parent, d = w.document;
+  const P = __PARAMS__;
+  try {
+    if (!w.__y2kSat) {
+      if (!w.__y2kSatCargando) {
+        w.__y2kSatCargando = new Promise((ok, no) => {
+          const s = d.createElement("script");
+          s.type = "module";
+          s.src = new URL("app/static/intro_satelital/player.js?v=" + P.version, w.location.href).href;
+          s.onload = ok; s.onerror = () => no(new Error("no se pudo cargar el reproductor"));
+          d.head.appendChild(s);
+        });
+      }
+      await w.__y2kSatCargando;
+    }
+    await w.__y2kSat.precalentar(P);
+  } catch (e) { console.warn("precalentamiento de la intro", e); }
+})();
+</script>
+"""
+
+
+def precalentar_satelite(bbox, estaciones):
+    """Guion (para components.html) que precalienta la intro satelital de esta cuenca."""
+    return _PRECALENTAR_SATELITE.replace("__PARAMS__", json.dumps(_datos_satelite(bbox, estaciones)))
 
 
 # Cache propia de imagenes de relieve, compartida por todas las sesiones y segura entre

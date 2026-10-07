@@ -95,7 +95,7 @@ html, body, .stApp, [class*="st-"], button, input, textarea, select{font-family:
    aqui el mapa y el escaner son los que avisan que algo esta cargando */
 [data-stale="true"]{opacity:1 !important;transition:none !important}
 [data-testid="stStatusWidget"]{display:none !important}
-.st-key-y2k_orbita,.st-key-y2k_escaner,.st-key-y2k_hipso,.st-key-y2k_velo{height:0;overflow:hidden;margin:0}
+.st-key-y2k_orbita,.st-key-y2k_escaner,.st-key-y2k_hipso,.st-key-y2k_velo,.st-key-y2k_precal{height:0;overflow:hidden;margin:0}
 /* aviso cuando el navegador se queda sin memoria grafica (lo pone el vigia del 3D) */
 .y2k-sin-memoria{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:6;width:min(360px,86%);
   display:flex;flex-direction:column;gap:6px;padding:16px 18px;border-radius:14px;text-align:center;

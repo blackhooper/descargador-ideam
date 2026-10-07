@@ -563,6 +563,20 @@ function buildSatellite(tex) {
 
 // ── scene ────────────────────────────────────────────────────────────────
 let _inst = null, _degrade = false, _losses = 0;
+// Descarga (y deja en cache) lo que pesa de la escena sin crear nada en la tarjeta grafica: se llama en cuanto se
+// confirma la cuenca, para que cuando el usuario pase a 3D ya este todo en el navegador
+let _datos = null;
+export function precargarDatos() {
+  if (!_datos) {
+    _datos = Promise.all([
+      import('https://esm.sh/d3-geo@3'), import('https://esm.sh/topojson-client@3'),
+      fetch('https://cdn.jsdelivr.net/npm/world-atlas@2/countries-50m.json').then(r => r.json()),
+    ]).catch(e => { _datos = null; throw e; });
+    ['EffectComposer', 'RenderPass', 'UnrealBloomPass', 'OutputPass'].forEach(n =>
+      import('https://esm.sh/three@0.160.0/examples/jsm/postprocessing/' + n + '.js').catch(() => null));
+  }
+  return _datos;
+}
 export function setLowPower(v) { _degrade = !!v; }
 export function getScene(host) {
   if (!_inst) { if (_losses > 1) return Promise.reject(new Error('webgl-blocked')); _inst = createScene().catch(e => { _inst = null; throw e; }); }
@@ -591,10 +605,7 @@ async function createScene() {
   const scene = new THREE.Scene(); scene.background = new THREE.Color(0x010207);
   const camera = new THREE.PerspectiveCamera(40, W / H, 0.01, 20); scene.add(camera);
 
-  const [d3, topo, world] = await Promise.all([
-    import('https://esm.sh/d3-geo@3'), import('https://esm.sh/topojson-client@3'),
-    fetch('https://cdn.jsdelivr.net/npm/world-atlas@2/countries-50m.json').then(r => r.json()),
-  ]);
+  const [d3, topo, world] = await precargarDatos();
   const land = topo.feature(world, world.objects.land);
   const countries = topo.feature(world, world.objects.countries);
   const colombia = countries.features.find(f => String(f.id) === '170');

@@ -346,6 +346,15 @@ def pantalla_estaciones():
         cambio_sel = True
         ss.vista = "3D"
     rango = terreno.rango_terreno(area) if zona is not None and not zona.empty else None
+    # Intro satelital: con la cuenca ya confirmada (no se va a mover) se precalienta por detras, asi al pasar a 3D no hay espera
+    bbox_intro, est_intro, usar_intro = None, [], False
+    if (zona is not None and not zona.empty and terreno.SATELITE_ACTIVO and not _es_celular()
+            and not ss.get("modo_3d_ligero", False)):
+        usar_intro = True
+        bbox_intro = list((cuenca if cuenca is not None else area).total_bounds)
+        est_intro = _estaciones_3d(zona, umbral)
+        with st.container(key="y2k_precal"):
+            components.html(terreno.precalentar_satelite(bbox_intro, est_intro), height=0)
 
     # ---------------- mapa ----------------
     with col_mapa:
@@ -408,12 +417,11 @@ def pantalla_estaciones():
                     st.pydeck_chart(deck, height=terreno.ALTO_VISOR, on_select="rerun", selection_mode="single-object",
                                     key=f"mapa3d_{ss.get('version_3d', 0)}")
                 # Intro satelital (del mapa 2D al 3D): no en celulares ni en la version liviana
-                satelite = bool(intro and terreno.SATELITE_ACTIVO and not _es_celular() and not ss.get("modo_3d_ligero", False))
+                satelite = bool(intro and usar_intro)
                 with st.container(key="y2k_orbita"):
                     components.html(terreno.orbitar(orbita, ss.get("orbita", 0), intro, satelite), height=0)
                     if satelite:
-                        _x0, _y0, _x1, _y1 = (cuenca if cuenca is not None else area).total_bounds
-                        components.html(terreno.intro_satelital(ss.get("orbita", 0), (_x0 + _x1) / 2, (_y0 + _y1) / 2), height=0)
+                        components.html(terreno.intro_satelital(ss.get("orbita", 0), bbox_intro, est_intro), height=0)
                     components.html(terreno.AVISO_NAVEGADOR, height=0)
                     components.html(terreno.EXTRAS_3D, height=0)
                     # Botones ocultos: los pulsa el aviso de "sin memoria grafica" que pone EXTRAS_3D

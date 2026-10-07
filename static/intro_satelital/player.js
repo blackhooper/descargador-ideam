@@ -3,6 +3,7 @@
 // Dibuja la escena 3D (satellite-scene.js) y encima la interfaz (HUD), todo en una capa que tapa el visor 3D mientras
 // el relieve real se carga por detras. Al terminar hace el "encendido" tipo monitor y libera la memoria grafica.
 import { satelliteImage } from './satimg.js';
+import { crearMosaico, cajaDe } from './mosaico.js';
 
 const CY = '#35f0ff', DIM = '#7fb3c4', WH = '#eafcff', OR = '#ff8a2a';
 const mono = "ui-monospace, 'Cascadia Mono', Consolas, monospace";
@@ -39,7 +40,7 @@ function h(tag, props, ...kids) {
 }
 
 // ---- interfaz (HUD) en coordenadas de 1920x1080 ----
-function hudSvg(H, T) {
+function hudSvg(H, T, caja, dots) {
   const cx = 960, cy = 540;
   const tx = (x, y, s, p) => h('text', Object.assign({ x, y, fill: CY, fontFamily: mono, fontSize: 20, letterSpacing: 1.5 }, p), s);
   const ln = (x1, y1, x2, y2, p) => h('line', Object.assign({ x1, y1, x2, y2, stroke: CY, strokeWidth: 1.5 }, p));
@@ -48,8 +49,7 @@ function hudSvg(H, T) {
 
   if (H.tz < 0.35) {
     const fade = cl(H.tl / 0.45), k = ease(cl((H.tl - 0.25) / 0.6)), out = 1 - cl(H.tz / 0.3);
-    const bx = 960 + (H.box.x - 960) * k, by = 540 + (H.box.y - 540) * k, bw = 380 + (36 - 380) * k, bh = 240 + (24 - 240) * k;
-    const dots = [[0.18, 0.3, 0], [0.42, 0.22, 0], [0.7, 0.36, 1], [0.3, 0.62, 0], [0.56, 0.55, 0], [0.82, 0.7, 0], [0.12, 0.8, 1], [0.48, 0.82, 0], [0.66, 0.15, 0], [0.88, 0.25, 0]];
+    const bx = 960 + (H.box.x - 960) * k, by = 540 + (H.box.y - 540) * k, bw = caja.bw + (36 - caja.bw) * k, bh = caja.bh + (24 - caja.bh) * k;
     const glow = fade, stroke = glow > 0.5 ? CY : '#f6d84a';
     // las estaciones desaparecen en cuanto se resalta el cuadro (despues las dispara el satelite)
     const dotsOp = 1 - cl(H.tl / 0.3);
@@ -57,7 +57,7 @@ function hudSvg(H, T) {
       h('rect', { x: bx - bw / 2, y: by - bh / 2, width: bw, height: bh, fill: 'none', stroke: CY, strokeOpacity: 0.35 * glow, strokeWidth: 10 }),
       h('rect', { x: bx - bw / 2, y: by - bh / 2, width: bw, height: bh, fill: glow > 0.5 ? 'rgba(53,240,255,0.08)' : 'rgba(246,216,74,0.06)', stroke, strokeWidth: 2.5, strokeDasharray: k > 0.7 ? '4 3' : '12 8' }),
       dotsOp > 0.01 ? h('g', { opacity: dotsOp },
-        dots.map(d => h('circle', { cx: bx - bw / 2 + d[0] * bw, cy: by - bh / 2 + d[1] * bh, r: Math.max(1.6, 7 * (1 - k)), fill: d[2] ? '#f6a33b' : '#3fbf62', stroke: '#0a1a10', strokeWidth: 1.5 * (1 - k) }))) : null
+        dots.map(d => h('circle', { cx: bx - bw / 2 + d[0] * bw, cy: by - bh / 2 + d[1] * bh, r: Math.max(1.6, (dots.length > 60 ? 4 : 7) * (1 - k)), fill: d[2] ? '#3fbf62' : '#f6a33b', stroke: '#0a1a10', strokeWidth: 1.5 * (1 - k) }))) : null
     ));
     if (H.head) {
       intro.push(h('g', null,
@@ -292,6 +292,25 @@ function armarCapa(visor) {
   return { ov, stage, host, img, svg, scan, white, black, msg, arriba, abajo, linea, saltar, cerrar() { ro.disconnect(); ov.remove(); } };
 }
 
+// ---- precalentamiento: se hace al confirmar la cuenca, antes de que el usuario pase a 3D ----
+const cache = {};
+function precache(o) {
+  const k = (o.bbox || []).join(',');
+  if (!cache[k]) {
+    const claves = Object.keys(cache);
+    if (claves.length > 3) delete cache[claves[0]];
+    cache[k] = { mosaico: crearMosaico(o.bbox).catch(() => null) };
+  }
+  return cache[k];
+}
+const urlEscena = v => new URL('satellite-scene.js?v=' + (v || 1), import.meta.url).href;
+async function precalentar(p) {
+  if (!p || !p.bbox) return;
+  precache(p);
+  const mod = await import(urlEscena(p.version));
+  mod.precargarDatos().catch(() => { /* sin red: se reintenta al reproducir */ });
+}
+
 async function reproducir(o) {
   const w = window;
   if (w.__y2kSatActual) { try { w.__y2kSatActual.cancelar(); } catch (e) { /* ya terminada */ } }
@@ -312,16 +331,18 @@ async function reproducir(o) {
   }
   R.saltar.addEventListener('click', () => { S.saltar = true; });
   try {
-    const url = new URL('satellite-scene.js?v=' + (o.version || 1), import.meta.url).href;
-    const mod = await import(url);
+    const mod = await import(urlEscena(o.version));
     const { TUNE, DUR } = mod;
     S.defaults = Object.assign({}, TUNE);
     const guardados = guardado.leer('tune', null);
     if (guardados) Object.assign(TUNE, guardados);
     mod.setLowPower(S.liviana);
     if (!vivo) return;
-    api = await mod.getScene(R.host); S.api = api;
-    api.setBox(o.lon, o.lat);
+    // El cuadro se fija antes de crear la escena. La escena 3D se arma POR DETRAS mientras ya corre el primer plano
+    // (imagen satelital + interfaz, que no necesitan WebGL): el usuario no ve ninguna pantalla de carga
+    mod.setBoxLonLat(o.lon, o.lat);
+    mod.getScene(R.host).then(a => { if (!vivo || S.fase === 'encendido') { a.destroy(); return; } api = a; S.api = a; })
+      .catch(e => { console.error('escena', e); S.sinEscena = true; });
     const panel = o.panel ? armarPanel(R, S, TUNE, mod) : null;
     // cuadros clave (inicio de cada plano) y duracion total hasta el descenso
     const cue = {}; let acc = 0;
@@ -329,19 +350,29 @@ async function reproducir(o) {
     const KOVR = { 'Encendido': 1e4 };   // la animacion original seguia con una maqueta del 3D: aqui el 3D es el real
     const tick = () => { S.Tend = cue['Descenso'] + TUNE.descenso; };
     tick();
-    try { R.img.src = satelliteImage(960); } catch (e) { /* sin imagen de fondo */ }
+    // imagen del primer plano: mosaico real de la zona (ya precalentado) o, si no se pudo, un terreno distinto segun el lugar
+    const b = o.bbox || [o.lon - 0.1, o.lat - 0.1, o.lon + 0.1, o.lat + 0.1];
+    const caja = cajaDe(b);
+    const dots = (o.estaciones || []).map(e => [(e[0] - b[0]) / (b[2] - b[0] || 1), (b[3] - e[1]) / (b[3] - b[1] || 1), e[2]])
+      .filter(d => d[0] >= 0 && d[0] <= 1 && d[1] >= 0 && d[1] <= 1).slice(0, 250);
+    let mos = null;
+    try { mos = await Promise.race([precache({ bbox: b }).mosaico, new Promise(ok => setTimeout(() => ok(null), 3500))]); } catch (e) { mos = null; }
+    if (!vivo) return;
+    try { R.img.src = mos && mos.url ? mos.url : satelliteImage(960, Math.abs(Math.round(o.lon * 1000) * 31 + Math.round(o.lat * 1000) * 17) % 99991 + 7); } catch (e) { /* sin imagen de fondo */ }
     R.msg.style.display = 'none';
+    // hasta que la escena este lista, el reloj se detiene justo antes de que empiece "Trazo laser" (ahi si hace falta WebGL)
+    const TOPE = cue['Trazo láser'] - 0.001;
     S.fase = 'play';
     let ultimo = performance.now();
     let tr = 0;   // avance del encendido
     const dibujar = () => {
-      const st = api.render(S.T, KOVR);
+      const st = api ? api.render(S.T, KOVR) : mod.frame(S.T, KOVR);
       if (!st) return;
       const H = st.hud, t = st.t;
       const conImg = H.tl < 0.5;
       R.img.style.display = conImg ? 'block' : 'none';
       if (conImg) { R.img.style.opacity = 1 - cl(H.tl / 0.45); R.img.style.transform = 'scale(' + (1.25 - 0.05 * cl(H.tm / 1.2)) + ')'; }
-      R.svg.innerHTML = hudSvg(H, S.T);
+      R.svg.innerHTML = hudSvg(H, S.T, caja, dots);
       R.scan.style.opacity = H.pov * 0.5;
       R.white.style.opacity = H.white;
       // oscuridad: entra desde negro al inicio y, al final, se hace de noche durante el descenso
@@ -370,6 +401,7 @@ async function reproducir(o) {
         if (S.saltar) { S.saltar = false; empezarEncendido(); }
         else {
           if (S.playing) S.T += dt * S.speed;
+          if (!api) { if (S.sinEscena) { S.saltar = true; } else if (S.T > TOPE) S.T = TOPE; }
           if (S.T >= S.Tend) { S.T = S.Tend; if (!S.holdEnd) empezarEncendido(); }
           if (S.fase === 'play') { if (api && api.lost) { /* se recupera solo */ } else dibujar(); panel && panel.actualizar(S.T, S.Tend); }
         }
@@ -393,4 +425,4 @@ async function reproducir(o) {
   }
 }
 
-window.__y2kSat = { reproducir };
+window.__y2kSat = { reproducir, precalentar };

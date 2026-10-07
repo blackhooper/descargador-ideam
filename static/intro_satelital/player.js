@@ -42,7 +42,7 @@ function h(tag, props, ...kids) {
 // ---- interfaz (HUD) en coordenadas de 1920x1080 ----
 function hudSvg(H, T, caja, dots, info) {
   const cx = 960, cy = 540;
-  const tx = (x, y, s, p) => h('text', Object.assign({ x, y, fill: CY, fontFamily: mono, fontSize: 20, letterSpacing: 1.5 }, p), s);
+  const tx = (x, y, s, p) => h('text', Object.assign({ x, y, fill: CY, fontFamily: mono, fontSize: 26, letterSpacing: 1.5 }, p), s);
   const ln = (x1, y1, x2, y2, p) => h('line', Object.assign({ x1, y1, x2, y2, stroke: CY, strokeWidth: 1.5 }, p));
   const corners = (x, y, w, hh, L, p) => h('path', Object.assign({ d: `M${x} ${y + L}V${y}H${x + L}M${x + w - L} ${y}H${x + w}V${y + L}M${x + w} ${y + hh - L}V${y + hh}H${x + w - L}M${x + L} ${y + hh}H${x}V${y + hh - L}`, fill: 'none', stroke: CY, strokeWidth: 2 }, p));
   const kids = [], intro = [];
@@ -82,8 +82,8 @@ function hudSvg(H, T, caja, dots, info) {
     kids.push(h('g', { opacity: H.colTag },
       h('circle', { cx: g.x, cy: g.y, r: 6, fill: CY }),
       h('path', { d: `M${g.x} ${g.y}L${g.x + 80} ${g.y - 80}H${g.x + 80 + w}`, fill: 'none', stroke: CY, strokeWidth: 1.5 }),
-      tx(g.x + 92, g.y - 94, 'COLOMBIA', { fontFamily: sans, fontWeight: 600, fontSize: 28, fill: WH, letterSpacing: 4 }),
-      tx(g.x + 92, g.y - 52, 'ENLACE ASCENDENTE', { fontSize: 17, fill: CY, letterSpacing: 2 })
+      tx(g.x + 92, g.y - 94, 'COLOMBIA', { fontFamily: sans, fontWeight: 600, fontSize: 34, fill: WH, letterSpacing: 4 }),
+      tx(g.x + 92, g.y - 52, 'ENLACE ASCENDENTE', { fontSize: 22, fill: CY, letterSpacing: 2 })
     ));
   }
 
@@ -91,14 +91,14 @@ function hudSvg(H, T, caja, dots, info) {
     const s = H.s, L = 34;
     kids.push(h('g', { opacity: H.satTag },
       corners(s.x - L, s.y - L, L * 2, L * 2, 10, { strokeOpacity: 0.9 }),
-      tx(s.x + L + 12, s.y - L + 14, 'SAT-07', { fontFamily: sans, fontWeight: 600, fontSize: 20, fill: WH, letterSpacing: 3 }),
-      tx(s.x + L + 12, s.y - L + 40, 'ÓRBITA MEO', { fontSize: 16, fill: DIM, letterSpacing: 2 })
+      tx(s.x + L + 12, s.y - L + 14, 'SATÉLITE', { fontFamily: sans, fontWeight: 600, fontSize: 26, fill: WH, letterSpacing: 3 }),
+      tx(s.x + L + 12, s.y - L + 46, 'ÓRBITA MEO', { fontSize: 22, fill: DIM, letterSpacing: 2 })
     ));
   }
   if (H.satInfo > 0.001) {
     kids.push(h('g', { opacity: H.satInfo },
-      tx(72, 98, 'SAT-07 · ÓRBITA MEO', { fontFamily: sans, fontWeight: 600, fontSize: 26, fill: WH, letterSpacing: 3 }),
-      tx(72, 134, 'DATOS RECIBIDOS DESDE COLOMBIA', { fontSize: 18, fill: CY, letterSpacing: 2 })
+      tx(72, 98, 'SATÉLITE · ÓRBITA MEO', { fontFamily: sans, fontWeight: 600, fontSize: 32, fill: WH, letterSpacing: 3 }),
+      tx(72, 144, 'DATOS RECIBIDOS DESDE COLOMBIA', { fontSize: 24, fill: CY, letterSpacing: 2 })
     ));
   }
 
@@ -112,24 +112,24 @@ function hudSvg(H, T, caja, dots, info) {
     const cargaB = info.buf ? H.charge : H.charge * (1 - cl(info.ta / 0.15));
     const pctB = Math.round(cargaB * 100);
     kids.push(h('g', { opacity: H.can },
-      tx(72, 98, 'PREPARANDO LANZAMIENTO', { fontFamily: sans, fontWeight: 600, fontSize: 26, fill: WH, letterSpacing: 3 }),
-      tx(72, 122, 'S Y S // J - U A . N 2 4', { fontSize: 14, fill: DIM, letterSpacing: 2, opacity: 0.55 }),
+      tx(72, 98, 'PREPARANDO LANZAMIENTO', { fontFamily: sans, fontWeight: 600, fontSize: 32, fill: WH, letterSpacing: 3 }),
+      tx(72, 128, 'S Y S // J - U A . N 2 4', { fontSize: 20, fill: DIM, letterSpacing: 2, opacity: 0.55 }),
       filas.map(([n, val, k], i) => {
         const v = H.steps[k], ok = v >= 1;
         return h('g', null,
-          tx(72, 146 + i * 36, n, { fontSize: 19, fill: ok ? '#bfefff' : DIM }),
-          tx(480, 146 + i * 36, ok ? val : '', { textAnchor: 'end', fontSize: 19, fill: '#bfefff' }),
-          tx(640, 146 + i * 36, ok ? 'OK' : v > 0 ? '···' : '—', { textAnchor: 'end', fontSize: 19, fill: ok ? CY : DIM })
+          tx(72, 180 + i * 44, n, { fontSize: 26, fill: ok ? '#bfefff' : DIM }),
+          tx(480, 180 + i * 44, ok ? val : '', { textAnchor: 'end', fontSize: 26, fill: '#bfefff' }),
+          tx(640, 180 + i * 44, ok ? 'OK' : v > 0 ? '···' : '—', { textAnchor: 'end', fontSize: 26, fill: ok ? CY : DIM })
         );
       }),
-      tx(72, 950, 'ÁREA', { fontSize: 19, fill: WH }),
+      tx(72, 950, 'ÁREA', { fontSize: 26, fill: WH }),
       h('rect', { x: 196, y: 936, width: 360, height: 14, fill: 'none', stroke: CY, strokeOpacity: 0.45 }),
       h('rect', { x: 196, y: 936, width: 360 * H.charge, height: 14, fill: CY }),
-      tx(640, 950, pct + '%', { textAnchor: 'end', fontSize: 19, fill: CY }),
-      tx(72, 994, 'BUFFER', { fontSize: 19, fill: bufOff ? DIM : WH }),
+      tx(640, 950, pct + '%', { textAnchor: 'end', fontSize: 26, fill: CY }),
+      tx(72, 994, 'BUFFER', { fontSize: 26, fill: bufOff ? DIM : WH }),
       h('rect', { x: 196, y: 980, width: 360, height: 14, fill: 'none', stroke: OR, strokeOpacity: bufOff ? 0.2 : 0.5 }),
       h('rect', { x: 196, y: 980, width: 360 * cargaB, height: 14, fill: OR }),
-      tx(640, 994, bufOff ? '—' : pctB + '%', { textAnchor: 'end', fontSize: 19, fill: bufOff ? DIM : OR })
+      tx(640, 994, bufOff ? '—' : pctB + '%', { textAnchor: 'end', fontSize: 26, fill: bufOff ? DIM : OR })
     ));
   }
 
@@ -147,7 +147,7 @@ function hudSvg(H, T, caja, dots, info) {
       corners(90, 90, 1740, 900, 70, { strokeWidth: 2.5, opacity: b }),
       h('g', { opacity: Math.min(1, b * 1.4) },
         tape, h('path', { d: 'M954 156L960 148L966 156', fill: CY }),
-        tx(cx, 112, 'NADIR · RUMBO 000°', { textAnchor: 'middle', fontSize: 17, fill: DIM, letterSpacing: 3 })
+        tx(cx, 112, 'VISTA VERTICAL', { textAnchor: 'middle', fontSize: 22, fill: DIM, letterSpacing: 3 })
       ),
       h('g', { transform: `translate(${cx} ${cy}) scale(${0.6 + 0.4 * b})`, opacity: b },
         h('circle', { r: 46, fill: 'none', stroke: CY, strokeWidth: 1.5 }),
@@ -158,23 +158,23 @@ function hudSvg(H, T, caja, dots, info) {
       ),
       lk > 0 ? corners(cx - L / 2, cy - L / 2, L, L, 34, { stroke: lk >= 1 ? OR : CY, strokeWidth: 3, opacity: blink ? 0.35 : 1 }) : null,
       lk >= 1 ? h('g', null,
-        tx(cx + L / 2 + 24, cy - L / 2 + 22, 'OBJETIVO FIJADO', { fontSize: 20, fill: OR, letterSpacing: 3 }),
-        tx(cx + L / 2 + 24, cy - L / 2 + 54, 'COLOMBIA', { fontFamily: sans, fontWeight: 600, fontSize: 22, fill: WH, letterSpacing: 2 })
+        tx(cx + L / 2 + 24, cy - L / 2 + 22, 'OBJETIVO FIJADO', { fontSize: 26, fill: OR, letterSpacing: 3 }),
+        tx(cx + L / 2 + 24, cy - L / 2 + 62, 'COLOMBIA', { fontFamily: sans, fontWeight: 600, fontSize: 28, fill: WH, letterSpacing: 2 })
       ) : null,
       h('g', { opacity: b },
         H.dive > 0 ? null : h('g', null,
-          tx(130, 470, lk >= 1 ? 'LISTA' : 'CALCULANDO' + '.'.repeat(1 + Math.floor(T * 3) % 3), { fontSize: 18, fill: lk >= 1 ? CY : DIM, letterSpacing: 2 }),
-          tx(130, 530, 'TRAYECTORIA', { fontFamily: sans, fontWeight: 600, fontSize: 44, fill: lk >= 1 ? CY : WH, letterSpacing: 3 })),
-        tx(1800, 470, 'ALTITUD', { textAnchor: 'end', fontSize: 18, fill: DIM, letterSpacing: 2 }),
-        tx(1800, 530, alt, { textAnchor: 'end', fontFamily: sans, fontWeight: 600, fontSize: 56, fill: H.dive > 0 ? OR : CY }),
-        tx(1800, 566, 'KM', { textAnchor: 'end', fontSize: 18, fill: DIM }),
+          tx(130, 470, lk >= 1 ? 'LISTA' : 'CALCULANDO' + '.'.repeat(1 + Math.floor(T * 3) % 3), { fontSize: 24, fill: lk >= 1 ? CY : DIM, letterSpacing: 2 }),
+          tx(130, 530, 'TRAYECTORIA', { fontFamily: sans, fontWeight: 600, fontSize: 32, fill: lk >= 1 ? CY : WH, letterSpacing: 3 })),
+        tx(1800, 470, 'ALTITUD', { textAnchor: 'end', fontSize: 24, fill: DIM, letterSpacing: 2 }),
+        tx(1800, 540, alt, { textAnchor: 'end', fontFamily: sans, fontWeight: 600, fontSize: 68, fill: H.dive > 0 ? OR : CY }),
+        tx(1800, 592, 'KM', { textAnchor: 'end', fontSize: 24, fill: DIM }),
         ladder,
-        tx(130, 150, '● ENLACE ACTIVO', { fontSize: 18, fill: Math.floor(T * 3) % 2 ? CY : WH, letterSpacing: 2 }),
-        H.capOut > 0 ? tx(130, 182, 'ESTACIONES LANZADAS ' + Math.round(H.capOut / H.capN * info.n) + '/' + info.n, { fontSize: 18, fill: '#3fff7a', letterSpacing: 2 }) : null,
-        tx(1790, 150, 'SAT-07 · ÓPTICA PRINCIPAL', { textAnchor: 'end', fontSize: 18, fill: DIM, letterSpacing: 2 })
+        tx(130, 150, '● ENLACE ACTIVO', { fontSize: 24, fill: Math.floor(T * 3) % 2 ? CY : WH, letterSpacing: 2 }),
+        H.capOut > 0 ? tx(130, 192, 'ESTACIONES LANZADAS ' + Math.round(H.capOut / H.capN * info.n) + '/' + info.n, { fontSize: 24, fill: '#3fff7a', letterSpacing: 2 }) : null,
+        tx(1790, 150, 'SATÉLITE · ÓPTICA PRINCIPAL', { textAnchor: 'end', fontSize: 24, fill: DIM, letterSpacing: 2 })
       ),
       H.dive > 0 ? h('g', { opacity: H.dive * (Math.floor(T * 10) % 2 ? 1 : 0.55) },
-        tx(cx, 900, 'DESCENSO', { textAnchor: 'middle', fontFamily: sans, fontWeight: 600, fontSize: 34, fill: OR, letterSpacing: 10 })
+        tx(cx, 900, 'DESCENSO', { textAnchor: 'middle', fontFamily: sans, fontWeight: 600, fontSize: 40, fill: OR, letterSpacing: 10 })
       ) : null
     ));
   }

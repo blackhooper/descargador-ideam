@@ -396,9 +396,10 @@ def pantalla_estaciones():
                         ss._intro_firma = firma_intro
                         ss._intro_turno = ss.orbita
                     intro = ss.get("_intro_turno") == ss.get("orbita")
-                    # Al arrancar la secuencia el visor se tapa (CSS) hasta que el guion de terreno.py esconde las capas
-                    # y lo marca con este turno; si algo falla, se destapa solo a los 12 s
-                    if intro and disparar:
+                    # Mientras corre la secuencia el visor se tapa (CSS) hasta que el guion de terreno.py esconde las capas
+                    # y lo marca con este turno. Se manda en todas las corridas del turno (no solo la primera): si Streamlit
+                    # repite el script al entrar al 3D, el velo no puede desaparecer. Si algo falla, se destapa solo a los 12 s
+                    if intro:
                         with velo_3d:
                             st.html('<style>.st-key-y2k_visor3d:not([data-mostrar="' + str(ss.orbita) + '"]) '
                                     '[data-testid="stDeckGlJsonChart"]{visibility:hidden;animation:y2k-mostrar 0s linear 12s forwards}'

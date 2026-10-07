@@ -141,7 +141,10 @@ details.y2k-legal p{margin:4px 0 0 !important;font-size:11.5px !important;line-h
 .st-key-alerta_altura summary p,.st-key-alerta_ficha summary p{font-size:13px !important;font-weight:600}
 header[data-testid="stHeader"]{background:transparent;pointer-events:none}
 /* la barra transparente de Streamlit tapaba los clics de lo que queda debajo: solo sus botones reciben clics */
-header[data-testid="stHeader"] button,header[data-testid="stHeader"] a,header[data-testid="stHeader"] [role="button"]{pointer-events:auto}
+/* dentro viene la barra de herramientas (stToolbar), que ocupa todo el ancho y si recibe clics: tambien se deja pasar */
+[data-testid="stToolbar"]{pointer-events:none !important}
+header[data-testid="stHeader"] button,header[data-testid="stHeader"] a,header[data-testid="stHeader"] [role="button"],
+[data-testid="stToolbar"] button,[data-testid="stToolbar"] a,[data-testid="stToolbar"] [role="button"]{pointer-events:auto !important}
 .block-container{padding-top:1.2rem;padding-bottom:2rem;max-width:1560px}
 h1,h2,h3,h4,h1 *,h2 *,h3 *,h4 *{font-family:"Silkscreen","Courier New",monospace !important;font-weight:400 !important;letter-spacing:.03em;color:var(--y2k-ink)}
 h3{font-size:14px !important;padding:0 0 2px !important}

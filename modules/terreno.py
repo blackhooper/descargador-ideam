@@ -282,6 +282,11 @@ _ORBITA = """
   if (conIntro) {
     ID_SECUENCIA.forEach(id => { const l = capa(id); if (l) reemplazos[id] = l.clone({visible: false}); });
     refrescar();
+    // Si Streamlit vuelve a mandar sus capas (todas visibles) mientras corre la secuencia, se vuelven a esconder
+    const guardia = setInterval(() => {
+      if (!vigente() || !enIntro) { clearInterval(guardia); return; }
+      if (deck.props.layers && !deck.props.layers.__y2k) refrescar();
+    }, 60);
   }
   mostrar();
 

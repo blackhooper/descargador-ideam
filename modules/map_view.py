@@ -1,4 +1,3 @@
-import functools
 import folium
 import pandas as pd
 from folium.plugins import Draw, FastMarkerCluster
@@ -27,18 +26,6 @@ BORDE_PIN = "#FFFFFF"
 ALERTA = "#A4430F"
 
 
-@functools.lru_cache(maxsize=1)
-def recursos_mapa():
-    """Direcciones de las librerias que el mapa 2D baja de internet (Leaflet, dibujo, grupos de marcadores...),
-    para precargarlas en el navegador mientras el usuario elige como marcar la cuenca."""
-    import re
-    m = mapa_base(None, "claro")
-    FastMarkerCluster(data=[(4.6, -74.1)]).add_to(m)
-    html = m.get_root().render()
-    urls = re.findall(r'<script[^>]+src="(https?://[^"]+)"', html) + re.findall(r'<link[^>]+href="(https?://[^"]+)"', html)
-    return list(dict.fromkeys(urls))
-
-
 def mapa_base(cuenca_gdf=None, tema="claro"):
     """Mapa base de Leaflet. Si `cuenca_gdf` cambia, el componente se reconstruye (ver app.py)."""
     if cuenca_gdf is not None and not cuenca_gdf.empty:
@@ -64,7 +51,7 @@ def mapa_base(cuenca_gdf=None, tema="claro"):
     ).add_to(m)
 
     # La cuenca va dentro del grupo de dibujo: asi se pueden mover sus
-    # esquinas (lapiz) o borrarla (basurita) con las herramientas del mapa
+    # esquinas (lapiz) o borrarla (papelera) con las herramientas del mapa
     editables = folium.FeatureGroup(name="Cuenca")
     if cuenca_gdf is not None:
         for geom in cuenca_gdf.geometry:
@@ -85,9 +72,11 @@ def mapa_base(cuenca_gdf=None, tema="claro"):
             "rectangle": {"shapeOptions": estilo},
         },
         edit_options={"edit": True, "remove": True},
+        # sin esto, un clic en la cuenca abre una alerta del navegador con sus coordenadas en GeoJSON
+        show_geometry_on_click=False,
     ).add_to(m)
     folium.LayerControl(position="topright", collapsed=True).add_to(m)
-    # Creditos de las capas: una linea chica en el borde (el texto completo va en el pie de la app)
+    # Creditos de las capas: una linea chica en el borde (el texto completo va al final de "Consulta")
     m.get_root().header.add_child(folium.Element(
         "<style>.leaflet-control-attribution{font:10px/1.4 Figtree,system-ui,sans-serif !important;"
         "white-space:nowrap;max-width:75%;overflow:hidden;text-overflow:ellipsis}</style>"))
@@ -118,7 +107,7 @@ def _tarjeta(row, codigo):
               f"<span style='color:{TINTA_2}'>{codigo} · {_altitud_txt(row)}</span>"]
     if "Porcentaje (%)" in row and pd.notna(row["Porcentaje (%)"]):
         if row.get("Serie DHIME") == "No":
-            partes.append("<span style='color:#B42318'>Sin serie en DHIME</span>")
+            partes.append("<span style='color:#B42318'>Sin serie de este parámetro en DHIME</span>")
         else:
             partes.append(f"Cantidad probable <b>{row['Porcentaje (%)']:.0f} %</b> · cobertura {row.get('Clase calidad', '').lower()}")
             if row.get("Inicio serie"):
@@ -126,7 +115,7 @@ def _tarjeta(row, codigo):
     if row.get("zona"):
         partes.append(f"<span style='color:{TINTA_2}'>{'En la cuenca' if row['zona'] == 'cuenca' else 'En el buffer'}</span>")
     if row.get("altitud_dudosa") and row.get("terreno") is not None:
-        partes.append(f"<span style='color:{ALERTA}'>⚠ Altitud inconsistente: el terreno mide "
+        partes.append(f"<span style='color:{ALERTA}'>⚠ Altitud dudosa: el relieve marca "
                       f"{row['terreno']:,.0f} m</span>".replace(",", "."))
     return ("<div style='font-family:Figtree,sans-serif;font-size:12px;line-height:1.45;color:#0E1A2F'>"
             + "<br>".join(partes) + "</div>")

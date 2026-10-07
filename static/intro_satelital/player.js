@@ -344,7 +344,8 @@ function armarCapa(visor, geom) {
   const linea = document.createElement('div');
   linea.style.cssText = 'position:absolute;top:calc(50% - 2px);height:4px;background:#effeff;box-shadow:0 0 18px 6px rgba(53,240,255,.8);display:none;z-index:11;pointer-events:none';
   const saltar = document.createElement('button');
-  saltar.textContent = 'Saltar ⏭';
+  saltar.type = 'button';
+  saltar.textContent = 'Saltar animación';
   saltar.style.cssText = 'all:unset;cursor:pointer;position:absolute;right:10px;bottom:10px;z-index:41;background:rgba(4,14,26,.7);color:#d8f6ff;border:1px solid #35f0ff55;border-radius:8px;padding:5px 12px;font:600 12px ' + sans;
   ov.append(arriba, abajo, linea, saltar);
   visor.appendChild(ov);

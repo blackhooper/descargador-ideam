@@ -195,7 +195,7 @@ def leer_tablas_desde_bytes(datos, nombre="respuesta", profundidad=0):
     avisos = []
 
     if not datos:
-        return [], [f"'{nombre}' llego vacio"]
+        return [], [f"'{nombre}' llegó vacío"]
 
     if profundidad > 3:
         return [], [f"'{nombre}': ZIP demasiado anidado, me detuve por seguridad"]
@@ -520,7 +520,7 @@ def _imprimir_depuracion(etiqueta_bloque, codigo_estacion, response, motivo, dat
                 try:
                     lineas.append(f"Primeros bytes del zip decodificado: {base64.b64decode(zip_b64)[:16]!r}")
                 except Exception as e:
-                    lineas.append(f"El campo 'zip' no es Base64 valido: {e}")
+                    lineas.append(f"El campo 'zip' no es Base64 válido: {e}")
 
     lineas.append("=" * 63)
     print("\n".join(lineas), flush=True)
@@ -605,7 +605,7 @@ def descargar_excel_ideam(fecha_ini, fecha_fin, token_auth, param, codigo_estaci
     bloques = calcular_bloques(fecha_ini, fecha_fin, inicio_serie, fin_serie,
                                param.get("dias_bloque", DIAS_POR_BLOQUE_DEFECTO))
     if not bloques:
-        return None, "Sin datos en el rango pedido (la serie empieza despues o termina antes)"
+        return None, "Sin datos en el periodo pedido (la serie empieza después o termina antes)"
     bloques_sin_pedir = len(bloques)
 
     df_meta = None
@@ -649,8 +649,8 @@ def descargar_excel_ideam(fecha_ini, fecha_fin, token_auth, param, codigo_estaci
                 # los bloques se arman con param["dias_bloque"]. Como no depende
                 # de las fechas, no tiene sentido seguir con los otros bloques.
                 diagnosticos_bloques.append(
-                    f"DHIME no tiene la serie {param_etiqueta} para esta estacion "
-                    f"(esta en el catalogo del mapa pero no en el sistema de descargas)"
+                    f"DHIME no tiene la serie {param_etiqueta} para esta estación "
+                    f"(está en el catálogo del mapa, pero no en el sistema de descargas)"
                 )
                 break
             if response.status_code != 200:
@@ -664,7 +664,7 @@ def descargar_excel_ideam(fecha_ini, fecha_fin, token_auth, param, codigo_estaci
             except Exception:
                 if DEPURACION_TERMINAL:
                     _imprimir_depuracion(etiqueta_bloque, codigo_estacion, response, "La respuesta no es JSON")
-                diagnosticos_bloques.append(f"{etiqueta_bloque} La respuesta no era JSON valido: {response.text[:200]}")
+                diagnosticos_bloques.append(f"{etiqueta_bloque} La respuesta no era JSON válido: {response.text[:200]}")
                 continue
 
             zip_b64 = data_json.get("zip")
@@ -672,7 +672,7 @@ def descargar_excel_ideam(fecha_ini, fecha_fin, token_auth, param, codigo_estaci
             if not zip_b64:
                 if DEPURACION_TERMINAL:
                     _imprimir_depuracion(etiqueta_bloque, codigo_estacion, response, "JSON sin campo 'zip' (o vacio)", data_json)
-                diagnosticos_bloques.append(f"{etiqueta_bloque} {mensaje or 'Sin datos (zip vacio)'}")
+                diagnosticos_bloques.append(f"{etiqueta_bloque} {mensaje or 'Sin datos (ZIP vacío)'}")
                 continue
 
             try:
@@ -723,7 +723,7 @@ def descargar_excel_ideam(fecha_ini, fecha_fin, token_auth, param, codigo_estaci
             if filas_bloque > 0:
                 diagnosticos_bloques.append(f"{etiqueta_bloque} OK ({filas_bloque} filas)")
             else:
-                diagnosticos_bloques.append(f"{etiqueta_bloque} Excel vacio (sin filas de datos)")
+                diagnosticos_bloques.append(f"{etiqueta_bloque} Excel vacío (sin filas de datos)")
 
         except Exception as e:
             if DEPURACION_TERMINAL:

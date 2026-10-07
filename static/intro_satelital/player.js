@@ -259,7 +259,7 @@ function armarPanel(R, S, TUNE, mod) {
     '<label style="display:block"><input type="checkbox" data-c="liviana"> Calidad liviana (sin brillo; próxima repetición)</label></div>' +
     '<div style="padding:0 10px 10px">' + filas +
     '<div style="margin:12px 0 4px;padding-top:6px;border-top:1px solid #35f0ff33;font-weight:700;color:#35f0ff">Cuadro de prueba</div>' +
-    '<div style="color:#9fc3d0;margin-bottom:3px">Mueve el cuadro de tu cuenca a otro punto (longitud, latitud) para ver cómo cambia el recorrido.</div>' +
+    '<div style="color:#9fc3d0;margin-bottom:3px">Estos son los valores que usa la intro como centro de TU cuenca (longitud, latitud). Cámbialos y pulsa Aplicar para probar otra zona.</div>' +
     '<div><input data-l="lon" type="number" step="0.1" style="width:80px"> <input data-l="lat" type="number" step="0.1" style="width:80px"> <button data-a="caja">Aplicar</button></div>' +
     '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:10px"><button data-a="copiar">📋 Copiar valores</button><button data-a="reset">Restablecer</button></div>' +
     '<pre data-out style="white-space:pre-wrap;margin:6px 0 0;font:11px ' + mono + ';display:none"></pre></div></div>';
@@ -428,6 +428,8 @@ async function reproducir(o) {
     const mod = await import(urlEscena(o.version));
     const { TUNE, DUR } = mod;
     S.defaults = Object.assign({}, TUNE);
+    const VERSION_AJUSTES = 3;   // sube este numero cuando cambie el significado de los ajustes: se descartan los guardados
+    if (guardado.leer('tuneV', 0) !== VERSION_AJUSTES) { guardado.poner('tune', null); guardado.poner('tuneV', VERSION_AJUSTES); }
     const guardados = guardado.leer('tune', null);
     if (guardados) Object.assign(TUNE, guardados);
     mod.setLowPower(S.liviana);

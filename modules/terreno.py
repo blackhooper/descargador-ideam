@@ -288,6 +288,10 @@ CSS_DIBUJAR_ESPERA = ('<style>html:not([data-y2k-mapa-listo]) .st-key-y2k_dibuja
                       '{opacity:.4 !important;filter:grayscale(1);pointer-events:none !important;cursor:progress}</style>')
 
 
+CSS_DIBUJAR_ESPERA_SERVIDOR = ('<style>.st-key-y2k_dibujar button'
+                              '{opacity:.4 !important;filter:grayscale(1);pointer-events:none !important;cursor:progress}</style>')
+
+
 def css_boton_3d_espera(bbox, estaciones):
     """CSS que deja el boton 3D gris y sin respuesta hasta que el precalentamiento de esta cuenca termina."""
     clave = _datos_satelite(bbox, estaciones)["clave"]
@@ -548,7 +552,7 @@ _ORBITA = """
 
       // ---- Fase 1: dos lasers (cuenca azul, buffer amarillo) bajan del cielo y dibujan su perimetro ----
       // Punto del que "vienen" los dos lasers y las estaciones: el satelite, sobre el centro del rectangulo. APEX_ALTO = altura (ajustable)
-      const APEX_ALTO = 2.8 * DIST;
+      const APEX_ALTO = (O.apex || 1.7) * DIST;
       const base0 = capa("cuenca") || capa("buffer");
       let apex = [O.lon, O.lat, APEX_ALTO];
       if (base0) {
@@ -986,12 +990,12 @@ EXTRAS_3D = _EXTRAS_3D.replace("__AVION__", "true" if AVION_ACTIVO else "false")
 
 
 
-def orbitar(orbita, turno, intro=False, satelite=False):
+def orbitar(orbita, turno, intro=False, satelite=False, apex=1.7):
     """Guion que acerca la camara a la estacion y da una vuelta lenta a su alrededor. `turno`
     cambia en cada seleccion nueva, asi el guion solo corre una vez por estacion elegida.
     intro: antes de la vuelta, corre la secuencia de entrada (lasers, caida de pines, alertas)."""
     import json
-    return _ORBITA.replace("__ORBITA__", json.dumps({**orbita, "intro": bool(intro), "turno": turno, "satelite": bool(satelite)})) + f"<!-- turno {turno} -->"
+    return _ORBITA.replace("__ORBITA__", json.dumps({**orbita, "intro": bool(intro), "turno": turno, "satelite": bool(satelite), "apex": float(apex)})) + f"<!-- turno {turno} -->"
 
 
 def _destino(lon, lat, azimut, distancia):

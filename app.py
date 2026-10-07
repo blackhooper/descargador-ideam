@@ -1,6 +1,7 @@
 import io
 import json
 import re
+import threading
 import time
 import zipfile
 from datetime import date
@@ -44,6 +45,28 @@ if not all(ideam_downloader.credenciales_ideam()):
     st.stop()
 
 catalogo = ideam_catalog.load_ideam_catalog()
+
+
+@st.cache_resource(show_spinner=False)
+def _iniciar_precarga_servidor():
+    """Lo que tarda al pasar a la pantalla de estaciones (~4,6 s) es la lista de parametros del IDEAM (decenas de
+    consultas). Se pide por detras apenas arranca el servidor, para que ya este en cache cuando el usuario pulse
+    "Dibujar mi cuenca". Devuelve el estado compartido: {"listo": bool, "error": str | None}."""
+    estado = {"listo": False, "error": None}
+
+    def trabajo():
+        try:
+            ideam_parameters.obtener_catalogo_parametros()
+        except Exception as e:  # sin red o IDEAM caido: el usuario vera el error de siempre en la pantalla siguiente
+            estado["error"] = str(e)
+        finally:
+            estado["listo"] = True
+
+    threading.Thread(target=trabajo, daemon=True, name="precarga-ideam").start()
+    return estado
+
+
+_precarga = _iniciar_precarga_servidor()
 
 # Condiciones de uso de los datos (terminos del portal DHIME), junto al boton de extraccion
 TEXTO_LEGAL = ("Los datos provienen del IDEAM y su descarga está autorizada para uso personal, privado y no "
@@ -181,6 +204,15 @@ def pantalla_inicio():
     with st.container(key="y2k_precal_mapa"):
         components.html(terreno.precargar_mapa_2d(map_view.recursos_mapa()), height=0)
         st.html(terreno.CSS_DIBUJAR_ESPERA)
+        if not _precarga["listo"]:
+            # ...y tambien espera a que el servidor tenga la lista de parametros del IDEAM. Este fragmento se repite
+            # cada segundo hasta que termina; entonces recarga la pagina una vez (y deja de repetirse)
+            @st.fragment(run_every=1.0)
+            def _vigilar_precarga():
+                if _precarga["listo"]:
+                    st.rerun()
+                st.html(terreno.CSS_DIBUJAR_ESPERA_SERVIDOR)
+            _vigilar_precarga()
     _, c1, c2, _ = st.columns([0.5, 2, 2, 0.5], gap="medium")
     with c1, st.container(border=True):
         st.markdown(f'<div class="y2k-card-head">{estilo.ICONO_DIBUJAR}<div><h2>Dibujar en el mapa</h2>'
@@ -403,6 +435,7 @@ def pantalla_estaciones():
                     if disparar:
                         ss.saltos += 1
                         ss.orbita = ss.saltos
+                        ss._apex_aplicado = ss.get("apex_factor", 1.7)   # el control temporal solo vale en la siguiente animacion
                     # Secuencia de entrada (lasers, caida de pines, alertas): una sola vez por cuenca/buffer.
                     # Se ata al turno de la vuelta para que el guion no cambie entre una recarga y otra
                     firma_intro = json.dumps([[round(float(c), 5) for c in area.total_bounds], bool(buffer_on)])
@@ -424,7 +457,7 @@ def pantalla_estaciones():
                 # Intro satelital (del mapa 2D al 3D): no en celulares ni en la version liviana
                 satelite = bool(intro and usar_intro)
                 with st.container(key="y2k_orbita"):
-                    components.html(terreno.orbitar(orbita, ss.get("orbita", 0), intro, satelite), height=0)
+                    components.html(terreno.orbitar(orbita, ss.get("orbita", 0), intro, satelite, ss.get("_apex_aplicado", 1.7)), height=0)
                     if satelite:
                         components.html(terreno.intro_satelital(ss.get("orbita", 0), bbox_intro, est_intro, buffer_on), height=0)
                     components.html(terreno.AVISO_NAVEGADOR, height=0)
@@ -435,6 +468,9 @@ def pantalla_estaciones():
                 # TEMPORAL: para ver la animacion de entrada otra vez mientras se ajusta
                 st.button("▶ Repetir animación (temporal)", key="y2k_repetir_intro",
                           on_click=lambda: ss.update(_repetir_intro=True))
+                st.slider("Altura de donde salen los láseres y las estaciones (× distancia de la cámara) · temporal",
+                          0.5, 4.0, 1.7, 0.1, key="apex_factor",
+                          help="Más bajo = salen de más cerca y caen más inclinados; más alto = caen casi rectos. Se aplica al pulsar «Repetir animación».")
                 if altura:
                     st.markdown(terreno.leyenda_altura(altura[0], altura[1],
                                                        "escala de Colombia" if altura == terreno.ALTURA_COLOMBIA

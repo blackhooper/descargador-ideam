@@ -141,6 +141,67 @@ def leyenda_altura(minimo, maximo, escala):
             f'<div style="display:flex;justify-content:space-between;font-size:12px;color:var(--y2k-ink-3)">{marcas}</div></div>')
 
 
+# ---- Intro satelital: del mapa 2D al despliegue 3D (cubre la carga del relieve) ----
+# Los archivos estan en static/intro_satelital/ (escena Three.js + reproductor). El guion de abajo los carga en la
+# pagina, tapa el visor 3D con la animacion y, al "encender la pantalla", avisa al guion de la secuencia de entrada
+# (_ORBITA) para que empiecen los lasers sobre el relieve real.
+SATELITE_ACTIVO = True
+PANEL_SATELITE = True    # TEMPORAL: panel de ajustes de camara y tiempos dentro de la intro (borrarlo al terminar de afinar)
+
+
+def _version_satelite():
+    """Cambia cuando se edita algun archivo de la intro: asi el navegador no usa copias viejas."""
+    import os
+    carpeta = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "static", "intro_satelital")
+    try:
+        return max(int(os.path.getmtime(os.path.join(carpeta, f))) for f in os.listdir(carpeta))
+    except OSError:
+        return 1
+
+
+_INTRO_SATELITAL = """
+<script>
+(async () => {
+  const w = window.parent, d = w.document;
+  const P = __PARAMS__;
+  const visor = d.querySelector(".st-key-y2k_visor3d");
+  const fin = () => { w.__y2kIntroSatFin = P.turno; };
+  const menos = w.matchMedia && w.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  w.__y2kIntroSatTurno = P.turno;
+  if (!visor || menos) { fin(); return; }
+  // capa negra inmediata: el reproductor tarda un momento en cargar (la primera vez, bastante)
+  visor.querySelectorAll(".y2k-sat").forEach(e => e.remove());
+  const previo = d.createElement("div");
+  previo.className = "y2k-sat";
+  previo.style.cssText = "position:absolute;inset:0;z-index:30;background:#000;border-radius:12px";
+  visor.appendChild(previo);
+  try {
+    if (!w.__y2kSat) {
+      await new Promise((ok, no) => {
+        const s = d.createElement("script");
+        s.type = "module";
+        s.src = new URL("app/static/intro_satelital/player.js?v=" + P.version, w.location.href).href;
+        s.onload = ok; s.onerror = () => no(new Error("no se pudo cargar el reproductor"));
+        d.head.appendChild(s);
+      });
+    }
+    await w.__y2kSat.reproducir({visor: visor, lon: P.lon, lat: P.lat, turno: P.turno, panel: P.panel, version: P.version});
+  } catch (e) {
+    console.error("intro satelital", e);
+    fin(); previo.remove();
+  }
+})();
+</script>
+"""
+
+
+def intro_satelital(turno, lon, lat):
+    """Guion (para components.html) que reproduce la intro satelital sobre el visor 3D de este turno."""
+    datos = {"turno": turno, "lon": round(float(lon), 4), "lat": round(float(lat), 4),
+             "panel": bool(PANEL_SATELITE), "version": _version_satelite()}
+    return _INTRO_SATELITAL.replace("__PARAMS__", json.dumps(datos)) + f"<!-- turno {turno} -->"
+
+
 # Cache propia de imagenes de relieve, compartida por todas las sesiones y segura entre
 # hilos (asi se pueden descargar varias a la vez). Guarda las ultimas MAX_TILES_MEMORIA.
 MAX_TILES_MEMORIA = 400
@@ -288,6 +349,8 @@ _ORBITA = """
       if (deck.props.layers && !deck.props.layers.__y2k) refrescar();
     }, 60);
   }
+  // Con la intro satelital el visor se destapa cuando ya esta la capa de la intro encima
+  if (conIntro && O.satelite) { for (let i = 0; i < 60 && w.__y2kIntroSatTurno !== O.turno && vigente(); i++) await esperar(50); }
   mostrar();
 
   // ---- 2. Esperar a que el relieve este dibujado (la cubierta "Alistando..." sigue encima) ----
@@ -337,6 +400,11 @@ _ORBITA = """
           }, 0);
           await esperar(200);
         }
+      }
+      // Con la intro satelital el relieve se prepara por detras; los lasers empiezan cuando la intro enciende la pantalla
+      if (O.satelite) {
+        const t0 = w.performance.now();
+        while (vigente() && w.__y2kIntroSatFin !== O.turno && w.performance.now() - t0 < 90000) await esperar(50);
       }
       const Punto = (capa("estaciones") || capa("fantasmas") || {}).constructor;
       const Linea = (capa("tallos") || capa("saltos") || {}).constructor;
@@ -803,12 +871,12 @@ EXTRAS_3D = _EXTRAS_3D.replace("__AVION__", "true" if AVION_ACTIVO else "false")
 
 
 
-def orbitar(orbita, turno, intro=False):
+def orbitar(orbita, turno, intro=False, satelite=False):
     """Guion que acerca la camara a la estacion y da una vuelta lenta a su alrededor. `turno`
     cambia en cada seleccion nueva, asi el guion solo corre una vez por estacion elegida.
     intro: antes de la vuelta, corre la secuencia de entrada (lasers, caida de pines, alertas)."""
     import json
-    return _ORBITA.replace("__ORBITA__", json.dumps({**orbita, "intro": bool(intro), "turno": turno})) + f"<!-- turno {turno} -->"
+    return _ORBITA.replace("__ORBITA__", json.dumps({**orbita, "intro": bool(intro), "turno": turno, "satelite": bool(satelite)})) + f"<!-- turno {turno} -->"
 
 
 def _destino(lon, lat, azimut, distancia):

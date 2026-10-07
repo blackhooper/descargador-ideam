@@ -407,8 +407,13 @@ def pantalla_estaciones():
                     # La clave cambia con "Recargar vista 3D": asi Streamlit crea un visor nuevo desde cero
                     st.pydeck_chart(deck, height=terreno.ALTO_VISOR, on_select="rerun", selection_mode="single-object",
                                     key=f"mapa3d_{ss.get('version_3d', 0)}")
+                # Intro satelital (del mapa 2D al 3D): no en celulares ni en la version liviana
+                satelite = bool(intro and terreno.SATELITE_ACTIVO and not _es_celular() and not ss.get("modo_3d_ligero", False))
                 with st.container(key="y2k_orbita"):
-                    components.html(terreno.orbitar(orbita, ss.get("orbita", 0), intro), height=0)
+                    components.html(terreno.orbitar(orbita, ss.get("orbita", 0), intro, satelite), height=0)
+                    if satelite:
+                        _x0, _y0, _x1, _y1 = (cuenca if cuenca is not None else area).total_bounds
+                        components.html(terreno.intro_satelital(ss.get("orbita", 0), (_x0 + _x1) / 2, (_y0 + _y1) / 2), height=0)
                     components.html(terreno.AVISO_NAVEGADOR, height=0)
                     components.html(terreno.EXTRAS_3D, height=0)
                     # Botones ocultos: los pulsa el aviso de "sin memoria grafica" que pone EXTRAS_3D

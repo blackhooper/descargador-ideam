@@ -23,6 +23,7 @@ import streamlit.components.v1 as components
 #  - Los marcadores de estaciones llevan la opcion y2k="pin" (ver map_view.capa_dinamica): el
 #    escaner los esconde con estilo (radio y opacidad) mientras corre y los revela de a uno. Van en el
 #    mismo canvas que el rectangulo: un panel propio intercepta los clics del lapiz y la basurita.
+#  - En modo Lite el escaner se dibuja sin rejilla ni destellos y los pines aparecen sin animacion.
 #  - El rectangulo nuevo reemplaza al anterior: el controlador quita las demas figuras ANTES de que
 #    streamlit-folium lea `drawnItems` (su listener corre despues del nuestro).
 # ===========================================================================
@@ -38,6 +39,8 @@ _CONTROLADOR = r"""
   var COLORES = {satelite: {color: "#5fe0ff", halo: "rgba(4,10,16,.6)"}, mapa: {color: "#1a63d8", halo: "rgba(255,255,255,.85)"}};
   var S = {activo: null, n: 0};
   var pausa = function (ms) { return new Promise(function (r) { setTimeout(r, ms); }); };
+  // Modo Lite (lo marca el CSS de la pagina): escaner sin rejilla ni destellos y pines sin animacion de entrada
+  function esLite() { try { return getComputedStyle(document.documentElement).getPropertyValue("--y2k-lite").trim() === "1"; } catch (e) { return false; } }
 
   function marco() {
     var fs = document.querySelectorAll("iframe");
@@ -85,7 +88,9 @@ _CONTROLADOR = r"""
     cancelar(false);
     if (!preparar(win)) return;
     var c = (map.__y2kBase === "Calles" || map.__y2kBase === "Relieve") ? COLORES.mapa : COLORES.satelite;
-    var scan = win.ScanOverlay.leaflet(win.L, limites, {cycle: 1.8, color: c.color, halo: c.halo, label: "Buscando estaciones"});
+    var lite = esLite();
+    var scan = win.ScanOverlay.leaflet(win.L, limites, {cycle: 1.8, color: c.color, halo: c.halo, label: "Buscando estaciones",
+                                                        grid: !lite, pings: !lite});
     scan.addTo(map);
     marcas(map).forEach(ocultar);
     bloquear(map, win, true);
@@ -128,6 +133,7 @@ _CONTROLADOR = r"""
   function revelar(map) {
     var lista = marcas(map).filter(function (l) { return l.__y2k; });
     if (!lista.length) return;
+    if (esLite()) { lista.forEach(restaurar); return; }
     lista.sort(function (x, y) { return y.getLatLng().lat - x.getLatLng().lat; });
     var info = lista.map(function (m) { return {m: m, r: m.__y2k.r, o: m.__y2k.o, f: m.__y2k.f}; });
     var N = info.length, t0 = performance.now(), DUR = 420, ESC = 520;

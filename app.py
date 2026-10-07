@@ -14,29 +14,36 @@ from streamlit_folium import st_folium
 
 from modules import (escaner, estilo, geo_input, geo_utils, map_view, ideam_catalog, ideam_parameters,
                      ideam_downloader, panel_estadisticas, terreno, escena_descarga)
-from modules.calidad import filtrar_descargables, clasificar_calidad
+from modules.calidad import CLASES_CALIDAD, filtrar_descargables, clasificar_calidad
 
 st.set_page_config(page_title="Descargador IDEAM", page_icon="🌧️", layout="wide", initial_sidebar_state="collapsed")
 
 ss = st.session_state
+# Preferencias de apariencia y rendimiento: viajan en la direccion (?tema=, ?contraste=, ?lite=) para que sobrevivan
+# a una recarga. Sin parametro = "Sistema" (sigue la configuracion del equipo) y calidad completa.
+_q = st.query_params
 for clave, valor in {"paso": "inicio", "cuenca": None, "version_mapa": 0, "estacion_sel": None,
                      "_prev_sel": {}, "descarga": None, "resultado": None, "descarga_en_curso": False,
-                     "saltos": 0, "tema": "oscuro" if st.query_params.get("tema") == "oscuro" else "claro"}.items():
+                     "saltos": 0,
+                     "tema": _q.get("tema") if _q.get("tema") in estilo.TEMAS else "sistema",
+                     "contraste": _q.get("contraste") if _q.get("contraste") in estilo.CONTRASTES else "sistema",
+                     "lite": _q.get("lite") == "1"}.items():
     ss.setdefault(clave, valor)
 
 # Para saber si el mapa 2D sigue montado en el navegador: si la corrida anterior lo dibujo, es el mismo
 ss._mapa_en_run_anterior = ss.get("_mapa_en_esta_run", False)
 ss._mapa_en_esta_run = False
 
-estilo.aplicar(ss.tema)
+estilo.aplicar(ss.tema, ss.contraste, ss.lite)
 estilo.control_tema()
+estilo.guiones_globales()
 # Guion que colorea el relieve en la textura "Altura": se instala desde el arranque de la pagina (no cuesta nada
 # si no se usa) para que ya este puesto antes de que el visor 3D pida sus imagenes
 with st.container(key="y2k_hipso"):
     components.html(terreno.HIPSOMETRICO, height=0)
 # Aqui (arriba, sin alto) se pone despues el CSS que tapa el visor 3D mientras arranca la secuencia de entrada
 velo_3d = st.container(key="y2k_velo")
-PALETA = estilo.PALETAS[ss.tema]
+PALETA = estilo.paleta(ss.tema)
 
 if not all(ideam_downloader.credenciales_ideam()):
     st.error("Faltan el usuario y la clave del portal DHIME del IDEAM. En tu computador van en "
@@ -119,9 +126,15 @@ def _nombre_archivo(texto, respaldo):
 
 
 def _recargar_3d():
-    """El navegador se quedo sin memoria grafica: visor 3D nuevo y en version liviana."""
+    """«Seguir intentando» tras un fallo del 3D: visor nuevo en el mismo modo (la camara la repone el navegador)."""
     ss.version_3d = ss.get("version_3d", 0) + 1
-    ss.modo_3d_ligero = True
+
+
+def _lite_reintentar():
+    """«Activar Lite y reintentar»: solo cuando el usuario lo elige en un aviso de fallo."""
+    ss.lite = True
+    st.query_params["lite"] = "1"
+    ss.version_3d = ss.get("version_3d", 0) + 1
 
 
 def _pasar_a_2d():
@@ -195,11 +208,11 @@ def _ir(paso):
 # Pantalla 1: elegir como marcar la cuenca
 # ===========================================================================
 def pantalla_inicio():
-    estilo.ventana(f"Catálogo nacional · {_num(len(catalogo))} estaciones" if catalogo is not None else "")
-    estilo.pasos({1}, set())
-    st.markdown('<div class="y2k-hello"><h1>¿Dónde está tu cuenca?</h1><p>Elige cómo marcar el área. Después verás '
-                'las estaciones del IDEAM que caen adentro y cuántos datos tiene cada una.</p></div>',
-                unsafe_allow_html=True)
+    estilo.barra("", {1}, set(), pantalla="inicio")
+    total = (f'<span class="y2k-chip-dato"><i aria-hidden="true"></i>{_num(len(catalogo))} estaciones en el catálogo '
+             'nacional</span>' if catalogo is not None else "")
+    st.html('<div class="y2k-hello"><h1>¿Dónde está tu cuenca?</h1><p>Marca el área y verás las estaciones del IDEAM '
+            f'que caen adentro y cuántos datos tiene cada una.</p>{total}</div>')
     # Se baja por detras lo que necesita el mapa 2D; "Dibujar" espera a que termine para abrirlo sin esperas
     with st.container(key="y2k_precal_mapa"):
         components.html(terreno.precargar_mapa_2d(map_view.recursos_mapa()), height=0)
@@ -213,23 +226,20 @@ def pantalla_inicio():
                     st.rerun()
                 st.html(terreno.CSS_DIBUJAR_ESPERA_SERVIDOR)
             _vigilar_precarga()
-    _, c1, c2, _ = st.columns([0.5, 2, 2, 0.5], gap="medium")
-    with c1, st.container(border=True):
-        st.markdown(f'<div class="y2k-card-head">{estilo.ICONO_DIBUJAR}<div><h2>Dibujar en el mapa</h2>'
-                    '<p>Traza un rectángulo, mueve sus esquinas y bórralo cuando quieras.</p></div></div>'
-                    '<div class="y2k-chips"><span class="y2k-chip">rectángulo</span>'
-                    '<span class="y2k-chip">editar</span><span class="y2k-chip">buffer</span></div>', unsafe_allow_html=True)
-        if st.button("Dibujar mi cuenca", type="primary", use_container_width=True, key="y2k_dibujar"):
+    _, c1, c2, _ = st.columns([0.25, 2, 2, 0.25], gap="medium")
+    with c1, st.container(key="y2k_card_dibujar"):
+        estilo.md(f'<div class="y2k-card-head">{estilo.ICONO_DIBUJAR}<div><h2>Dibujar en el mapa</h2>'
+                  '<p>Traza un rectángulo; después puedes mover sus esquinas o borrarlo.</p></div></div>')
+        if st.button("Dibujar mi cuenca", type="primary", width="stretch", key="y2k_dibujar"):
             ss.cuenca = None
             ss.version_mapa += 1
             ss.estacion_sel = None
             _ir("estaciones")
-    with c2, st.container(border=True):
-        st.markdown(f'<div class="y2k-card-head">{estilo.ICONO_SUBIR}<div><h2>Subir un archivo</h2>'
-                    '<p>Si no trae sistema de coordenadas te lo avisamos antes de seguir.</p></div></div>'
-                    '<div class="y2k-chips"><span class="y2k-chip">shp en zip</span><span class="y2k-chip">shp suelto</span>'
-                    '<span class="y2k-chip">geojson</span><span class="y2k-chip">kml</span><span class="y2k-chip">kmz</span>'
-                    '<span class="y2k-chip">gpkg</span></div>', unsafe_allow_html=True)
+        st.html('<p class="y2k-hint y2k-preparando" role="status">Preparando el mapa…</p>')
+    with c2, st.container(key="y2k_card_subir"):
+        estilo.md(f'<div class="y2k-card-head">{estilo.ICONO_SUBIR}<div><h2>Subir un archivo</h2>'
+                  '<p>El contorno de tu cuenca. Si no trae sistema de coordenadas, te avisamos.</p></div></div>'
+                  '<p class="y2k-formatos">SHP (en ZIP o suelto) · GeoJSON · KML · KMZ · GPKG</p>')
         archivos = st.file_uploader("Archivo de la cuenca", type=geo_input.EXTENSIONES_ACEPTADAS,
                                     accept_multiple_files=True, label_visibility="collapsed")
         if archivos:
@@ -252,7 +262,7 @@ def pantalla_inicio():
                             if mensaje != "Geometría válida.":
                                 st.warning(mensaje)
                             st.success(f"Cuenca lista ({len(poligonos)} polígono(s)).")
-                            if st.button("Continuar con esta cuenca", type="primary", use_container_width=True):
+                            if st.button("Continuar con esta cuenca", type="primary", width="stretch"):
                                 ss.cuenca = poligonos[["geometry"]].reset_index(drop=True)
                                 ss.version_mapa += 1
                                 ss.estacion_sel = None
@@ -274,11 +284,11 @@ def selector_parametro():
     except Exception as e:
         st.error(f"No se pudo cargar la lista de parámetros del IDEAM: {e}")
         return None
-    avanzado = st.toggle("Descarga avanzada (cada 2, 5 o 10 minutos)", key="avanzado",
-                         help="Series con muchísimos datos. El IDEAM solo entrega 1 mes por consulta.")
+    avanzado = st.toggle("Series cada 2, 5 o 10 minutos", key="avanzado",
+                         help="Descarga avanzada: series con muchísimos datos. El IDEAM solo entrega 1 mes por consulta.")
     if avanzado:
-        st.warning("⏳ El IDEAM entrega estos datos de a **1 mes por consulta**: 10 años son 120 consultas por "
-                   "estación y cada Excel puede tener cientos de miles de filas. Usa rangos cortos y pocas estaciones.")
+        st.warning("El IDEAM entrega estos datos de a **1 mes por consulta** (10 años = 120 consultas por estación). "
+                   "Usa rangos cortos y pocas estaciones.", icon=":material/hourglass_top:")
     variables = ideam_parameters.variables_disponibles(catalogo_param, avanzado)
     ids = list(variables)
     variable = st.selectbox("Variable", ids, format_func=variables.get, key=f"var_{avanzado}",
@@ -290,35 +300,52 @@ def selector_parametro():
                             format_func=lambda e: f"{parametros[e]['descripcion']} ({parametros[e]['unidad']})")
     param = parametros[etiqueta]
     anios = param["dias_bloque"] / 360
-    st.markdown(f'<p class="y2k-hint">Serie <b>{param["etiqueta"]}</b> · el IDEAM entrega hasta '
-                f'{f"{anios:.0f} años" if anios >= 1 else str(param["dias_bloque"]) + " días"} por consulta</p>',
-                unsafe_allow_html=True)
+    st.html(f'<p class="y2k-hint">Serie <b>{param["etiqueta"]}</b> · hasta '
+            f'{f"{anios:.0f} años" if anios >= 1 else str(param["dias_bloque"]) + " días"} por consulta</p>')
     return param
 
 
 def pantalla_estaciones():
     cuenca = ss.cuenca
-    col_ctrl, col_mapa, col_res = st.columns([1.05, 2.35, 1.25], gap="medium")
+    # Disposicion: el mapa ocupa la pantalla (escenario). En escritorio "Consulta" y "Resumen" son paneles plegables
+    # a los lados; en el celular van en pestanas dentro de una hoja inferior contraible (y2k_hoja). Plegar y
+    # desplegar lo hace el navegador (estilo.instalar_ui), sin recargar la pagina.
+    with st.container(key="y2k_hoja"):
+        # cabecera de la hoja (celular): se llena al final, pero en un contenedor (no st.empty) para que las pestanas
+        # sigan a la vista mientras Streamlit recalcula
+        cab_hoja = st.container()
+        col_ctrl = st.container(key="y2k_consulta")
+        col_res = st.container(key="y2k_resumen")
+    escenario = st.container(key="y2k_escenario")
+    # Botones ocultos: los pulsan los avisos de fallo del navegador (siempre por eleccion del usuario)
+    with st.container(key="y2k_ocultos"):
+        st.button("Activar Lite y reintentar", key="y2k_lite_reintentar", on_click=_lite_reintentar)
+        st.button("Seguir intentando", key="y2k_reintentar3d", on_click=_recargar_3d)
+        st.button("Ver en 2D", key="y2k_pasar2d", on_click=_pasar_a_2d)
 
     # ---------------- controles ----------------
-    with col_ctrl, st.container(border=True):
-        st.markdown("### CUENCA")
+    with col_ctrl:
+        estilo.cabecera_panel("Consulta", "izq")
+        estilo.seccion("Cuenca")
+        ayuda_mapa = ("<p>La herramienta de dibujo está arriba a la izquierda del mapa: con el <b>lápiz</b> mueves las "
+                      "esquinas y con la <b>papelera</b> borras. Un rectángulo nuevo reemplaza al anterior.</p>"
+                      "<p>Pasa el cursor por una estación para ver su ficha y haz clic para seleccionarla. El botón de "
+                      "capas (arriba a la derecha) cambia el mapa base.</p>")
         if cuenca is None:
-            st.markdown('<p class="y2k-hint">Dibuja tu cuenca con el <b>rectángulo</b> (arriba a la izquierda del mapa). '
-                        'Con el <b>lápiz</b> mueves sus esquinas y con la <b>basurita</b> la borras.</p>',
-                        unsafe_allow_html=True)
+            estilo.detalles("Dibuja un <b>rectángulo</b> sobre el mapa.", ayuda_mapa, ver="Cómo dibujar")
+        else:
+            estilo.detalles("Cuenca marcada; puedes ajustarla en el mapa.", ayuda_mapa, ver="Cómo usar el mapa")
         buffer_on = st.toggle("Buffer alrededor de la cuenca", value=True, key="buf_on")
         buffer_km = st.slider("Distancia del buffer (km)", 0.5, 15.0, 2.0, 0.5, key="buf_km", disabled=not buffer_on)
-        b1, b2 = st.columns(2)
-        if b1.button("Borrar cuenca", use_container_width=True, disabled=cuenca is None):
-            ss.cuenca = None
-            ss.version_mapa += 1
-            ss.estacion_sel = None
-            st.rerun()
-        if b2.button("← Inicio", use_container_width=True):
-            _ir("inicio")
-        st.divider()
-        st.markdown("### PARÁMETRO")
+        with st.container(horizontal=True, gap="small"):
+            if st.button("Borrar cuenca", width="stretch", disabled=cuenca is None, icon=":material/delete:"):
+                ss.cuenca = None
+                ss.version_mapa += 1
+                ss.estacion_sel = None
+                st.rerun()
+            if st.button("Inicio", width="stretch", icon=":material/arrow_back:"):
+                _ir("inicio")
+        estilo.seccion("Parámetro")
         param = selector_parametro()
         f1, f2 = st.columns(2)
         fecha_ini = f1.date_input("Desde", date(2000, 1, 1), min_value=date(1920, 1, 1), key="f_ini", format="DD/MM/YYYY")
@@ -326,15 +353,16 @@ def pantalla_estaciones():
         fechas_ok = fecha_ini < fecha_fin
         if not fechas_ok:
             st.error("La fecha de inicio debe ser anterior a la final.")
-        st.divider()
-        st.markdown("### FILTRO")
+        estilo.seccion("Filtro")
         umbral = st.slider("Cantidad probable mínima", 0, 100, 0, 5, format="%d%%", key="umbral",
                            help="Qué parte del periodo consultado debe cubrir el registro de la estación "
                                 "(entre su primer y su último dato). No descuenta los huecos internos.")
         carpetas = st.checkbox("Carpetas por cobertura en el ZIP", value=True, key="carpetas",
                                help="Alta 70-100 %, Media 50-70 %, Baja 25-50 %, Crítica 0-25 % "
                                     "del periodo consultado")
-        zona_boton = st.container()
+        # La accion principal queda siempre a la vista al final del panel
+        zona_boton = st.container(key="y2k_accion")
+        estilo.pie()
 
     # ---------------- estaciones de la cuenca + evaluacion ----------------
     zona = area = None
@@ -382,43 +410,43 @@ def pantalla_estaciones():
         cambio_sel = True
         ss.vista = "3D"
     rango = terreno.rango_terreno(area) if zona is not None and not zona.empty else None
-    # Intro satelital: con la cuenca ya confirmada (no se va a mover) se precalienta por detras, asi al pasar a 3D no hay espera
+    # Intro satelital: con la cuenca ya confirmada (no se va a mover) se precalienta por detras, asi al pasar a 3D no hay
+    # espera. No en celulares; en modo Lite tampoco se precalienta ni se reproduce (es lo mas costoso para la tarjeta
+    # grafica), pero `usar_intro` no depende de Lite para que activarlo no cambie el guion de la camara
     bbox_intro, est_intro, usar_intro = None, [], False
-    if (zona is not None and not zona.empty and terreno.SATELITE_ACTIVO and not _es_celular()
-            and not ss.get("modo_3d_ligero", False)):
+    if zona is not None and not zona.empty and terreno.SATELITE_ACTIVO and not _es_celular():
         usar_intro = True
         bbox_intro = list((cuenca if cuenca is not None else area).total_bounds)
         est_intro = _estaciones_3d(zona, umbral)
+    if usar_intro and not ss.lite:
         with st.container(key="y2k_precal"):
             components.html(terreno.precalentar_satelite(bbox_intro, est_intro, buffer_on), height=0)
             st.html(terreno.css_boton_3d_espera(bbox_intro, est_intro))   # el boton 3D espera a que todo este listo
 
-    # ---------------- mapa ----------------
-    with col_mapa:
-        c_vista, c_tex = st.columns([1, 1])
-        vista = c_vista.segmented_control("Vista", ["2D", "3D"], default="2D", key="vista",
-                                          label_visibility="collapsed") or "2D"
+    # ---------------- mapa (escenario a pantalla completa) ----------------
+    with escenario:
+        vista = st.segmented_control("Vista", ["2D", "3D"], default="2D", key="vista",
+                                     label_visibility="collapsed") or "2D"
         if vista == "3D":
-            textura = c_tex.segmented_control("Textura", ["Satélite", "Topográfico", "Altura"], default="Satélite",
-                                              key="textura", label_visibility="collapsed") or "Satélite"
-            # Textura "Altura": colores segun la altitud, con la escala de la zona o la de todo Colombia
-            altura, escala_alt = None, None
-            if textura == "Altura":
-                escala_alt = st.segmented_control("Escala de altura", ["Rango de la zona", "Rango de Colombia"],
-                                                  default="Rango de la zona", key="escala_altura",
-                                                  label_visibility="collapsed") or "Rango de la zona"
-                altura = rango if (escala_alt == "Rango de la zona" and rango and rango[1] > rango[0]) else terreno.ALTURA_COLOMBIA
+            with st.container(key="y2k_tex3d", horizontal=True, gap="small"):
+                textura = st.segmented_control("Textura", ["Satélite", "Topográfico", "Altura"], default="Satélite",
+                                               key="textura", label_visibility="collapsed") or "Satélite"
+                # Textura "Altura": colores segun la altitud, con la escala de la zona o la de todo Colombia
+                altura, escala_alt = None, None
+                if textura == "Altura":
+                    escala_alt = st.segmented_control("Escala de altura", ["Rango de la zona", "Rango de Colombia"],
+                                                      default="Rango de la zona", key="escala_altura",
+                                                      format_func=lambda e: e.replace("Rango de la", "Escala:").replace("Rango de", "Escala:"),
+                                                      label_visibility="collapsed") or "Rango de la zona"
+                    altura = rango if (escala_alt == "Rango de la zona" and rango and rango[1] > rango[0]) else terreno.ALTURA_COLOMBIA
             if zona is None or zona.empty:
-                st.info("Dibuja tu cuenca para verla en 3D.")
+                estilo.sobre_mapa("Dibuja tu cuenca en el mapa 2D para verla en 3D.", "y2k-vacio")
             else:
-                # La cubierta "Alistando las estaciones" se ve mientras el servidor arma la escena y el
-                # navegador baja el relieve; el guion de terreno.py la levanta cuando el relieve esta listo
+                ligero = _es_celular() or ss.lite
                 with st.container(key="y2k_visor3d"):
-                    # (sin cubierta de carga: la espera ya la cubre el escaner; la animacion arranca sola cuando llega el relieve)
                     deck, orbita = terreno.construir_deck(cuenca, area if buffer_on else None,
                                                           _estaciones_3d(zona, umbral), ss.estacion_sel, textura,
-                                                          PALETA, ligero=_es_celular() or ss.get("modo_3d_ligero", False),
-                                                          altura=altura)
+                                                          PALETA, ligero=ligero, altura=altura)
                     # Vuelta de camara: alrededor de la estacion recien elegida o, sin seleccion, alrededor
                     # del centro de las estaciones (al abrir el 3D, al cambiar las estaciones o al quitar la seleccion)
                     pedida = ss.pop("_orbitar", False)
@@ -437,7 +465,8 @@ def pantalla_estaciones():
                         ss.orbita = ss.saltos
                         ss._apex_aplicado = ss.get("apex_factor", 1.7)   # el control temporal solo vale en la siguiente animacion
                     # Secuencia de entrada (lasers, caida de pines, alertas): una sola vez por cuenca/buffer.
-                    # Se ata al turno de la vuelta para que el guion no cambie entre una recarga y otra
+                    # Se ata al turno de la vuelta para que el guion no cambie entre una recarga y otra.
+                    # En modo Lite el guion no la corre (se muestra el resultado final de una vez)
                     firma_intro = json.dumps([[round(float(c), 5) for c in area.total_bounds], bool(buffer_on)])
                     if disparar and (ss.get("_intro_firma") != firma_intro or repetir):
                         ss._intro_firma = firma_intro
@@ -446,38 +475,33 @@ def pantalla_estaciones():
                     # Mientras corre la secuencia el visor se tapa (CSS) hasta que el guion de terreno.py esconde las capas
                     # y lo marca con este turno. Se manda en todas las corridas del turno (no solo la primera): si Streamlit
                     # repite el script al entrar al 3D, el velo no puede desaparecer. Si algo falla, se destapa solo a los 12 s
-                    if intro:
+                    if intro and not ss.lite:
                         with velo_3d:
                             st.html('<style>.st-key-y2k_visor3d:not([data-mostrar="' + str(ss.orbita) + '"]) '
                                     '[data-testid="stDeckGlJsonChart"]{visibility:hidden;animation:y2k-mostrar 0s linear 12s forwards}'
                                     '@keyframes y2k-mostrar{to{visibility:visible}}</style>')
-                    # La clave cambia con "Recargar vista 3D": asi Streamlit crea un visor nuevo desde cero
+                    # La clave cambia con "Seguir intentando" / "Activar Lite y reintentar": visor nuevo desde cero
                     st.pydeck_chart(deck, height=terreno.ALTO_VISOR, on_select="rerun", selection_mode="single-object",
                                     key=f"mapa3d_{ss.get('version_3d', 0)}")
-                # Intro satelital (del mapa 2D al 3D): no en celulares ni en la version liviana
+                # Intro satelital (del mapa 2D al 3D): no en celulares ni en modo Lite
                 satelite = bool(intro and usar_intro)
                 with st.container(key="y2k_orbita"):
-                    components.html(terreno.orbitar(orbita, ss.get("orbita", 0), intro, satelite, ss.get("_apex_aplicado", 1.7)), height=0)
-                    if satelite:
+                    components.html(terreno.orbitar(orbita, ss.get("orbita", 0), intro, satelite,
+                                                    ss.get("_apex_aplicado", 1.7)), height=0)
+                    if satelite and not ss.lite:
                         components.html(terreno.intro_satelital(ss.get("orbita", 0), bbox_intro, est_intro, buffer_on), height=0)
                     components.html(terreno.AVISO_NAVEGADOR, height=0)
                     components.html(terreno.EXTRAS_3D, height=0)
-                    # Botones ocultos: los pulsa el aviso de "sin memoria grafica" que pone EXTRAS_3D
-                    st.button("Recargar vista 3D", key="y2k_recargar3d", on_click=_recargar_3d)
-                    st.button("Ver en 2D", key="y2k_pasar2d", on_click=_pasar_a_2d)
-                # TEMPORAL: para ver la animacion de entrada otra vez mientras se ajusta
-                st.button("▶ Repetir animación (temporal)", key="y2k_repetir_intro",
-                          on_click=lambda: ss.update(_repetir_intro=True))
-                st.slider("Altura de donde salen los láseres y las estaciones (× distancia de la cámara) · temporal",
-                          0.5, 4.0, 1.7, 0.1, key="apex_factor",
-                          help="Más bajo = salen de más cerca y caen más inclinados; más alto = caen casi rectos. Se aplica al pulsar «Repetir animación».")
+                estilo.controles_camara()
                 if altura:
-                    st.markdown(terreno.leyenda_altura(altura[0], altura[1],
-                                                       "escala de Colombia" if altura == terreno.ALTURA_COLOMBIA
-                                                       else "escala de la zona"), unsafe_allow_html=True)
-                st.caption("Relieve ×2 · toca el mapa para detener la vuelta · Ctrl + arrastrar para girar e inclinar")
-                st.markdown(f'<p class="y2k-hint" style="margin-top:10px !important;text-align:right">'
-                            f'{estilo.ATRIB_RELIEVE_3D_CORTO}</p>', unsafe_allow_html=True)
+                    estilo.sobre_mapa(terreno.leyenda_altura(altura[0], altura[1],
+                                                             "escala de Colombia" if altura == terreno.ALTURA_COLOMBIA
+                                                             else "escala de la zona")
+                                      + '<p class="tit" style="font-weight:500;padding-top:0">Relieve ×2 · Ctrl + arrastrar gira e inclina</p>',
+                                      "y2k-leyenda y2k-leyenda-alt en3d")
+                else:
+                    estilo.leyenda_estaciones([(f"{c[1]} {c[2]}", c[4]) for c in CLASES_CALIDAD], en3d=True)
+                estilo.sobre_mapa(estilo.ATRIB_RELIEVE_3D_CORTO, "y2k-atrib3d")
         else:
             # El mapa base solo lleva la cuenca cuando el mapa se monta de cero (archivo, volver del 3D,
             # "Borrar cuenca"). Un rectangulo recien dibujado ya vive en el navegador: meterlo al mapa
@@ -499,9 +523,11 @@ def pantalla_estaciones():
                     ss.saltos += 1
                     centro = (elegida.geometry.iloc[0].y + ss.saltos * 1e-9, elegida.geometry.iloc[0].x)
                     zoom = 14 + (ss.saltos % 2) * 1e-4
-            retorno = st_folium(base, key=f"mapa2d_{ss.version_mapa}", height=650, use_container_width=True,
-                                feature_group_to_add=capa, center=centro, zoom=zoom,
-                                returned_objects=["all_drawings", "last_object_clicked"])
+            # El alto real lo pone el CSS (llena el escenario); 650 es solo el valor inicial del componente
+            with st.container(key="y2k_mapa2d"):
+                retorno = st_folium(base, key=f"mapa2d_{ss.version_mapa}", height=650, use_container_width=True,
+                                    feature_group_to_add=capa, center=centro, zoom=zoom,
+                                    returned_objects=["all_drawings", "last_object_clicked"])
             ss._mapa_en_esta_run = True
             if retorno and retorno.get("all_drawings") is not None:
                 nueva = map_view.cuenca_desde_dibujos(retorno["all_drawings"])
@@ -515,7 +541,7 @@ def pantalla_estaciones():
                 if cuenca is not None and zona is not None:
                     hay = len(seleccion) if evaluada and seleccion is not None else len(zona)
                     if hay:
-                        texto = f"{hay} estación{'es' if hay != 1 else ''} encontrada{'s' if hay != 1 else ''}"
+                        texto = f"{hay} {'estaciones encontradas' if hay != 1 else 'estación encontrada'}"
                     elif zona.empty:
                         texto = "Sin estaciones aquí · prueba ampliar el buffer"
                     else:
@@ -524,18 +550,32 @@ def pantalla_estaciones():
             clic = (retorno or {}).get("last_object_clicked")
             if _sincronizar("mapa2d", clic, lambda c: _estacion_cercana(zona, c)):
                 st.rerun()
-            st.caption("Pasa el cursor por una estación para ver su ficha · clic para seleccionarla · "
-                       "cambia el mapa base con el botón de capas (arriba a la derecha)")
+            if cuenca is not None:
+                estilo.leyenda_estaciones([(f"{c[1]} {c[2]}", c[4]) for c in CLASES_CALIDAD])
         ss._vista_prev = vista
 
     # ---------------- resumen ----------------
-    with col_res, st.container(border=True):
+    with col_res:
+        n_sel = len(seleccion) if evaluada and seleccion is not None else None
+        estilo.cabecera_panel("Resumen", "der", extra=f"{n_sel} para descargar" if n_sel is not None else "")
         if cuenca is not None and param is not None and fechas_ok and zona is not None and not evaluada and not zona.empty:
             st.info("Consultando el IDEAM...")
         elif param is not None and fechas_ok:
             panel_estadisticas.mostrar_panel(zona, seleccion if seleccion is not None else None, param,
-                                             fecha_ini, fecha_fin, umbral, ss.estacion_sel, tabla, ss.tema,
+                                             fecha_ini, fecha_fin, umbral, ss.estacion_sel, tabla, PALETA,
                                              dudosas, rango, vista)
+        else:
+            st.html('<p class="y2k-hint">El resumen aparece al elegir un parámetro y fechas válidas.</p>')
+        if vista == "3D" and zona is not None and not zona.empty:
+            # TEMPORAL: para ver la animacion de entrada otra vez mientras se ajusta (quitar antes de presentar)
+            with st.expander("Ajustes de la animación 3D (temporal)", icon=":material/tune:"):
+                st.button("Repetir animación", key="y2k_repetir_intro", icon=":material/replay:",
+                          on_click=lambda: ss.update(_repetir_intro=True), disabled=ss.lite,
+                          help="En modo Lite no hay animación de entrada." if ss.lite else None)
+                st.slider("Altura de salida de láseres y estaciones (× distancia de la cámara)",
+                          0.5, 4.0, 1.7, 0.1, key="apex_factor",
+                          help="Más bajo = salen de más cerca y caen más inclinados; más alto = caen casi rectos. "
+                               "Se aplica al pulsar «Repetir animación».")
 
     # ---------------- boton de descarga ----------------
     with zona_boton:
@@ -547,8 +587,8 @@ def pantalla_estaciones():
             if excede:
                 st.error(f"Con frecuencia '{param['frecuencia']}' este rango daría hasta {_num(filas_estacion)} filas "
                          f"por estación y Excel solo admite ~1.000.000. Acorta el rango de fechas.")
-        if st.button(f"Iniciar extracción · {n} estaciones", type="primary", use_container_width=True,
-                     disabled=n == 0 or excede or param is None):
+        if st.button(f"Iniciar extracción · {n} estaciones", type="primary", width="stretch",
+                     icon=":material/download:", disabled=n == 0 or excede or param is None):
             ss.descarga = {"estaciones": seleccion.copy(), "param": param, "ini": fecha_ini, "fin": fecha_fin,
                            "carpetas": carpetas}
             ss.resultado = None
@@ -559,6 +599,18 @@ def pantalla_estaciones():
         # esa pantalla, asi que muestra lo esencial aqui, junto al boton (no en un modal)
         estilo.aviso_legal(TEXTO_LEGAL)
 
+    # ---------------- cabecera de la hoja inferior (celular) ----------------
+    if cuenca is None:
+        estado = "Dibuja un rectángulo en el mapa"
+    elif zona is None or zona.empty:
+        estado = "Sin estaciones en la zona"
+    elif n_sel is not None:
+        estado = ""   # la pestana "Resumen (n)" ya lo dice
+    else:
+        estado = f"{len(zona)} estaciones en la zona"
+    with cab_hoja:
+        estilo.cabecera_hoja(estado, n_sel)
+
     return "", cuenca is not None, evaluada
 
 
@@ -568,16 +620,17 @@ def pantalla_estaciones():
 def pantalla_descarga():
     d = ss.descarga
     lista = bool(ss.resultado) and "error" not in ss.resultado
-    estilo.ventana((f"Descarga lista · {d['param']['etiqueta']} · Fuente: IDEAM" if lista
-                    else f"Descargando {d['param']['etiqueta']} · Fuente: IDEAM") if d else "")
-    estilo.pasos({4}, {1, 2, 3})
+    estilo.barra((f"Descarga lista · {d['param']['etiqueta']} · Fuente: IDEAM" if lista
+                  else f"Descargando {d['param']['etiqueta']} · Fuente: IDEAM") if d else "", {4}, {1, 2, 3},
+                 pantalla="descarga")
     if d is None:
         st.info("No hay ninguna descarga preparada.")
-        if st.button("← Volver a estaciones"):
+        if st.button("Volver a estaciones", icon=":material/arrow_back:"):
             _ir("estaciones")
         return
 
     col_esc, col_con = st.columns([1.6, 1], gap="medium")
+    col_esc = col_esc.container(key="y2k_card_descarga")
     resultado = ss.resultado
 
     if resultado is None and not ss.descarga_en_curso:
@@ -603,9 +656,10 @@ def pantalla_descarga():
                     puesto, falta = ideam_downloader.espera_estimada(turno)
                     cuando = (f"≈ {ideam_downloader.formatear_duracion(falta)}" if falta >= 5
                               else "en cualquier momento")
-                    aviso.info(f"⏳ Hay {ideam_downloader.MAX_DESCARGAS_SIMULTANEAS} descargas en curso en el servidor "
-                               f"y la tuya es la número {puesto} en la fila. Empieza sola {cuando} "
-                               f"(llevas {ideam_downloader.formatear_duracion(time.time() - inicio_espera)} esperando).")
+                    aviso.info(f"Servidor ocupado: {ideam_downloader.MAX_DESCARGAS_SIMULTANEAS} descargas en curso. "
+                               f"Vas de número {puesto} en la fila y empieza sola {cuando} "
+                               f"(llevas {ideam_downloader.formatear_duracion(time.time() - inicio_espera)}).",
+                               icon=":material/hourglass_top:")
             finally:
                 with turnos["candado"]:
                     if turno in turnos["fila"]:
@@ -615,9 +669,9 @@ def pantalla_descarga():
         try:
             espera.empty()
             with col_esc:
-                escena_descarga.mostrar("vivo", total=len(d["estaciones"]), segundos_estimados=segundos)
+                escena_descarga.mostrar("vivo", total=len(d["estaciones"]), segundos_estimados=segundos, lite=ss.lite)
                 ui = {"barra": st.empty(), "estado": st.empty(), "oculto": st.empty()}
-                st.button("🛑 Detener descarga", key="detener")
+                st.button("Detener descarga", key="detener", icon=":material/stop_circle:")
             with col_con:
                 ui["consola"] = st.empty()
             ss.descarga_en_curso = True
@@ -635,24 +689,24 @@ def pantalla_descarga():
     if resultado is None:
         # Se oprimio "Detener" a mitad de la descarga
         ss.descarga_en_curso = False
-        st.warning("Descarga detenida. Puedes volver a intentarlo o cambiar la selección.")
+        st.warning("Descarga detenida. Puedes reintentar o cambiar la selección.")
         c1, c2 = st.columns(2)
-        if c1.button("Reintentar", type="primary", use_container_width=True):
+        if c1.button("Reintentar", type="primary", width="stretch", icon=":material/replay:"):
             st.rerun()
-        if c2.button("← Volver a estaciones", use_container_width=True):
+        if c2.button("Volver a estaciones", width="stretch", icon=":material/arrow_back:"):
             _ir("estaciones")
         return
 
     if "error" in resultado:
         st.error(resultado["error"])
-        if st.button("← Volver a estaciones"):
+        if st.button("Volver a estaciones", icon=":material/arrow_back:"):
             _ir("estaciones")
         return
 
     with col_esc:
         escena_descarga.mostrar("final", total=len(resultado["colores"]), colores_finales=resultado["colores"],
                                 subtitulo=f"{resultado['guardadas']} estaciones · {resultado['omitidas']} omitidas"
-                                          f" · Fuente: IDEAM · DHIME")
+                                          f" · Fuente: IDEAM · DHIME", lite=ss.lite)
         st.markdown(estilo.barra_pixel(1.0), unsafe_allow_html=True)
         st.markdown(f'<div class="y2k-pmeta"><span><b>100 %</b> · listo en <b>{resultado["duracion"]}</b></span>'
                     f'<span>Guardadas <b>{resultado["guardadas"]}</b> · Omitidas <b>{resultado["omitidas"]}</b></span></div>',
@@ -661,28 +715,26 @@ def pantalla_descarga():
         predeterminado = f"IDEAM_{resultado['etiqueta']}_{ini:%Y%m%d}-{fin:%Y%m%d}"
         nombre = st.text_input("Nombre del archivo ZIP", value=predeterminado, key="nombre_zip", max_chars=120,
                                help="Por ejemplo: descarga 1. La extensión .zip se añade sola.")
-        st.markdown('<p class="y2k-hint">Escribe el nombre y presiona <b>Enter</b> antes de descargar.</p>',
-                    unsafe_allow_html=True)
-        st.download_button("⬇️ Descargar ZIP con los Excel", data=resultado["zip"], type="primary",
-                           file_name=f"{_nombre_archivo(nombre, predeterminado)}.zip",
-                           mime="application/zip", use_container_width=True)
+        st.html('<p class="y2k-hint">Si cambias el nombre, presiona <b>Enter</b> antes de descargar.</p>')
+        st.download_button("Descargar ZIP con los Excel", data=resultado["zip"], type="primary",
+                           file_name=f"{_nombre_archivo(nombre, predeterminado)}.zip", icon=":material/download:",
+                           mime="application/zip", width="stretch")
         # Recordatorio de las condiciones de uso del IDEAM en el momento de la entrega
         estilo.aviso_legal(TEXTO_LEGAL)
         c1, c2 = st.columns(2)
-        if c1.button("← Volver a estaciones", use_container_width=True):
+        if c1.button("Volver a estaciones", width="stretch", icon=":material/arrow_back:"):
             _ir("estaciones")
-        if c2.button("Nueva cuenca", use_container_width=True):
+        if c2.button("Nueva cuenca", width="stretch", icon=":material/add_location_alt:"):
             ss.cuenca = None
             ss.version_mapa += 1
             _ir("inicio")
-    with col_con, st.container(border=True):
-        st.markdown("### RESUMEN")
+    with col_con, st.container(key="y2k_card_resumen_zip"):
+        st.html('<h3 class="y2k-titulo-seccion">Resumen</h3>')
         try:
             with zipfile.ZipFile(io.BytesIO(resultado["zip"])) as z:
                 resumen = pd.read_csv(io.BytesIO(z.read("resumen_descarga.csv")))
             columnas = [c for c in ["Nombre", "Cobertura", "Clase", "Resultado", "Detalle"] if c in resumen.columns]
-            st.dataframe(resumen[columnas], hide_index=True,
-                         use_container_width=True, height=380)
+            st.dataframe(resumen[columnas].fillna(""), hide_index=True, width="stretch", height=380)
         except Exception:
             st.caption("El detalle está en resumen_descarga.csv dentro del ZIP.")
 
@@ -696,7 +748,7 @@ else:
     cabecera = st.container()
     meta, hay_cuenca, evaluada = pantalla_estaciones()
     with cabecera:
-        estilo.ventana(meta)
-        estilo.pasos({2, 3} if hay_cuenca else {1}, {1} if hay_cuenca else set())
+        estilo.barra(meta, {2, 3} if hay_cuenca else {1}, {1} if hay_cuenca else set(), pantalla="estaciones")
 
-estilo.pie()
+if ss.paso != "estaciones":
+    estilo.pie()   # en la pantalla del mapa el pie va al final del panel "Consulta"

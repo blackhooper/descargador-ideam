@@ -20,6 +20,11 @@ from modules.ideam_downloader import codigo_de_estacion
 AZUL = "#1C6FD8"
 NARANJA = "#FAB219"
 GRIS = "#7C87A3"
+# Texto secundario de las fichas (contraste AA sobre la ficha blanca) y borde claro de los pines, que se lee
+# sobre el satelite (mapa base por defecto); en los mapas claros el relleno de color da el contraste
+TINTA_2 = "#4F5D78"
+BORDE_PIN = "#FFFFFF"
+ALERTA = "#A4430F"
 
 
 @functools.lru_cache(maxsize=1)
@@ -110,20 +115,21 @@ def cuenca_desde_dibujos(dibujos):
 def _tarjeta(row, codigo):
     nombre = str(row.get("nombre", codigo))
     partes = [f"<b style='font-size:13px'>{nombre}</b>",
-              f"<span style='color:#7C87A3'>{codigo} · {_altitud_txt(row)}</span>"]
+              f"<span style='color:{TINTA_2}'>{codigo} · {_altitud_txt(row)}</span>"]
     if "Porcentaje (%)" in row and pd.notna(row["Porcentaje (%)"]):
         if row.get("Serie DHIME") == "No":
-            partes.append("<span style='color:#D03B3B'>Sin serie en DHIME</span>")
+            partes.append("<span style='color:#B42318'>Sin serie en DHIME</span>")
         else:
             partes.append(f"Cantidad probable <b>{row['Porcentaje (%)']:.0f} %</b> · cobertura {row.get('Clase calidad', '').lower()}")
             if row.get("Inicio serie"):
-                partes.append(f"<span style='color:#7C87A3'>Serie {str(row['Inicio serie'])[:4]}–{str(row['Fin serie'])[:4]}</span>")
+                partes.append(f"<span style='color:{TINTA_2}'>Serie {str(row['Inicio serie'])[:4]}–{str(row['Fin serie'])[:4]}</span>")
     if row.get("zona"):
-        partes.append(f"<span style='color:#7C87A3'>{'En la cuenca' if row['zona'] == 'cuenca' else 'En el buffer'}</span>")
+        partes.append(f"<span style='color:{TINTA_2}'>{'En la cuenca' if row['zona'] == 'cuenca' else 'En el buffer'}</span>")
     if row.get("altitud_dudosa") and row.get("terreno") is not None:
-        partes.append(f"<span style='color:#D0602F'>⚠ Altitud inconsistente: el terreno mide"
+        partes.append(f"<span style='color:{ALERTA}'>⚠ Altitud inconsistente: el terreno mide "
                       f"{row['terreno']:,.0f} m</span>".replace(",", "."))
-    return "<div style='font-family:Figtree,sans-serif;font-size:12px;line-height:1.45'>" + "<br>".join(partes) + "</div>"
+    return ("<div style='font-family:Figtree,sans-serif;font-size:12px;line-height:1.45;color:#0E1A2F'>"
+            + "<br>".join(partes) + "</div>")
 
 
 def _altitud_txt(row):
@@ -171,9 +177,9 @@ def capa_dinamica(area_gdf=None, estaciones=None, umbral=0, seleccionada=None, c
             _marca(folium.CircleMarker(
                 location=[row.geometry.y, row.geometry.x],
                 radius=9 if es_sel else 7 if ok else 5,
-                # borde naranja = altitud dudosa
-                color="#D0602F" if row.get("altitud_dudosa") else "#16213A" if ok or es_sel else GRIS,
-                weight=2.5 if es_sel or row.get("altitud_dudosa") else 1.2,
+                # borde naranja = altitud dudosa; borde claro = se lee sobre el satelite
+                color="#D0602F" if row.get("altitud_dudosa") else BORDE_PIN if ok or es_sel else "#E6ECF7",
+                weight=2.5 if es_sel or row.get("altitud_dudosa") else 1.6 if ok else 1.4,
                 fill=ok or es_sel, fill_color=color, fill_opacity=0.95 if ok else 0.4,
                 tooltip=folium.Tooltip(_tarjeta(row, codigo), sticky=True),
             ), pin=True).add_to(fg)

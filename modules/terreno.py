@@ -134,11 +134,9 @@ def leyenda_altura(minimo, maximo, escala):
     """Barra de colores con la escala de altitudes (HTML para st.markdown)."""
     gradiente = ", ".join(f"{c} {t * 100:.0f}%" for t, c in RAMPA_ALTURA)
     marcas = "".join(f"<span>{_num(minimo + (maximo - minimo) * f)}</span>" for f in (0, 0.25, 0.5, 0.75, 1))
-    return (f'<div style="margin:8px 0 2px"><div style="font-size:12.5px;color:var(--y2k-ink-2)">'
-            f'Altitud (m) · {escala}</div>'
-            f'<div style="height:12px;border-radius:6px;margin:5px 0 3px;border:1px solid var(--y2k-line);'
-            f'background:linear-gradient(90deg,{gradiente})"></div>'
-            f'<div style="display:flex;justify-content:space-between;font-size:12px;color:var(--y2k-ink-3)">{marcas}</div></div>')
+    return (f'<p class="tit">Altitud (m) · {escala}</p>'
+            f'<div class="rampa" style="background:linear-gradient(90deg,{gradiente})"></div>'
+            f'<div class="marcas">{marcas}</div>')
 
 
 # ---- Intro satelital: del mapa 2D al despliegue 3D (cubre la carga del relieve) ----
@@ -285,11 +283,13 @@ def precargar_mapa_2d(urls):
 
 
 CSS_DIBUJAR_ESPERA = ('<style>html:not([data-y2k-mapa-listo]) .st-key-y2k_dibujar button'
-                      '{opacity:.4 !important;filter:grayscale(1);pointer-events:none !important;cursor:progress}</style>')
+                      '{opacity:.4 !important;filter:grayscale(1);pointer-events:none !important;cursor:progress}'
+                      '.y2k-preparando{display:none}html:not([data-y2k-mapa-listo]) .y2k-preparando{display:block}</style>')
 
 
 CSS_DIBUJAR_ESPERA_SERVIDOR = ('<style>.st-key-y2k_dibujar button'
-                              '{opacity:.4 !important;filter:grayscale(1);pointer-events:none !important;cursor:progress}</style>')
+                              '{opacity:.4 !important;filter:grayscale(1);pointer-events:none !important;cursor:progress}'
+                              '.y2k-preparando{display:block !important}</style>')
 
 
 def css_boton_3d_espera(bbox, estaciones):
@@ -429,8 +429,12 @@ _ORBITA = """
 
   // ---- 1. Secuencia de entrada: lineas como lasers, caen los pines, suben las alertas ----
   const quiereMenosMovimiento = w.matchMedia && w.matchMedia("(prefers-reduced-motion: reduce)").matches;
-  const conIntro = O.intro && !quiereMenosMovimiento && originales.length > 0;
+  // Modo Lite (lo marca el CSS de la pagina): sin secuencia ni vuelta animada. Se lee aqui, no desde Python, para que
+  // activarlo o quitarlo no vuelva a ejecutar este guion (moveria la camara o repetiria la animacion)
+  const lite = w.getComputedStyle(d.documentElement).getPropertyValue("--y2k-lite").trim() === "1";
+  const conIntro = O.intro && !quiereMenosMovimiento && !lite && originales.length > 0;
   let enIntro = conIntro, vueltaIniciada = false;
+  w.__y2kEnIntro = enIntro;
   // Tamano de los efectos segun lo lejos que mira la camara (E = 1 a 4 km)
   const DIST = O.distancia || 4000, E = DIST / 4000;
   const capa = id => originales.find(l => l && l.id === id);
@@ -449,6 +453,13 @@ _ORBITA = """
   // Con la intro satelital el visor se destapa cuando ya esta la capa de la intro encima
   if (conIntro && O.satelite) { for (let i = 0; i < 60 && w.__y2kIntroSatTurno !== O.turno && vigente(); i++) await esperar(50); }
   mostrar();
+  // Lite o movimiento reducido: no hay nada que animar, asi que la camara se ubica ya (sin esperar al relieve) y no
+  // pisa lo que el usuario haga despues
+  const tInicio = w.performance.now();
+  let tocado = false;
+  const zonaDeck = d.querySelector('[data-testid="stDeckGlJsonChart"]');
+  if (zonaDeck) ["pointerdown", "wheel", "touchstart", "keydown"].forEach(e => zonaDeck.addEventListener(e, () => { tocado = true; }, {once: true, capture: true}));
+  if (!conIntro && (lite || quiereMenosMovimiento)) vuelta();
 
   // ---- 2. Esperar a que el relieve este dibujado (la cubierta "Alistando..." sigue encima) ----
   if (!visor || visor.dataset.listo !== "1") {
@@ -691,6 +702,7 @@ _ORBITA = """
   }
   if (!vigente()) return;
   enIntro = false;
+  w.__y2kEnIntro = false;
   vuelta();   // si ya arranco durante la intro, no hace nada
 
   // ---- 3. Vuelta de camara ----
@@ -732,7 +744,8 @@ _ORBITA = """
     }
   };
   const cuadro = ahora => {
-    if (parar || !vigente()) return;
+    // tambien se detiene si el usuario usa los botones de camara (w.__y2kParaVuelta)
+    if (parar || !vigente() || (w.__y2kParaVuelta || 0) > inicio) return;
     const t = Math.min(ahora - inicio, VUELTA);
     const a = suave(Math.min(1, t / ACERCAMIENTO));
     const rumbo = O.inicio.bearing + (O.rumbo + giro(t) - O.inicio.bearing) * a;
@@ -744,6 +757,14 @@ _ORBITA = """
     });
     if (t < VUELTA) w.requestAnimationFrame(cuadro);
   };
+  // Modo Lite o movimiento reducido: sin acercamiento animado ni vuelta continua; la camara queda de una vez en el
+  // encuadre final (misma estacion, mismo zoom). Son ajustes independientes: cualquiera de los dos basta.
+  if (lite || quiereMenosMovimiento) {
+    if (!tocado && !((w.__y2kParaVuelta || 0) > tInicio))
+      mover({longitude: O.lon, latitude: O.lat, position: [0, 0, O.pivote], maxPitch: 85, zoom: O.zoom,
+             pitch: inclinacion(O.rumbo), bearing: normal(O.rumbo)});
+    return;
+  }
   w.requestAnimationFrame(cuadro);
   }
 })();
@@ -809,10 +830,9 @@ AVISO_NAVEGADOR = """
 
 # Vigia del 3D, activo mientras la vista 3D esta abierta:
 #  1. Pixeles: en pantallas de alta densidad (celulares) el visor dibuja hasta 9 veces mas
-#     pixeles de los que se notan; se limita a 1,5x.
-#  2. Memoria: si el navegador se queda sin memoria grafica (el 3D queda en blanco), avisa
-#     con botones para recargar la vista 3D (en version liviana) o pasar al 2D. Los botones
-#     pulsan botones ocultos de Streamlit, asi Python se entera.
+#     pixeles de los que se notan; se limita a 1,5x (1x en modo Lite).
+#  2. (La perdida del contexto grafico y los fallos de carga los vigila estilo.instalar_ui, que
+#     ofrece «Activar Lite y reintentar» o «Seguir intentando» sin cambiar de modo por su cuenta.)
 #  3. Detalle escondido (desactivado, ver AVION_ACTIVO): un avion pixel art vuela entre
 #     estaciones y vuelve. Se dibuja en un lienzo transparente encima del mapa, proyectando
 #     su posicion 3D con la camara actual (no toca el visor). Ctrl + A lo lanza a mano.
@@ -842,38 +862,11 @@ _EXTRAS_3D = """
     return null;
   }
 
-  // 1. Pixeles
+  // 1. Pixeles (en modo Lite, 1 pixel de dibujo por pixel CSS: menos nitidez, mucha menos memoria)
   function limitarPixeles(deck) {
-    const tope = Math.min(w.devicePixelRatio || 1, 1.5);
+    const lite = w.getComputedStyle(d.documentElement).getPropertyValue("--y2k-lite").trim() === "1";
+    const tope = Math.min(w.devicePixelRatio || 1, lite ? 1 : 1.5);
     if (deck && deck.props.useDevicePixels !== tope) deck.setProps({useDevicePixels: tope});
-  }
-
-  // 2. Memoria grafica
-  function avisarSinMemoria(caja) {
-    if (caja.querySelector(".y2k-sin-memoria")) return;
-    const aviso = d.createElement("div");
-    aviso.className = "y2k-sin-memoria";
-    aviso.innerHTML = "<b>El navegador se quedó sin memoria gráfica</b>" +
-      "<span>La vista 3D se detuvo. Al recargarla se usa una versión más liviana.</span>" +
-      "<div><button data-accion='y2k_recargar3d'>Recargar vista 3D</button>" +
-      "<button data-accion='y2k_pasar2d'>Ver en 2D</button></div>";
-    aviso.addEventListener("click", ev => {
-      const accion = ev.target && ev.target.dataset && ev.target.dataset.accion;
-      const boton = accion && d.querySelector(".st-key-" + accion + " button");
-      if (boton) boton.click();
-    });
-    caja.style.position = "relative";
-    caja.appendChild(aviso);
-  }
-  function vigilar() {
-    const caja = contenedor();
-    const lienzo = caja && caja.querySelector("canvas:not(.y2k-avion)");
-    if (!lienzo) return;
-    if (!lienzo.dataset.y2kVigia) {
-      lienzo.dataset.y2kVigia = "1";
-      lienzo.addEventListener("webglcontextlost", () => avisarSinMemoria(caja));
-    }
-    try { const gl = lienzo.getContext("webgl2"); if (gl && gl.isContextLost()) avisarSinMemoria(caja); } catch (e) {}
   }
 
   // 3. El avion
@@ -973,7 +966,7 @@ _EXTRAS_3D = """
   };
   if (AVION_ACTIVO) d.addEventListener("keydown", tecla, true);
 
-  estado.ciclo = setInterval(() => { limitarPixeles(buscarDeck()); vigilar(); }, 1500);
+  estado.ciclo = setInterval(() => { limitarPixeles(buscarDeck()); }, 1500);
   if (AVION_ACTIVO) programar();
   w.__y2k3d = {
     volar,
@@ -993,7 +986,8 @@ EXTRAS_3D = _EXTRAS_3D.replace("__AVION__", "true" if AVION_ACTIVO else "false")
 def orbitar(orbita, turno, intro=False, satelite=False, apex=1.7):
     """Guion que acerca la camara a la estacion y da una vuelta lenta a su alrededor. `turno`
     cambia en cada seleccion nueva, asi el guion solo corre una vez por estacion elegida.
-    intro: antes de la vuelta, corre la secuencia de entrada (lasers, caida de pines, alertas)."""
+    intro: antes de la vuelta, corre la secuencia de entrada (lasers, caida de pines, alertas).
+    En modo Lite (lo lee el guion en el navegador) no hay secuencia ni vuelta: la camara salta al encuadre final."""
     import json
     return _ORBITA.replace("__ORBITA__", json.dumps({**orbita, "intro": bool(intro), "turno": turno, "satelite": bool(satelite), "apex": float(apex)})) + f"<!-- turno {turno} -->"
 

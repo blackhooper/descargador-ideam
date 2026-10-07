@@ -46,14 +46,26 @@ Conecta este repositorio en [share.streamlit.io](https://share.streamlit.io), co
 | `static/intro_satelital/` | Intro satelital (del mapa 2D al 3D): escena Three.js, reproductor, mosaico de satélite |
 | `modules/panel_estadisticas.py` | Tablas, gráficas y lista de altitudes dudosas |
 | `modules/escena_descarga.py` | Animación pixel art de la descarga |
-| `modules/estilo.py` | CSS, tema claro/oscuro, pie y créditos de las fuentes |
+| `modules/estilo.py` | Estilo "liquid glass": tokens de tema (claro, oscuro, alto contraste), modo Lite, barra superior, menú Apariencia, guion de la interfaz del navegador (paneles, hoja inferior, cámara 3D, avisos de fallo), pie y créditos |
 | `modules/geo_input.py`, `geo_utils.py` | Lectura de archivos, buffer y filtro espacial |
 | `static/manual.html` | Manual de usuario, servido en `app/static/manual.html` |
+
+## Interfaz (mapa primero)
+
+- **Pantalla de estaciones:** el mapa (2D o 3D) ocupa la pantalla. En escritorio, **Consulta** (izquierda) y **Resumen** (derecha) son paneles de vidrio plegables a un riel; el mapa crece al plegarlos. Entre 761 y 1279 px de ancho cabe un panel abierto a la vez. En el celular (≤ 760 px, o pantallas bajas en horizontal) ambos van en pestañas dentro de una **hoja inferior** con tres alturas (mínima, media, máxima): se arrastra solo desde el asa (no compite con mover el mapa), y también responde a clic y a las flechas del teclado.
+- Plegar y desplegar lo hace el navegador (`estilo.instalar_ui`), sin recargar la página: guarda el estado en atributos de `<html>` (`data-y2k-izq`, `data-y2k-der`, `data-y2k-hoja`, `data-y2k-tab`) y la elección en `localStorage`. Los botones de los paneles llevan `aria-expanded`.
+- Las herramientas del mapa van sobre él en vidrio pequeño: 2D/3D arriba al centro (no tapa los controles de Leaflet de las esquinas), texturas arriba a la izquierda en 3D, leyenda desplegable abajo a la izquierda (abierta en escritorio, cerrada en el celular) y, en 3D, **botones de cámara** (acercar, alejar, girar, inclinar, norte) como alternativa a los gestos.
+- La acción principal ("Iniciar extracción") queda fija al final del panel Consulta, con el aviso legal en una línea y su texto completo desplegable.
+- **Apariencia** (barra superior): Tema *Sistema / Claro / Oscuro* y Contraste *Sistema / Normal / Alto*, independientes. "Sistema" sigue `prefers-color-scheme` y `prefers-contrast` con media queries (sin destello). La elección viaja en la dirección (`?tema=`, `?contraste=`). Con `forced-colors` se respetan los colores del sistema y solo se reponen bordes y señales.
+- **Modo Lite** (botón "Lite" de la barra, `?lite=1`): mismos datos, controles y funciones con menos coste gráfico: sin desenfoque, sombras ni transiciones; 3D liviano (menos detalle de malla, caché menor, 1 píxel de dibujo por píxel CSS), sin intro satelital, sin secuencia de entrada ni vuelta de cámara (la cámara queda de una vez en el encuadre final), escáner 2D sin rejilla ni destellos y escena de descarga a 5 cuadros/s. Es independiente de "movimiento reducido": cada uno se puede tener sin el otro. El guion de la cámara lee Lite en el navegador (variable CSS `--y2k-lite`), así activarlo no mueve la cámara ni repite animaciones.
+- **Avisos de fallo** (nunca cambian de modo por su cuenta; ofrecen elegir): pérdida del contexto gráfico WebGL del 3D ("Fallo gráfico": *Activar Lite y reintentar*, *Seguir intentando*, *Ver en 2D*); teselas del 3D o del mapa base 2D que fallan una y otra vez ("Problema de red", se cuenta por tipo: relieve o imagen); relieve que no avanza en 40 s sin errores claros ("Carga lenta"). Reintentar rehace el visor 3D y repone la cámara y la selección; en 2D vuelve a pedir las teselas sin mover el mapa. Los textos no afirman falta de memoria gráfica cuando solo falló una descarga.
+- Al cambiar de pantalla, Streamlit deja un momento los elementos viejos: el CSS esconde lo fijo del mapa cuando ya hay una barra superior nueva de otra pantalla (`data-pantalla` + `data-stale`).
+- Trampas: `st.html` quita los SVG en línea (por eso el HTML propio va con `estilo.md`, que usa `st.markdown`), y un `<style>` cuyo texto contenga `<` seguido de una letra (aunque sea en un comentario CSS) lo descarta el sanitizador entero.
 
 ## Mapa 2D
 
 - Solo se puede dibujar un **rectángulo** (con lápiz para mover sus esquinas y basurita para borrarlo). Un rectángulo nuevo reemplaza al anterior. La cuenca subida desde archivo puede tener cualquier forma.
-- Al soltar (o editar) el rectángulo corre un **escáner** sobre él mientras el servidor calcula las estaciones; al terminar se desvanece, muestra "N estaciones encontradas" y los pines aparecen de norte a sur con un pequeño rebote. Mientras corre, el mapa no se mueve ni hace zoom; la barra de dibujo sigue activa y dibujar otra vez reinicia el escáner. Tope de 30 s por si algo falla; con `prefers-reduced-motion` no corre.
+- Al soltar (o editar) el rectángulo corre un **escáner** sobre él mientras el servidor calcula las estaciones; al terminar se desvanece, muestra "N estaciones encontradas" y los pines aparecen de norte a sur con un pequeño rebote. Mientras corre, el mapa no se mueve ni hace zoom; la barra de dibujo sigue activa y dibujar otra vez reinicia el escáner. Tope de 30 s por si algo falla; con `prefers-reduced-motion` no corre y en modo Lite se dibuja sin rejilla ni destellos y los pines aparecen sin animación.
 - Aún no hay animación para la cuenca subida desde archivo (el mapa todavía no existe mientras se calcula).
 - Al abrir la pantalla de inicio se **precarga por detrás** (1) en el navegador, las librerías de Leaflet y las teselas de satélite de Colombia (`map_view.recursos_mapa`, `terreno.precargar_mapa_2d`) y (2) en el servidor, la lista de parámetros del IDEAM (`app._iniciar_precarga_servidor`, un hilo que llena la caché de `ideam_parameters.obtener_catalogo_parametros`; sin ella, pasar a la pantalla de estaciones tardaba ~5 s). El botón "Dibujar mi cuenca" queda gris hasta que ambas terminan (un fragmento de Streamlit consulta cada segundo).
 
@@ -89,9 +101,9 @@ Está en `modules/terreno.py` y en el bloque `vista == "3D"` de `app.py`. Usa `p
 **Escena.** Toda la escena se baja la altura del terreno en el centro de la cuenca (la cámara apunta a nivel 0). Contornos, pines y relieve usan esa misma base. `EXAGERACION = 2`.
 
 **Memoria gráfica (lo más delicado).** Se llegó a perder el contexto WebGL (3D en blanco). Valores que se probaron estables:
-- Vista de conjunto: `tile_size` 512, `mesh_max_error` 8, `far_z_multiplier` 2. Cerca de una estación: 256, 4 y 3. Modo ligero (celular): 10 y 1,8.
+- Vista de conjunto: `tile_size` 512, `mesh_max_error` 8, `far_z_multiplier` 2. Cerca de una estación: 256, 4 y 3. Modo ligero (celular o modo Lite): 10 y 1,8.
 - `max_cache_size` 50–100, `refinement_strategy="'no-overlap'"` y `useDevicePixels` ≤ 1,5 puesto desde JavaScript.
-- Hay un vigilante que avisa si el navegador pierde el contexto y ofrece recargar la vista en versión liviana.
+- Si el navegador pierde el contexto WebGL, la interfaz (`estilo.instalar_ui`) lo avisa y deja elegir entre *Activar Lite y reintentar*, *Seguir intentando* (visor nuevo en el mismo modo) o *Ver en 2D*; los botones pulsan botones ocultos de Streamlit (`y2k_lite_reintentar`, `y2k_reintentar3d`, `y2k_pasar2d`). Antes de rehacer el visor guarda la cámara y la repone en el nuevo.
 
 **Trampas conocidas.**
 - `pydeck` convierte todo texto en expresión: para un valor literal va entre comillas (`"'no-overlap'"`, `"'auto'"`).
@@ -116,7 +128,7 @@ Animación de ~16,5 s (Three.js) que **cubre la carga del 3D**: un satélite rec
 1. Al **confirmar la cuenca** (`app.py`, tras `rango = ...`) se precalienta por detrás: se carga el reproductor, se arma el mosaico y se bajan d3/topojson/mapa mundial. No se crea WebGL. El botón **3D queda gris** hasta que `document.documentElement.dataset.y2kListo` iguala la clave de la cuenca.
 2. Al pulsar 3D la animación **arranca en el clic**, sobre el mapa 2D (Streamlit tarda 2–3 s en dibujar el visor). Cuando el visor llega, el guion `_INTRO_SATELITAL` la **adopta** (la mueve dentro) o, si no hubo arranque temprano, la inicia él.
 3. El guion `_ORBITA` esconde las capas de deck.gl, espera a que termine la intro (`window.__y2kIntroSatFin == turno`) y entonces corre la secuencia de entrada.
-4. La intro solo corre una vez por cuenca y buffer (igual que la secuencia). No corre en celulares, en modo liviano ni con `prefers-reduced-motion`.
+4. La intro solo corre una vez por cuenca y buffer (igual que la secuencia). No corre en celulares, en modo Lite ni con `prefers-reduced-motion`. Si la intro falla al cargar (por ejemplo, sin acceso a esm.sh), el visor 3D no se queda tapado: la capa de la intro no se vuelve a poner.
 
 **Interfaz (HUD) de la intro.** Se dibuja en SVG dentro de `hudSvg` (`player.js`) y solo muestra datos con sentido; no hay botones de zoom ni escalas falsas.
 - **Altitud** (km) en cuenta regresiva durante el descenso; transmite la velocidad, por eso no hay medidor de km/s.
@@ -132,7 +144,7 @@ Animación de ~16,5 s (Three.js) que **cubre la carga del 3D**: un satélite rec
 - `TUNE` en `satellite-scene.js` guarda los valores por defecto; el panel los cambia en vivo y los recuerda en `localStorage` (prefijo `y2k_sat_`).
 - Tras editar los archivos de la intro hay que **recargar la página del navegador** (F5, mejor Ctrl + F5): el reproductor se carga una sola vez por página y, si no se recarga, sigue corriendo la versión vieja aunque el archivo ya cambió. El parámetro `?v=` de las direcciones cambia con la fecha de los archivos.
 
-**Temporal (quitar antes de presentar):** `PANEL_SATELITE = True` en `terreno.py` (panel "⚙ Ajustes": pausa, tiempo, cámara final, láseres, cápsulas, con el segundo en que se nota cada ajuste y un botón "ir") y el botón "▶ Repetir animación (temporal)" de `app.py`.
+**Temporal (quitar antes de presentar):** `PANEL_SATELITE = True` en `terreno.py` (panel "⚙ Ajustes": pausa, tiempo, cámara final, láseres, cápsulas, con el segundo en que se nota cada ajuste y un botón "ir") y el desplegable "Ajustes de la animación 3D (temporal)" del panel Resumen (botón "Repetir animación" y altura de salida de los láseres) en `app.py`.
 
 ## Textura "Altura" del 3D
 
@@ -142,7 +154,7 @@ Tercera textura (junto a Satélite y Topográfico): el relieve se colorea por al
 
 - **Lógica y flujo:** `streamlit.testing.v1.AppTest` recorre las pantallas sin navegador (no ejecuta JavaScript).
 - **Lo visual (3D, escáner):** abrir la app en un navegador sin ventana (Edge o Chrome con el protocolo de depuración) y sacar capturas a intervalos. Para el mapa 2D hay que probar con **ratón real** (`Input.dispatchMouseEvent`): disparar eventos de Leaflet a mano no detecta, por ejemplo, un canvas que intercepta los clics. Al correr un script de prueba aparte con `streamlit run`, el servidor no recarga los módulos del proyecto: reinícialo tras cambiar `modules/`.
-- Conviene probar con una cuenca grande, con muchas estaciones, con el modo ligero y en un celular.
+- Conviene probar con una cuenca grande, con muchas estaciones, con el modo Lite, en un celular, con los tres temas y con movimiento reducido (Lite y movimiento reducido por separado y juntos).
 
 ## Convenciones
 

@@ -19,6 +19,7 @@ export const TUNE = {
   reveal: 0.7,      // duracion (s) del encendido tipo monitor
   capDown: 0.075,   // el lanzador de cápsulas: cuánto por debajo del centro de la imagen (centro-abajo)
   capFwd: 0.25,     // y a qué distancia delante de la cámara
+  laserSolo: 0,     // desde donde sale el laser cuando es el unico (sin buffer): 0 = centro, -1 = izquierda, 1 = derecha
   laserSep: 0.16,   // separacion lateral de los dos cañones al disparar (distancia desde el centro de la camara)
   laserDrop: 0.05, // cuanto salen por debajo del centro de la imagen
   laserT0: 0.05,    // segundos tras el primer disparo de cápsulas en que salen los lasers
@@ -733,11 +734,11 @@ async function createScene() {
   const fireGroup = new THREE.Group(); fireGroup.frustumCulled = false; scene.add(fireGroup);
   const beamGeo = new THREE.CylinderGeometry(1, 1, 1, 10, 1, true);
   const mkBeam = (col, glow) => {
-    const m = new THREE.MeshBasicMaterial({ color: col.clone().multiplyScalar(glow ? 0.9 : 1.15), transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false, depthTest: false, toneMapped: false, side: THREE.DoubleSide });
+    const m = new THREE.MeshBasicMaterial({ color: col.clone().multiplyScalar(glow ? 1.0 : 1.15), transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false, depthTest: false, toneMapped: false, side: THREE.DoubleSide });
     const o = new THREE.Mesh(beamGeo, m); o.frustumCulled = false; o.visible = false; o.renderOrder = 12; fireGroup.add(o); return o;
   };
-  const lasers = [{ col: CYAN, side: -1, core: mkBeam(CYAN.clone().lerp(new THREE.Color(1, 1, 1), 0.12), false), glow: mkBeam(CYAN, true) },
-                  { col: ORANGE, side: 1, core: mkBeam(ORANGE.clone().lerp(new THREE.Color(1, 1, 1), 0.12), false), glow: mkBeam(ORANGE, true) }];
+  const lasers = [{ col: CYAN, side: -1, core: mkBeam(CYAN, false), glow: mkBeam(CYAN, true) },
+                  { col: ORANGE, side: 1, core: mkBeam(ORANGE, false), glow: mkBeam(ORANGE, true) }];
   const launchFlash = sprite(tex.glow, new THREE.Color(0.9, 1.4, 0.7), 0.007); launchFlash.position.copy(capStart()); capGroup.add(launchFlash);
 
   // warp streaks (camera space)
@@ -840,16 +841,19 @@ async function createScene() {
     {
       const tp = t.tp, u = (tp - (CAP_FIRE + TUNE.laserT0)) / TUNE.laserDur;
       const on = tp >= 0 && t.te < 0 && u >= 0 && u <= 1;
+      const solo = !_buffer;   // sin buffer solo sale el laser de area
       lasers.forEach((L, i) => {
         const vis = on && (i === 0 || _buffer);
         L.core.visible = L.glow.visible = vis;
         if (!vis) return;
-        const aim = C.clone().add(aimDir());
-        const from = LENS.clone().addScaledVector(E, L.side * TUNE.laserSep).addScaledVector(U, -TUNE.laserDrop).addScaledVector(N, -0.2);
+        // los dos haces dan en el CENTRO de la imagen (hacia donde mira la camara en ese momento)
+        const aim = cam.look.clone();
+        const lado = solo ? TUNE.laserSolo : L.side;
+        const from = LENS.clone().addScaledVector(E, lado * TUNE.laserSep).addScaledVector(U, -TUNE.laserDrop).addScaledVector(N, -0.2);
         const grow = Math.min(1, u * 9), head = from.clone().lerp(aim, grow);
         const dir = head.clone().sub(from), len = Math.max(dir.length(), 1e-5); dir.normalize();
         const alpha = Math.min(1, u * 10) * (1 - seg(u, 0.72, 1)) * (0.85 + 0.15 * Math.sin(T * 60));
-        for (const [m, w, k] of [[L.core, TUNE.laserW, 1], [L.glow, TUNE.laserW * 3.5, 0.4]]) {
+        for (const [m, w, k] of [[L.core, TUNE.laserW, 0.95], [L.glow, TUNE.laserW * 3.5, 0.28]]) {
           m.position.copy(from).addScaledVector(dir, len / 2); m.quaternion.setFromUnitVectors(Y, dir); m.scale.set(w, len, w);
           m.material.opacity = alpha * k;
         }
@@ -889,7 +893,7 @@ async function createScene() {
       }
       stk.attributes.position.needsUpdate = true; stk.attributes.color.needsUpdate = true;
     }
-    if (bloom) bloom.strength = 0.75 + 0.9 * st.pulse + 0.6 * b.hit + 0.2 * st.charge * (t.tp < 0 ? 1 : 0) + 0.3 * sa + (lasers[0].core.visible ? 0.25 : 0);
+    if (bloom) bloom.strength = 0.75 + 0.9 * st.pulse + 0.6 * b.hit + 0.2 * st.charge * (t.tp < 0 ? 1 : 0) + 0.3 * sa + (lasers[0].core.visible ? 0.15 : 0);
   }
 
   return {

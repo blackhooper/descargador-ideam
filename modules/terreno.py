@@ -548,7 +548,7 @@ _ORBITA = """
 
       // ---- Fase 1: dos lasers (cuenca azul, buffer amarillo) bajan del cielo y dibujan su perimetro ----
       // Punto del que "vienen" los dos lasers y las estaciones: el satelite, sobre el centro del rectangulo. APEX_ALTO = altura (ajustable)
-      const APEX_ALTO = 1.1 * DIST;
+      const APEX_ALTO = 2.8 * DIST;
       const base0 = capa("cuenca") || capa("buffer");
       let apex = [O.lon, O.lat, APEX_ALTO];
       if (base0) {
@@ -556,8 +556,8 @@ _ORBITA = """
         base0.props.data.forEach(r => r.path.forEach(q => { x0 = Math.min(x0, q[0]); x1 = Math.max(x1, q[0]); y0 = Math.min(y0, q[1]); y1 = Math.max(y1, q[1]); zs += q[2] || 0; nz++; }));
         if (nz) apex = [(x0 + x1) / 2, (y0 + y1) / 2, zs / nz + APEX_ALTO];
       }
-      const LASERES = [{id: "cuenca", color: [90, 162, 245], ini: 0, dur: 1900},
-                       {id: "buffer", color: [250, 178, 25], ini: 350, dur: 1900}]
+      const LASERES = [{id: "cuenca", color: [53, 240, 255], ini: 0, dur: 1900},
+                       {id: "buffer", color: [255, 122, 26], ini: 350, dur: 1900}]
         .map(d => ({...d, capa: capa(d.id)})).filter(d => d.capa);
       if (LASERES.length && Punto && Linea && Trazo && vigente()) {
         LASERES.forEach(L => { L.medidas = L.capa.props.data.map(r => medir(r.path)); });
@@ -1238,11 +1238,11 @@ def construir_deck(cuenca_gdf, area_gdf, estaciones, seleccionada=None, textura=
 
     if area_gdf is not None:
         capas.append(pdk.Layer("PathLayer", id="buffer", data=[{"path": _camino_3d(a, base)} for a in anillos_area],
-                               get_path="path", get_color=[250, 178, 25, 230], width_min_pixels=2, get_width=20,
+                               get_path="path", get_color=[255, 122, 26, 235], width_min_pixels=2, get_width=20,
                                billboard=True))
     if cuenca_gdf is not None:
         capas.append(pdk.Layer("PathLayer", id="cuenca", data=[{"path": _camino_3d(a, base)} for a in anillos_cuenca],
-                               get_path="path", get_color=[90, 162, 245, 255], width_min_pixels=3, get_width=30,
+                               get_path="path", get_color=[53, 240, 255, 255], width_min_pixels=3, get_width=30,
                                billboard=True))
 
     # Pines: tallo desde el terreno y cabeza redonda arriba

@@ -182,90 +182,138 @@ function hudSvg(H, T, caja, dots, info) {
 }
 
 // ---- panel temporal de ajustes ----
-const AJUSTES = [
-  ['panAmt', 'Giro de mirada hacia tu cuadro (0 = nada)', 0, 1.5, 0.05],
-  ['panStart', 'Giro: inicio (s dentro del zoom óptico)', 0, 1.2, 0.05],
-  ['panEnd', 'Giro: fin (s dentro del zoom óptico)', 0.1, 1.2, 0.05],
-  ['diveShift', 'Traslado de cámara sobre el cuadro (s)', 0.1, 1.5, 0.05],
-  ['descenso', 'Duración del descenso (s)', 0.3, 2.0, 0.05],
-  ['preDark', 'Oscuridad durante el zoom óptico', 0, 1, 0.05],
-  ['fadeStart', 'Negro final: inicio (s del descenso)', 0, 1.5, 0.05],
-  ['fadeDur', 'Negro final: duración (s)', 0.05, 1.2, 0.05],
-  ['blackMax', 'Negro máximo antes del encendido', 0, 1, 0.05],
-  ['reveal', 'Encendido tipo monitor (s)', 0.2, 2, 0.05],
-  ['capDown', 'Cápsulas: lanzador, hacia abajo del centro', -0.05, 0.2, 0.005],
-  ['capFwd', 'Cápsulas: lanzador, distancia delante', 0.05, 0.6, 0.01],
-  ['laserSep', 'Lasers: separación entre cañones', 0, 0.4, 0.01],
-  ['laserDrop', 'Lasers: bajan respecto al centro', -0.1, 0.2, 0.005],
-  ['laserT0', 'Lasers: salen tras la 1ª cápsula (s)', -0.3, 1, 0.05],
-  ['laserDur', 'Lasers: duración (s)', 0.3, 3, 0.05],
-  ['laserW', 'Lasers: grosor', 0.0005, 0.01, 0.0005],
-  ['resScale', 'Resolución interna (aplica en la próxima repetición)', 0.4, 1, 0.05],
+// Cada ajuste: [clave, nombre corto, explicacion, minimo, maximo, paso, momento (segundo en que se nota)]. Al moverlo, la animacion salta
+// a 1,2 s antes de ese momento y se reproduce sola unos segundos para que se vea el efecto.
+const GRUPOS = [
+  ['Cápsulas (salen del lanzador, centro y abajo)', [
+    ['capDown', 'Lanzador: qué tan abajo', 'Más valor = las cápsulas salen más abajo en la pantalla.', -0.05, 0.2, 0.005],
+    ['capFwd', 'Lanzador: qué tan lejos', 'Más valor = el lanzador queda más lejos de la cámara (las cápsulas se ven más chicas).', 0.05, 0.6, 0.01],
+  ]],
+  ['Láseres del satélite', [
+    ['laserT0', 'Cuándo salen', 'Segundos después de la primera cápsula. Más valor = salen más tarde.', -0.3, 1, 0.05],
+    ['laserDur', 'Cuánto duran', 'Segundos que se queda encendido cada láser.', 0.3, 3, 0.05],
+    ['laserW', 'Grosor', 'Más valor = láseres más gruesos.', 0.0005, 0.01, 0.0005],
+    ['laserSep', 'Separación de los cañones', 'Más valor = el cian y el naranja salen más separados (izquierda y derecha).', 0, 0.4, 0.01],
+    ['laserDrop', 'Altura de salida', 'Más valor = los láseres salen más abajo en la pantalla.', -0.1, 0.2, 0.005],
+    ['laserSolo', 'Láser solo (sin buffer): posición', '0 = sale del centro; -1 = de la izquierda; 1 = de la derecha. Solo se nota con el buffer apagado.', -1, 1, 0.1],
+  ]],
+  ['Cámara que baja hacia tu cuadro', [
+    ['panAmt', 'Cuánto gira la mirada hacia tu cuadro', '0 = sigue mirando el punto fijo de Colombia; 1 = termina mirando justo tu cuadro.', 0, 1.5, 0.05],
+    ['panStart', 'El giro empieza (s del zoom óptico)', 'Segundo, contado desde que empieza el zoom óptico, en que empieza a girar.', 0, 1.2, 0.05],
+    ['panEnd', 'El giro termina (s del zoom óptico)', 'Segundo en que termina de girar. Debe ser mayor que el de inicio.', 0.1, 1.2, 0.05],
+    ['diveShift', 'Cuánto tarda en ponerse sobre el cuadro', 'Segundos del descenso que tarda la cámara en quedar justo encima de tu cuadro.', 0.1, 1.5, 0.05],
+  ]],
+  ['Descenso, negro y encendido', [
+    ['descenso', 'Duración del descenso', 'Segundos que dura la caída final hacia el terreno antes del encendido.', 0.3, 2.0, 0.05],
+    ['preDark', 'Oscuridad durante el zoom óptico', '0 = nada, 1 = negro total. Es lo oscuro que está la pantalla antes del descenso.', 0, 1, 0.05],
+    ['fadeStart', 'El negro final empieza (s del descenso)', 'Segundo del descenso en que empieza a irse a negro.', 0, 1.5, 0.05],
+    ['fadeDur', 'El negro final tarda', 'Segundos que tarda en llegar al negro máximo.', 0.05, 1.2, 0.05],
+    ['blackMax', 'Negro máximo', '1 = negro total justo antes del encendido; menos = no llega a oscurecer del todo.', 0, 1, 0.05],
+    ['reveal', 'Encendido tipo monitor', 'Segundos que tarda en abrirse la línea de luz que muestra el 3D.', 0.2, 2, 0.05],
+  ]],
+  ['Calidad', [
+    ['resScale', 'Resolución interna', 'Menos = menos memoria gráfica pero más borroso. Se aplica en la próxima repetición.', 0.4, 1, 0.05],
+  ]],
 ];
+const AJUSTES = GRUPOS.flatMap(g => g[1]);
 
-// Segundo de la animacion en que se nota cada ajuste (para saber a donde ir con el deslizador). cue = inicio de cada plano
+// Segundo de la animacion en que se nota cada ajuste. cue = inicio de cada plano
 const REF = {
-  capDown: (c, T) => c['POV'] + 0.45, capFwd: (c, T) => c['POV'] + 0.45,
-  laserSep: (c, T) => c['POV'] + 0.45 + T.laserT0 + 0.3, laserDrop: (c, T) => c['POV'] + 0.45 + T.laserT0 + 0.3,
-  laserT0: (c, T) => c['POV'] + 0.45 + T.laserT0, laserDur: (c, T) => c['POV'] + 0.45 + T.laserT0 + T.laserDur * 0.5,
-  laserW: (c, T) => c['POV'] + 0.45 + T.laserT0 + 0.3,
-  panAmt: (c, T) => c['Zoom óptico'] + (T.panStart + T.panEnd) / 2, panStart: (c, T) => c['Zoom óptico'] + T.panStart,
+  capDown: (c, T) => c['POV'] + 0.45 + 0.35, capFwd: (c, T) => c['POV'] + 0.45 + 0.35,
+  laserSep: (c, T) => c['POV'] + 0.45 + T.laserT0 + 0.45, laserDrop: (c, T) => c['POV'] + 0.45 + T.laserT0 + 0.45,
+  laserT0: (c, T) => c['POV'] + 0.45 + T.laserT0 + 0.2, laserDur: (c, T) => c['POV'] + 0.45 + T.laserT0 + T.laserDur * 0.6,
+  laserW: (c, T) => c['POV'] + 0.45 + T.laserT0 + 0.45, laserSolo: (c, T) => c['POV'] + 0.45 + T.laserT0 + 0.45,
+  panAmt: (c, T) => c['Zoom óptico'] + (T.panStart + T.panEnd) / 2 + 0.6, panStart: (c, T) => c['Zoom óptico'] + T.panStart + 0.3,
   panEnd: (c, T) => c['Zoom óptico'] + T.panEnd, preDark: (c, T) => c['Zoom óptico'] + 0.5,
   diveShift: (c, T) => c['Descenso'] + T.diveShift / 2, descenso: (c, T) => c['Descenso'] + T.descenso * 0.5,
-  fadeStart: (c, T) => c['Descenso'] + T.fadeStart, fadeDur: (c, T) => c['Descenso'] + T.fadeStart + T.fadeDur / 2,
+  fadeStart: (c, T) => c['Descenso'] + T.fadeStart + 0.1, fadeDur: (c, T) => c['Descenso'] + T.fadeStart + T.fadeDur / 2,
   blackMax: (c, T) => c['Descenso'] + T.fadeStart + T.fadeDur, reveal: (c, T) => c['Descenso'] + T.descenso,
 };
+const fmt = n => n.toFixed(2).replace('.', ',');
 
 function armarPanel(R, S, TUNE, mod) {
   const caja = document.createElement('div');
-  caja.style.cssText = 'position:absolute;top:8px;left:8px;z-index:40;font:12px/1.3 ' + sans + ';color:#d8f6ff;max-width:300px;pointer-events:auto';
-  const filas = AJUSTES.map(([k, et, mn, mx, st]) =>
-    `<label style="display:block;margin:5px 0">${et}: <b data-v="${k}"></b>${REF[k] ? ` <span data-ts="${k}" style="color:#7fb3c4"></span> <button data-ir="${k}">ir ⏵</button>` : ''}<input type="range" data-k="${k}" min="${mn}" max="${mx}" step="${st}" style="width:100%"></label>`).join('');
+  caja.style.cssText = 'position:absolute;top:8px;right:8px;z-index:40;font:12px/1.35 ' + sans + ';color:#d8f6ff;width:300px;max-width:46%;pointer-events:auto;text-align:left';
+  const filas = GRUPOS.map(([titulo, items]) => `<div style="margin:12px 0 4px;padding-top:6px;border-top:1px solid #35f0ff33;font-weight:700;color:#35f0ff">${titulo}</div>` +
+    items.map(([k, et, desc, mn, mx, st]) => {
+      const hay = !!REF[k];
+      return `<div style="margin:8px 0 10px">
+        <div style="display:flex;justify-content:space-between;gap:6px;align-items:baseline"><b>${et}</b><span style="white-space:nowrap"><b data-v="${k}"></b></span></div>
+        <div style="color:#9fc3d0;margin:1px 0 3px">${desc}</div>
+        <input type="range" data-k="${k}" min="${mn}" max="${mx}" step="${st}" style="width:100%;margin:0">
+        ${hay ? `<div style="display:flex;justify-content:space-between;align-items:center;margin-top:2px"><span data-ts="${k}" style="color:#7fb3c4"></span><button data-ver="${k}">▶ Ver este momento</button></div>` : ''}
+      </div>`;
+    }).join('')).join('');
   caja.innerHTML =
-    '<button data-a="abrir" style="all:unset;cursor:pointer;background:rgba(4,14,26,.82);border:1px solid #35f0ff66;border-radius:8px;padding:5px 10px;font-weight:600">⚙ Ajustes (temporal)</button>' +
-    '<div data-panel style="display:none;margin-top:6px;background:rgba(4,14,26,.92);border:1px solid #35f0ff55;border-radius:10px;padding:10px;max-height:70vh;overflow:auto">' +
+    '<button data-a="abrir" style="all:unset;cursor:pointer;background:rgba(4,14,26,.88);border:1px solid #35f0ff66;border-radius:8px;padding:5px 10px;font-weight:600;float:right">⚙ Ajustes (temporal)</button>' +
+    '<div style="clear:both"></div>' +
+    '<div data-panel style="display:none;margin-top:6px;background:rgba(4,14,26,.94);border:1px solid #35f0ff55;border-radius:10px;max-height:78vh;overflow:auto">' +
+    // barra de reproduccion siempre visible (se queda arriba al bajar por los ajustes)
+    '<div style="position:sticky;top:0;z-index:2;background:rgba(4,14,26,.98);padding:10px;border-bottom:1px solid #35f0ff44">' +
     '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px">' +
-    '<button data-a="play">⏸ Pausa</button><button data-a="saltar">⏭ Saltar</button>' +
+    '<button data-a="play" style="min-width:84px">⏸ Pausa</button><button data-a="reiniciar">⏮ Inicio</button><button data-a="saltar">⏭ Saltar</button>' +
     '<button data-a="v025">0,25×</button><button data-a="v05">0,5×</button><button data-a="v1">1×</button></div>' +
-    '<label style="display:block">Tiempo: <b data-t></b><input type="range" data-a="scrub" min="0" max="20" step="0.01" style="width:100%"></label>' +
-    '<label style="display:block;margin:6px 0"><input type="checkbox" data-c="holdEnd"> Detenerse al final (antes del encendido)</label>' +
-    '<label style="display:block;margin:6px 0"><input type="checkbox" data-c="liviana"> Calidad liviana (sin brillo; próxima repetición)</label>' +
-    filas +
-    '<div style="margin:6px 0">Cuadro de prueba (lon, lat): <input data-l="lon" type="number" step="0.1" style="width:70px"> <input data-l="lat" type="number" step="0.1" style="width:70px"> <button data-a="caja">Aplicar</button></div>' +
-    '<div style="display:flex;gap:6px;flex-wrap:wrap"><button data-a="copiar">📋 Copiar valores</button><button data-a="reset">Restablecer</button></div>' +
-    '<pre data-out style="white-space:pre-wrap;margin:6px 0 0;font:11px ' + mono + ';display:none"></pre></div>';
-  caja.querySelectorAll('button:not([data-a="abrir"])').forEach(b => { b.style.cssText = 'all:unset;cursor:pointer;background:#10304a;border:1px solid #35f0ff55;border-radius:6px;padding:3px 8px'; });
+    '<label style="display:block">Tiempo: <b data-t></b><input type="range" data-a="scrub" min="0" max="20" step="0.01" style="width:100%;margin:0"></label>' +
+    '<label style="display:block;margin-top:6px"><input type="checkbox" data-c="vistaAuto"> Al mover un ajuste, reproducir ese momento solo</label>' +
+    '<label style="display:block"><input type="checkbox" data-c="holdEnd"> Detenerse al final (antes del encendido)</label>' +
+    '<label style="display:block"><input type="checkbox" data-c="liviana"> Calidad liviana (sin brillo; próxima repetición)</label></div>' +
+    '<div style="padding:0 10px 10px">' + filas +
+    '<div style="margin:12px 0 4px;padding-top:6px;border-top:1px solid #35f0ff33;font-weight:700;color:#35f0ff">Cuadro de prueba</div>' +
+    '<div style="color:#9fc3d0;margin-bottom:3px">Mueve el cuadro de tu cuenca a otro punto (longitud, latitud) para ver cómo cambia el recorrido.</div>' +
+    '<div><input data-l="lon" type="number" step="0.1" style="width:80px"> <input data-l="lat" type="number" step="0.1" style="width:80px"> <button data-a="caja">Aplicar</button></div>' +
+    '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:10px"><button data-a="copiar">📋 Copiar valores</button><button data-a="reset">Restablecer</button></div>' +
+    '<pre data-out style="white-space:pre-wrap;margin:6px 0 0;font:11px ' + mono + ';display:none"></pre></div></div>';
+  caja.querySelectorAll('button:not([data-a="abrir"])').forEach(b => { b.style.cssText += ';all:unset;cursor:pointer;background:#10304a;border:1px solid #35f0ff55;border-radius:6px;padding:3px 8px;font-size:11.5px;min-width:' + (b.dataset.a === 'play' ? '84px' : '0'); });
   const panel = caja.querySelector('[data-panel]');
+  const q = s => caja.querySelector(s);
   const refrescar = () => {
-    AJUSTES.forEach(([k]) => { caja.querySelector(`[data-k="${k}"]`).value = TUNE[k]; caja.querySelector(`[data-v="${k}"]`).textContent = Number(TUNE[k]).toFixed(2); });
-    caja.querySelector('[data-c="holdEnd"]').checked = !!S.holdEnd;
-    caja.querySelector('[data-c="liviana"]').checked = !!S.liviana;
-    caja.querySelector('[data-l="lon"]').value = S.lon; caja.querySelector('[data-l="lat"]').value = S.lat;
+    AJUSTES.forEach(([k]) => { q(`[data-k="${k}"]`).value = TUNE[k]; q(`[data-v="${k}"]`).textContent = fmt(Number(TUNE[k])); });
+    q('[data-c="holdEnd"]').checked = !!S.holdEnd; q('[data-c="liviana"]').checked = !!S.liviana; q('[data-c="vistaAuto"]').checked = !!S.vistaAuto;
+    q('[data-l="lon"]').value = S.lon; q('[data-l="lat"]').value = S.lat;
   };
   refrescar();
-  const valores = () => JSON.stringify(Object.assign({}, Object.fromEntries(AJUSTES.map(([k]) => [k, +Number(TUNE[k]).toFixed(3)])), { holdEnd: !!S.holdEnd, liviana: !!S.liviana }), null, 1);
+  const valores = () => JSON.stringify(Object.assign({}, Object.fromEntries(AJUSTES.map(([k]) => [k, +Number(TUNE[k]).toFixed(4)])), { holdEnd: !!S.holdEnd, liviana: !!S.liviana }), null, 1);
+  // reproduce solo el tramo donde se nota el ajuste: empieza 1,2 s antes y se detiene 2,6 s despues
+  const ver = k => {
+    if (!S.cue || !REF[k]) return;
+    const t = REF[k](S.cue, TUNE);
+    S.T = Math.max(0, t - 1.2); S.vista = { hasta: t + 2.6 }; S.playing = true; S.fase === 'play' || (S.fase = 'play');
+  };
+  let temporizador = 0;
   caja.addEventListener('input', ev => {
     const e = ev.target;
-    if (e.dataset.k) { TUNE[e.dataset.k] = parseFloat(e.value); guardado.poner('tune', Object.fromEntries(AJUSTES.map(([k]) => [k, TUNE[k]]))); caja.querySelector(`[data-v="${e.dataset.k}"]`).textContent = Number(e.value).toFixed(2); }
-    else if (e.dataset.a === 'scrub') { S.T = parseFloat(e.value); S.playing = false; caja.querySelector('[data-a="play"]').textContent = '▶ Seguir'; }
+    if (e.dataset.k) {
+      TUNE[e.dataset.k] = parseFloat(e.value);
+      guardado.poner('tune', Object.fromEntries(AJUSTES.map(([k]) => [k, TUNE[k]])));
+      q(`[data-v="${e.dataset.k}"]`).textContent = fmt(Number(e.value));
+      if (S.vistaAuto) { clearTimeout(temporizador); const k = e.dataset.k; temporizador = setTimeout(() => ver(k), 350); }
+    } else if (e.dataset.a === 'scrub') { S.T = parseFloat(e.value); S.playing = false; S.vista = null; }
     else if (e.dataset.c) { S[e.dataset.c] = e.checked; guardado.poner(e.dataset.c, e.checked); }
   });
   caja.addEventListener('click', ev => {
-    const a = ev.target && ev.target.dataset && ev.target.dataset.a;
+    const d = ev.target && ev.target.dataset;
+    if (!d) return;
+    if (d.ver) { ver(d.ver); return; }
+    const a = d.a;
     if (!a) return;
     if (a === 'abrir') panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
-    else if (a === 'play') { if (S.fase === 'play' && S.T >= S.Tend && S.holdEnd) S.holdEnd = false; S.playing = !S.playing; ev.target.textContent = S.playing ? '⏸ Pausa' : '▶ Seguir'; }
+    else if (a === 'play') { if (S.fase === 'play' && S.T >= S.Tend && S.holdEnd) S.holdEnd = false; S.vista = null; S.playing = !S.playing; }
+    else if (a === 'reiniciar') { S.T = 0; S.vista = null; S.playing = true; }
     else if (a === 'saltar') S.saltar = true;
     else if (a === 'v025') S.speed = 0.25; else if (a === 'v05') S.speed = 0.5; else if (a === 'v1') S.speed = 1;
-    else if (a === 'caja') { S.lon = parseFloat(caja.querySelector('[data-l="lon"]').value); S.lat = parseFloat(caja.querySelector('[data-l="lat"]').value); S.api && S.api.setBox(S.lon, S.lat); }
+    else if (a === 'caja') { S.lon = parseFloat(q('[data-l="lon"]').value); S.lat = parseFloat(q('[data-l="lat"]').value); S.api && S.api.setBox(S.lon, S.lat); }
     else if (a === 'reset') { Object.assign(TUNE, S.defaults); guardado.poner('tune', null); refrescar(); }
-    else if (a === 'copiar') { const t = valores(), o = caja.querySelector('[data-out]'); o.style.display = 'block'; o.textContent = t; try { navigator.clipboard.writeText(t); } catch (e) { /* se puede copiar a mano */ } }
+    else if (a === 'copiar') { const t = valores(), o = q('[data-out]'); o.style.display = 'block'; o.textContent = t; try { navigator.clipboard.writeText(t); } catch (e) { /* se puede copiar a mano */ } }
   });
   R.ov.appendChild(caja);
-  const ir = k => { if (!S.cue || !REF[k]) return; S.T = Math.max(0, REF[k](S.cue, TUNE)); S.playing = false; const b = caja.querySelector('[data-a="play"]'); if (b) b.textContent = '▶ Seguir'; };
-  caja.addEventListener('click', ev => { const k = ev.target && ev.target.dataset && ev.target.dataset.ir; if (k) ir(k); });
-  return { actualizar(T, Tend) {
-    if (S.cue) for (const k of Object.keys(REF)) { const e = caja.querySelector('[data-ts="' + k + '"]'); if (e) e.textContent = '⏱ ' + REF[k](S.cue, TUNE).toFixed(2) + ' s'; } const t = caja.querySelector('[data-t]'); if (t) t.textContent = T.toFixed(2) + ' / ' + Tend.toFixed(2) + ' s'; const sc = caja.querySelector('[data-a="scrub"]'); if (sc && document.activeElement !== sc) { sc.max = Tend; sc.value = T; } } };
+  return {
+    actualizar(T, Tend) {
+      const t = q('[data-t]'); if (t) t.textContent = fmt(T) + ' / ' + fmt(Tend) + ' s';
+      const sc = q('[data-a="scrub"]'); if (sc && document.activeElement !== sc) { sc.max = Tend; sc.value = T; }
+      const pb = q('[data-a="play"]'); if (pb) pb.textContent = S.playing ? '⏸ Pausa' : '▶ Seguir';
+      if (S.cue) for (const k of Object.keys(REF)) { const e = q(`[data-ts="${k}"]`); if (e) e.textContent = '⏱ ocurre en el segundo ' + fmt(REF[k](S.cue, TUNE)); }
+    },
+  };
 }
 
 // ---- capa que tapa el visor 3D ----
@@ -346,7 +394,7 @@ async function reproducir(o) {
   const R = armarCapa(visor, o.geom);
   let vivo = true, raf = 0, api = null;
   const S = { T: 0, playing: true, speed: 1, fase: 'carga', saltar: false, Tend: 16.5, api: null,
-    holdEnd: guardado.leer('holdEnd', false), liviana: guardado.leer('liviana', false), lon: o.lon, lat: o.lat, defaults: null,
+    holdEnd: guardado.leer('holdEnd', false), vistaAuto: guardado.leer('vistaAuto', true), vista: null, liviana: guardado.leer('liviana', false), lon: o.lon, lat: o.lat, defaults: null,
     buf: o.buffer !== false, n: o.n != null ? o.n : (o.estaciones || []).length };
   // la senal que espera el guion del visor 3D para empezar los lasers
   // Arranque temprano: la animacion empieza en el clic, sobre el mapa 2D, sin esperar al servidor (que tarda 2-3 s en
@@ -452,6 +500,7 @@ async function reproducir(o) {
         if (S.saltar) { S.saltar = false; empezarEncendido(); }
         else {
           if (S.playing) S.T += dt * S.speed;
+          if (S.vista && S.T >= S.vista.hasta) { S.playing = false; S.vista = null; }   // fin de la vista previa de un ajuste
           if (!api) { if (S.sinEscena) { S.saltar = true; } else if (S.T > TOPE) S.T = TOPE; }
           if (S.T >= S.Tend) { S.T = S.Tend; if (!S.holdEnd) empezarEncendido(); }
           if (S.fase === 'play') { if (api && api.lost) { /* se recupera solo */ } else dibujar(); panel && panel.actualizar(S.T, S.Tend); }

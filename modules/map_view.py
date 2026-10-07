@@ -1,3 +1,4 @@
+import functools
 import folium
 import pandas as pd
 from folium.plugins import Draw, FastMarkerCluster
@@ -19,6 +20,18 @@ from modules.ideam_downloader import codigo_de_estacion
 AZUL = "#1C6FD8"
 NARANJA = "#FAB219"
 GRIS = "#7C87A3"
+
+
+@functools.lru_cache(maxsize=1)
+def recursos_mapa():
+    """Direcciones de las librerias que el mapa 2D baja de internet (Leaflet, dibujo, grupos de marcadores...),
+    para precargarlas en el navegador mientras el usuario elige como marcar la cuenca."""
+    import re
+    m = mapa_base(None, "claro")
+    FastMarkerCluster(data=[(4.6, -74.1)]).add_to(m)
+    html = m.get_root().render()
+    urls = re.findall(r'<script[^>]+src="(https?://[^"]+)"', html) + re.findall(r'<link[^>]+href="(https?://[^"]+)"', html)
+    return list(dict.fromkeys(urls))
 
 
 def mapa_base(cuenca_gdf=None, tema="claro"):

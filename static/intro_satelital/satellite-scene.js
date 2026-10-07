@@ -17,6 +17,11 @@ export const TUNE = {
   fadeStart: 0.25,  // segundo del descenso en que empieza a oscurecer del todo
   fadeDur: 0.4,     // cuanto tarda en llegar a la oscuridad maxima
   reveal: 0.7,      // duracion (s) del encendido tipo monitor
+  laserSep: 0.16,   // separacion lateral de los dos cañones al disparar (distancia desde el centro de la camara)
+  laserDrop: 0.05, // cuanto salen por debajo del centro de la imagen
+  laserT0: 0.05,    // segundos tras el primer disparo de cápsulas en que salen los lasers
+  laserDur: 1.3,    // cuanto dura el disparo de los lasers
+  laserW: 0.0012,   // grosor del nucleo del haz
   resScale: 0.7,    // resolucion interna de la escena (1 = 1920x1080); menos = menos memoria grafica
 };
 export function setTune(o) { Object.assign(TUNE, o); }
@@ -94,7 +99,7 @@ function capPos(i, tp, out = V()) {
   if (s < 0 || s >= 1) return null;
   const e = 0.35 * s + 0.65 * s * s;
   const start = out.copy(CAP_START).addScaledVector(E, c.sx).addScaledVector(U, c.sy);
-  const end = G.clone().addScaledVector(E, c.ox).addScaledVector(U, c.oy).addScaledVector(N, 0.002);
+  const end = C.clone().add(aimDir()).addScaledVector(E, c.ox).addScaledVector(U, c.oy).addScaledVector(N, 0.002);
   return start.lerp(end, e);
 }
 const morphAt = tz => io2(seg(tz, 0.08, 1.4));
@@ -578,6 +583,9 @@ export function precargarDatos() {
   return _datos;
 }
 export function setLowPower(v) { _degrade = !!v; }
+// Sin buffer: el segundo cañon (naranja) se carga igual, pero al llegar el disparo se apaga y no sale su haz
+let _buffer = true;
+export function setBuffer(v) { _buffer = v !== false; }
 let _renderer = null;   // se reutiliza entre repeticiones; solo se libera lo que pesa (geometrias, texturas, buffers)
 export function getScene(host) {
   if (!_inst) { if (_losses > 1) return Promise.reject(new Error('webgl-blocked')); _inst = createScene().catch(e => { _inst = null; throw e; }); }
@@ -718,6 +726,15 @@ async function createScene() {
   trailGeo.setAttribute('position', new THREE.BufferAttribute(trailPos, 3)); trailGeo.setAttribute('color', new THREE.BufferAttribute(trailCol, 3));
   const trails = new THREE.LineSegments(trailGeo, new THREE.LineBasicMaterial({ vertexColors: true, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false }));
   trails.frustumCulled = false; capGroup.add(trails);
+  // Lasers de area (cian) y buffer (naranja): salen de los dos cañones al mismo tiempo que la rafaga de capsulas, hacia el cuadro
+  const fireGroup = new THREE.Group(); fireGroup.frustumCulled = false; scene.add(fireGroup);
+  const beamGeo = new THREE.CylinderGeometry(1, 1, 1, 10, 1, true);
+  const mkBeam = (col, glow) => {
+    const m = new THREE.MeshBasicMaterial({ color: col.clone().multiplyScalar(glow ? 1.1 : 1.8), transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false, depthTest: false, toneMapped: false, side: THREE.DoubleSide });
+    const o = new THREE.Mesh(beamGeo, m); o.frustumCulled = false; o.visible = false; o.renderOrder = 12; fireGroup.add(o); return o;
+  };
+  const lasers = [{ col: CYAN, side: -1, core: mkBeam(new THREE.Color(0.8, 1, 1), false), glow: mkBeam(CYAN, true) },
+                  { col: ORANGE, side: 1, core: mkBeam(new THREE.Color(1, 0.9, 0.7), false), glow: mkBeam(ORANGE, true) }];
   const launchFlash = sprite(tex.glow, new THREE.Color(0.9, 1.4, 0.7), 0.007); launchFlash.position.copy(CAP_START); capGroup.add(launchFlash);
 
   // warp streaks (camera space)
@@ -800,8 +817,9 @@ async function createScene() {
         c.b2.position.z = lerp(0.005, 0.07, s.b2);
         c.fins.forEach(f => { f.position.x = c.s * (0.022 + 0.012 * s.fins); });
         const k = st.charge, fl = 0.82 + 0.36 * hash(Math.floor(T * 30) + i * 7.1);
-        c.ringM.color.copy(c.col).multiplyScalar(0.45 + 0.5 * (s.power - 0.35) + 2.0 * k * fl);
-        const on = k > 0.001;
+        const apagado = i === 1 && !_buffer && t.ta >= 0;
+        c.ringM.color.copy(c.col).multiplyScalar(apagado ? 0.12 : 0.45 + 0.5 * (s.power - 0.35) + 2.0 * k * fl);
+        const on = k > 0.001 && !apagado;
         c.orb.visible = c.core.visible = c.halo.visible = c.parts.visible = on;
         if (on) {
           const os = (0.01 + 0.04 * Math.pow(k, 1.5)) * fl;
@@ -812,7 +830,26 @@ async function createScene() {
           for (let p = 0; p < c.NP; p++) { const d = c.dirs[p * 2], sd = c.dirs[p * 2 + 1]; const r = 0.09 * (1 - ((sd + T * 1.7) % 1)); arr[p * 3] = d.x * r; arr[p * 3 + 1] = d.y * r; arr[p * 3 + 2] = d.z * r; }
           c.parts.geometry.attributes.position.needsUpdate = true; c.parts.material.opacity = k;
         }
-        c.light.intensity = 0.012 * k * fl;
+        c.light.intensity = apagado ? 0 : 0.012 * k * fl;
+      });
+    }
+    // lasers disparados
+    {
+      const tp = t.tp, u = (tp - (CAP_FIRE + TUNE.laserT0)) / TUNE.laserDur;
+      const on = tp >= 0 && t.te < 0 && u >= 0 && u <= 1;
+      lasers.forEach((L, i) => {
+        const vis = on && (i === 0 || _buffer);
+        L.core.visible = L.glow.visible = vis;
+        if (!vis) return;
+        const aim = C.clone().add(aimDir());
+        const from = LENS.clone().addScaledVector(E, L.side * TUNE.laserSep).addScaledVector(U, -TUNE.laserDrop).addScaledVector(N, -0.2);
+        const grow = Math.min(1, u * 9), head = from.clone().lerp(aim, grow);
+        const dir = head.clone().sub(from), len = Math.max(dir.length(), 1e-5); dir.normalize();
+        const alpha = Math.min(1, u * 10) * (1 - seg(u, 0.72, 1)) * (0.85 + 0.15 * Math.sin(T * 60));
+        for (const [m, w, k] of [[L.core, TUNE.laserW, 1], [L.glow, TUNE.laserW * 3.5, 0.4]]) {
+          m.position.copy(from).addScaledVector(dir, len / 2); m.quaternion.setFromUnitVectors(Y, dir); m.scale.set(w, len, w);
+          m.material.opacity = alpha * k;
+        }
       });
     }
     // station capsules
@@ -848,7 +885,7 @@ async function createScene() {
       }
       stk.attributes.position.needsUpdate = true; stk.attributes.color.needsUpdate = true;
     }
-    if (bloom) bloom.strength = 0.75 + 0.9 * st.pulse + 0.6 * b.hit + 0.2 * st.charge * (t.tp < 0 ? 1 : 0) + 0.3 * sa;
+    if (bloom) bloom.strength = 0.75 + 0.9 * st.pulse + 0.6 * b.hit + 0.2 * st.charge * (t.tp < 0 ? 1 : 0) + 0.3 * sa + (lasers[0].core.visible ? 0.25 : 0);
   }
 
   return {

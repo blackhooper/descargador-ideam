@@ -187,7 +187,7 @@ _INTRO_SATELITAL = """
         d.head.appendChild(s);
       });
     }
-    await w.__y2kSat.reproducir({visor: visor, clave: P.clave, lon: P.lon, lat: P.lat, bbox: P.bbox, estaciones: P.estaciones, turno: P.turno, panel: P.panel, version: P.version});
+    await w.__y2kSat.reproducir({visor: visor, clave: P.clave, lon: P.lon, lat: P.lat, bbox: P.bbox, estaciones: P.estaciones, n: P.n, buffer: P.buffer, turno: P.turno, panel: P.panel, version: P.version});
   } catch (e) {
     console.error("intro satelital", e);
     fin(); previo.remove();
@@ -197,18 +197,20 @@ _INTRO_SATELITAL = """
 """
 
 
-def _datos_satelite(bbox, estaciones):
-    """Lo que necesita la intro de la cuenca: caja envolvente y estaciones ([lon, lat, 1 si cumple]) para dibujarlas."""
+def _datos_satelite(bbox, estaciones, buffer=True):
+    """Lo que necesita la intro de la cuenca: caja envolvente y estaciones ([lon, lat, 1 si cumple]) para dibujarlas,
+    el total real de estaciones (se dibujan hasta 250, pero el contador usa el total) y si el buffer esta activo."""
     x0, y0, x1, y1 = (float(v) for v in bbox)
     return {"clave": f"{x0:.5f},{y0:.5f},{x1:.5f},{y1:.5f}", "lon": round((x0 + x1) / 2, 4), "lat": round((y0 + y1) / 2, 4),
             "bbox": [round(x0, 5), round(y0, 5), round(x1, 5), round(y1, 5)],
             "estaciones": [[round(float(e["lon"]), 4), round(float(e["lat"]), 4), 1 if e.get("ok") else 0] for e in estaciones[:250]],
+            "n": len(estaciones), "buffer": bool(buffer),
             "panel": bool(PANEL_SATELITE), "version": _version_satelite()}
 
 
-def intro_satelital(turno, bbox, estaciones):
+def intro_satelital(turno, bbox, estaciones, buffer=True):
     """Guion (para components.html) que reproduce la intro satelital sobre el visor 3D de este turno."""
-    datos = {"turno": turno, **_datos_satelite(bbox, estaciones)}
+    datos = {"turno": turno, **_datos_satelite(bbox, estaciones, buffer)}
     return _INTRO_SATELITAL.replace("__PARAMS__", json.dumps(datos)) + f"<!-- turno {turno} -->"
 
 
@@ -241,9 +243,46 @@ _PRECALENTAR_SATELITE = """
 """
 
 
-def precalentar_satelite(bbox, estaciones):
+def precalentar_satelite(bbox, estaciones, buffer=True):
     """Guion (para components.html) que precalienta la intro satelital de esta cuenca."""
-    return _PRECALENTAR_SATELITE.replace("__PARAMS__", json.dumps(_datos_satelite(bbox, estaciones)))
+    return _PRECALENTAR_SATELITE.replace("__PARAMS__", json.dumps(_datos_satelite(bbox, estaciones, buffer)))
+
+
+_PRECARGAR_MAPA = """
+<script>
+(() => {
+  const w = window.parent, d = w.document;
+  const URLS = __URLS__;
+  if (w.__y2kMapaPre) return;
+  w.__y2kMapaPre = true;
+  const fin = () => { d.documentElement.dataset.y2kMapaListo = "1"; };
+  const pedir = u => w.fetch(u, {mode: "no-cors", cache: "force-cache"}).catch(() => null);
+  // teselas de satelite de todo Colombia a nivel 5 y 6 (las primeras que ve el mapa)
+  const tesela = (z, x, y) => new Promise(ok => {
+    const i = new w.Image();
+    i.onload = i.onerror = () => ok();
+    i.src = "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/" + z + "/" + y + "/" + x;
+  });
+  const pares = [];
+  for (const z of [5, 6]) {
+    const n = Math.pow(2, z), xs = [-79.5, -66.5].map(l => Math.floor((l + 180) / 360 * n));
+    const ys = [13, -4.5].map(la => Math.floor((1 - Math.log(Math.tan(la * Math.PI / 180) + 1 / Math.cos(la * Math.PI / 180)) / Math.PI) / 2 * n));
+    for (let x = xs[0]; x <= xs[1]; x++) for (let y = ys[0]; y <= ys[1]; y++) pares.push([z, x, y]);
+  }
+  const tareas = URLS.map(pedir).concat(pares.slice(0, 24).map(q => tesela(q[0], q[1], q[2])));
+  Promise.race([Promise.all(tareas), new Promise(ok => setTimeout(ok, 12000))]).then(fin, fin);
+})();
+</script>
+"""
+
+
+def precargar_mapa_2d(urls):
+    """Guion que baja por detras lo que necesita el mapa 2D (librerias y teselas de Colombia)."""
+    return _PRECARGAR_MAPA.replace("__URLS__", json.dumps(urls))
+
+
+CSS_DIBUJAR_ESPERA = ('<style>html:not([data-y2k-mapa-listo]) .st-key-y2k_dibujar button'
+                      '{opacity:.4 !important;filter:grayscale(1);pointer-events:none !important;cursor:progress}</style>')
 
 
 def css_boton_3d_espera(bbox, estaciones):
@@ -475,6 +514,16 @@ _ORBITA = """
         }
         return r;
       };
+      // Haz oblicuo desde `base` hacia `ap` (el satelite, sobre el centro del rectangulo), con degradado; `frac` = cuanto del camino cubre
+      const mezcla3 = (a, b, k) => [a[0] + (b[0] - a[0]) * k, a[1] + (b[1] - a[1]) * k, a[2] + (b[2] - a[2]) * k];
+      const hazA = (base, ap, color, alfa, partes = 8, frac = 1) => {
+        const r = [];
+        for (let k = 0; k < partes; k++) {
+          r.push({a: mezcla3(base, ap, frac * k / partes), b: mezcla3(base, ap, frac * (k + 1) / partes),
+                  c: conAlfa(color, alfa * Math.pow(1 - k / partes, 1.6))});
+        }
+        return r;
+      };
       const dibujaHaz = (id, datos, ancho, minPx) => new Linea({id, data: datos, getSourcePosition: d => d.a,
         getTargetPosition: d => d.b, getColor: d => d.c, getWidth: ancho, widthMinPixels: minPx, parameters: encima});
       // Circulo plano sobre el terreno: solo contorno (onda) o relleno (destello)
@@ -495,7 +544,15 @@ _ORBITA = """
       };
 
       // ---- Fase 1: dos lasers (cuenca azul, buffer amarillo) bajan del cielo y dibujan su perimetro ----
-      const ALTO_HAZ = 0.65 * DIST;
+      // Punto del que "vienen" los dos lasers y las estaciones: el satelite, sobre el centro del rectangulo. APEX_ALTO = altura (ajustable)
+      const APEX_ALTO = 1.1 * DIST;
+      const base0 = capa("cuenca") || capa("buffer");
+      let apex = [O.lon, O.lat, APEX_ALTO];
+      if (base0) {
+        let x0 = 1e9, x1 = -1e9, y0 = 1e9, y1 = -1e9, zs = 0, nz = 0;
+        base0.props.data.forEach(r => r.path.forEach(q => { x0 = Math.min(x0, q[0]); x1 = Math.max(x1, q[0]); y0 = Math.min(y0, q[1]); y1 = Math.max(y1, q[1]); zs += q[2] || 0; nz++; }));
+        if (nz) apex = [(x0 + x1) / 2, (y0 + y1) / 2, zs / nz + APEX_ALTO];
+      }
       const LASERES = [{id: "cuenca", color: [90, 162, 245], ini: 0, dur: 1900},
                        {id: "buffer", color: [250, 178, 25], ini: 350, dur: 1900}]
         .map(d => ({...d, capa: capa(d.id)})).filter(d => d.capa);
@@ -519,9 +576,10 @@ _ORBITA = """
             // haz de luz desde el cielo hasta la punta; al cerrar la figura se eleva y se desvanece
             const subida = lt < 1 ? 0 : lim(dt / 300), alfaH = lt < 1 ? lim(lt / 0.08) : 1 - subida;
             if (alfaH > 0.001) {
-              const alzar = ALTO_HAZ * subida * subida, ps = puntas.slice(0, 4), fl = 1 + 0.12 * Math.sin(ms / 25);
+              const alzar = subida * subida, ps = puntas.slice(0, 4), fl = 1 + 0.12 * Math.sin(ms / 25);
               const nucleo = [], aura = [];
-              ps.forEach(p => { const b = [p[0], p[1], p[2] + alzar]; nucleo.push(...haz(b, ALTO_HAZ, [255, 255, 255], 255 * alfaH)); aura.push(...haz(b, ALTO_HAZ, L.color, 150 * alfaH)); });
+              // al cerrar la figura el haz se recoge hacia el satelite
+              ps.forEach(p => { const b = mezcla3(p, apex, alzar); nucleo.push(...hazA(b, apex, [255, 255, 255], 255 * alfaH)); aura.push(...hazA(b, apex, L.color, 150 * alfaH)); });
               extra.push(dibujaHaz("haz_g_" + L.id, aura, 14, 8), dibujaHaz("haz_n_" + L.id, nucleo, 3, 2));
               const pts = ps.map(p => ({p}));
               extra.push(new Punto({id: "flare_" + L.id, data: pts, getPosition: d => d.p, getFillColor: conAlfa(L.color, 120 * alfaH), getRadius: 90,
@@ -545,7 +603,7 @@ _ORBITA = """
       const cab = capa("estaciones"), tal = capa("tallos");
       if (cab && Punto && Linea && vigente()) {
         const datosC = cab.props.data, datosT = tal ? tal.props.data : [];
-        const n = datosC.length, CAIDA = 1500, REPARTO = 3800, ALTURA = 0.7 * DIST, COLA_D = 850;
+        const n = datosC.length, CAIDA = 1500, REPARTO = 3800, COLA_D = 850;
         const paso = n > 1 ? (REPARTO - CAIDA) / (n - 1) : 0;
         // orden aleatorio, pero siempre el mismo para un mismo conjunto
         let sem = 12345; const azar = () => { sem = (Math.imul(sem, 1664525) + 1013904223) >>> 0; return sem / 4294967296; };
@@ -560,26 +618,29 @@ _ORBITA = """
             const u = (ms - inicio[i]) / CAIDA;
             if (u <= 0) continue;
             const q = lim(u), dt = ms - inicio[i] - CAIDA, c = datosC[i], tl = datosT[i];
-            let dz = q < 1 ? ALTURA * (1 - q * q) : 0, e = 1;
+            // falta recorrer esta fraccion del camino desde el satelite: arranca rapido, como un disparo
+            const fr = q < 1 ? 1 - (0.35 * q + 0.65 * q * q) : 0;
+            const off = [(apex[0] - c.pos[0]) * fr, (apex[1] - c.pos[1]) * fr, (apex[2] - c.pos[2]) * fr];
+            let e = 1;
             if (dt >= 0) {
-              if (dt < 320) dz += 90 * E * Math.sin(Math.PI * dt / 320) * (1 - dt / 320);   // rebote
+              if (dt < 320) off[2] += 90 * E * Math.sin(Math.PI * dt / 320) * (1 - dt / 320);   // rebote
               e = 1 + 0.35 * (1 - lim(dt / 180));                                         // golpe al aterrizar
             }
-            idx.push(i); desp.push(dz); esc.push(e); opaco.push(255 * lim(q * 6));
+            idx.push(i); desp.push(off); esc.push(e); opaco.push(255 * lim(q * 6));
             const suelo = tl ? tl.desde : c.pos, col = c.rgb || [255, 255, 255];
-            if (q < 1) estelas.push(...haz([c.pos[0], c.pos[1], c.pos[2] + dz], (500 + 1500 * q) * E, col, 200 * q, 5));
+            if (q < 1) estelas.push(...hazA([c.pos[0] + off[0], c.pos[1] + off[1], c.pos[2] + off[2]], apex, col, 200 * q, 5, 0.04 + 0.16 * q));
             const so = q < 1 ? 0.45 * q * q : 0.45 * lim(1 - dt / 400);
             if (so > 0.005) sombras.push({p: suelo, r: 140 * E * (2.4 - 1.4 * q), c: [0, 0, 0, Math.round(255 * so)]});
             if (dt >= 0 && dt < 700) { const k = dt / 700; ondas.push({p: suelo, r: (40 + 340 * salida(k)) * E, c: conAlfa(col, 120 * (1 - k) * (1 - k))}); }
           }
           reemplazos.estaciones = cab.clone({visible: true, data: idx.map(i => datosC[i]),
-            getPosition: (x, o) => [x.pos[0], x.pos[1], x.pos[2] + desp[o.index]],
+            getPosition: (x, o) => { const d = desp[o.index]; return [x.pos[0] + d[0], x.pos[1] + d[1], x.pos[2] + d[2]]; },
             getRadius: (x, o) => x.radio * esc[o.index],
             getFillColor: (x, o) => [...x.rgb, opaco[o.index]],
             updateTriggers: {getPosition: [ms], getRadius: [ms], getFillColor: [ms]}});
           if (tal && datosT.length === n) reemplazos.tallos = tal.clone({visible: true, data: idx.map(i => datosT[i]),
-            getSourcePosition: (x, o) => [x.desde[0], x.desde[1], x.desde[2] + desp[o.index]],
-            getTargetPosition: (x, o) => [x.hasta[0], x.hasta[1], x.hasta[2] + desp[o.index]],
+            getSourcePosition: (x, o) => { const d = desp[o.index]; return [x.desde[0] + d[0], x.desde[1] + d[1], x.desde[2] + d[2]]; },
+            getTargetPosition: (x, o) => { const d = desp[o.index]; return [x.hasta[0] + d[0], x.hasta[1] + d[1], x.hasta[2] + d[2]]; },
             updateTriggers: {getSourcePosition: [ms], getTargetPosition: [ms]}});
           refrescar([disco("sombras", sombras), dibujaHaz("estelas", estelas, 3, 2), anillo("ondas_pin", ondas, 2)]);
         });

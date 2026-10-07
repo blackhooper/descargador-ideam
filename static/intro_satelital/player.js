@@ -40,7 +40,7 @@ function h(tag, props, ...kids) {
 }
 
 // ---- interfaz (HUD) en coordenadas de 1920x1080 ----
-function hudSvg(H, T, caja, dots) {
+function hudSvg(H, T, caja, dots, info) {
   const cx = 960, cy = 540;
   const tx = (x, y, s, p) => h('text', Object.assign({ x, y, fill: CY, fontFamily: mono, fontSize: 20, letterSpacing: 1.5 }, p), s);
   const ln = (x1, y1, x2, y2, p) => h('line', Object.assign({ x1, y1, x2, y2, stroke: CY, strokeWidth: 1.5 }, p));
@@ -71,21 +71,11 @@ function hudSvg(H, T, caja, dots) {
   }
 
   if (H.map > 0.001) {
-    const sc = Math.max(40, Math.min(600, 500 / H.kmPerPx));
     kids.push(h('g', { opacity: H.map },
       h('rect', { x: 28, y: 28, width: 1864, height: 1024, fill: 'none', stroke: CY, strokeOpacity: 0.22 }),
       corners(28, 28, 1864, 1024, 36, { strokeOpacity: 0.7 }),
       tx(72, 98, 'MAPA OPERATIVO', { fontFamily: sans, fontWeight: 600, fontSize: 30, fill: WH, letterSpacing: 4 }),
-      tx(72, 132, 'COLOMBIA · CAPA DE LÍMITES', { fill: DIM, fontSize: 18, letterSpacing: 2 }),
-      tx(1848, 98, 'WGS84 · EPSG:4326', { textAnchor: 'end', fill: DIM, fontSize: 18 }),
-      tx(1848, 132, 'NIVEL 6', { textAnchor: 'end', fill: DIM, fontSize: 18 }),
-      h('rect', { x: 1800, y: 470, width: 48, height: 48, rx: 8, fill: 'rgba(4,14,26,0.75)', stroke: CY, strokeOpacity: 0.4 }),
-      h('rect', { x: 1800, y: 526, width: 48, height: 48, rx: 8, fill: 'rgba(4,14,26,0.75)', stroke: CY, strokeOpacity: 0.4 }),
-      tx(1824, 503, '+', { textAnchor: 'middle', fontSize: 26, fill: WH }),
-      tx(1824, 559, '−', { textAnchor: 'middle', fontSize: 26, fill: WH }),
-      h('g', { opacity: Math.min(1, Math.max(0, (H.tr + 0.2) / 0.6)) },
-        ln(1848 - sc, 1004, 1848, 1004, { strokeWidth: 2 }), ln(1848 - sc, 994, 1848 - sc, 1010, { strokeWidth: 2 }), ln(1848, 994, 1848, 1010, { strokeWidth: 2 }),
-        tx(1848, 982, '500 km', { textAnchor: 'end', fontSize: 18, fill: '#bfefff' }))
+      tx(72, 132, 'COLOMBIA · CAPA DE LÍMITES', { fill: DIM, fontSize: 18, letterSpacing: 2 })
     ));
   }
 
@@ -103,37 +93,44 @@ function hudSvg(H, T, caja, dots) {
     const s = H.s, L = 34;
     kids.push(h('g', { opacity: H.satTag },
       corners(s.x - L, s.y - L, L * 2, L * 2, 10, { strokeOpacity: 0.9 }),
-      tx(s.x + L + 12, s.y - L + 14, 'SAT-07', { fontFamily: sans, fontWeight: 600, fontSize: 20, fill: WH, letterSpacing: 3 }),
+      tx(s.x + L + 12, s.y - L + 14, 'ASTRO JUAN 24', { fontFamily: sans, fontWeight: 600, fontSize: 20, fill: WH, letterSpacing: 3 }),
       tx(s.x + L + 12, s.y - L + 40, 'ÓRBITA MEO', { fontSize: 16, fill: DIM, letterSpacing: 2 })
     ));
   }
   if (H.satInfo > 0.001) {
     kids.push(h('g', { opacity: H.satInfo },
-      tx(72, 98, 'SAT-07 · ÓRBITA MEO', { fontFamily: sans, fontWeight: 600, fontSize: 26, fill: WH, letterSpacing: 3 }),
+      tx(72, 98, 'ASTRO JUAN 24 · ÓRBITA MEO', { fontFamily: sans, fontWeight: 600, fontSize: 26, fill: WH, letterSpacing: 3 }),
       tx(72, 134, 'DATOS RECIBIDOS DESDE COLOMBIA', { fontSize: 18, fill: CY, letterSpacing: 2 })
     ));
   }
 
   if (H.can > 0.001) {
-    const names = ['COMPUERTAS', 'BRAZOS', 'CAÑONES', 'DISIPADORES'], pct = Math.round(H.charge * 100);
+    // parametros de apuntado: se "calibran" uno tras otro y, con todo cargado, se dispara. Los valores son los de la escena
+    // (el satelite se inclina 90°) y las coordenadas reales del centro de la cuenca
+    const filas = [['TELEMETRÍA', '', 0], ['ENLACE', '', 2], ['PROTOCOLO R.E.A.L', '', 3]];
+    const pct = Math.round(H.charge * 100);
+    // sin buffer: su barra se carga igual y, al disparar, se apaga
+    const bufOff = !info.buf && info.ta > 0;
+    const cargaB = info.buf ? H.charge : H.charge * (1 - cl(info.ta / 0.15));
+    const pctB = Math.round(cargaB * 100);
     kids.push(h('g', { opacity: H.can },
-      tx(72, 98, 'SECUENCIA DE DESPLIEGUE', { fontFamily: sans, fontWeight: 600, fontSize: 26, fill: WH, letterSpacing: 3 }),
-      names.map((n, i) => {
-        const v = H.steps[i], ok = v >= 1;
+      tx(72, 98, 'PREPARANDO LANZAMIENTO', { fontFamily: sans, fontWeight: 600, fontSize: 26, fill: WH, letterSpacing: 3 }),
+      filas.map(([n, val, k], i) => {
+        const v = H.steps[k], ok = v >= 1;
         return h('g', null,
           tx(72, 146 + i * 36, n, { fontSize: 19, fill: ok ? '#bfefff' : DIM }),
-          tx(380, 146 + i * 36, ok ? 'OK' : v > 0 ? '···' : '—', { textAnchor: 'end', fontSize: 19, fill: ok ? CY : DIM })
+          tx(480, 146 + i * 36, ok ? val : '', { textAnchor: 'end', fontSize: 19, fill: '#bfefff' }),
+          tx(640, 146 + i * 36, ok ? 'OK' : v > 0 ? '···' : '—', { textAnchor: 'end', fontSize: 19, fill: ok ? CY : DIM })
         );
       }),
-      tx(72, 902, 'CARGA DE ENERGÍA', { fontSize: 18, fill: DIM, letterSpacing: 2 }),
       tx(72, 950, 'ÁREA', { fontSize: 19, fill: WH }),
       h('rect', { x: 196, y: 936, width: 360, height: 14, fill: 'none', stroke: CY, strokeOpacity: 0.45 }),
       h('rect', { x: 196, y: 936, width: 360 * H.charge, height: 14, fill: CY }),
       tx(640, 950, pct + '%', { textAnchor: 'end', fontSize: 19, fill: CY }),
-      tx(72, 994, 'BUFFER', { fontSize: 19, fill: WH }),
-      h('rect', { x: 196, y: 980, width: 360, height: 14, fill: 'none', stroke: OR, strokeOpacity: 0.5 }),
-      h('rect', { x: 196, y: 980, width: 360 * H.charge, height: 14, fill: OR }),
-      tx(640, 994, pct + '%', { textAnchor: 'end', fontSize: 19, fill: OR })
+      tx(72, 994, 'BUFFER', { fontSize: 19, fill: bufOff ? DIM : WH }),
+      h('rect', { x: 196, y: 980, width: 360, height: 14, fill: 'none', stroke: OR, strokeOpacity: bufOff ? 0.2 : 0.5 }),
+      h('rect', { x: 196, y: 980, width: 360 * cargaB, height: 14, fill: OR }),
+      tx(640, 994, bufOff ? '—' : pctB + '%', { textAnchor: 'end', fontSize: 19, fill: bufOff ? DIM : OR })
     ));
   }
 
@@ -166,17 +163,16 @@ function hudSvg(H, T, caja, dots) {
         tx(cx + L / 2 + 24, cy - L / 2 + 54, 'COLOMBIA', { fontFamily: sans, fontWeight: 600, fontSize: 22, fill: WH, letterSpacing: 2 })
       ) : null,
       h('g', { opacity: b },
-        tx(130, 470, H.dive > 0 ? 'VELOCIDAD' : 'ZOOM ÓPTICO', { fontSize: 18, fill: DIM, letterSpacing: 2 }),
-        tx(130, 530, H.dive > 0 ? Math.round(H.vKmS).toLocaleString('es-CO') : '×' + H.zoomX.toFixed(1), { fontFamily: sans, fontWeight: 600, fontSize: 56, fill: H.dive > 0 ? OR : CY }),
-        tx(130, 566, H.dive > 0 ? 'KM/S' : 'FOV ' + H.fov.toFixed(2) + '°', { fontSize: 18, fill: DIM }),
+        H.dive > 0 ? null : h('g', null,
+          tx(130, 470, lk >= 1 ? 'LISTA' : 'CALCULANDO' + '.'.repeat(1 + Math.floor(T * 3) % 3), { fontSize: 18, fill: lk >= 1 ? CY : DIM, letterSpacing: 2 }),
+          tx(130, 530, 'TRAYECTORIA', { fontFamily: sans, fontWeight: 600, fontSize: 44, fill: lk >= 1 ? CY : WH, letterSpacing: 3 })),
         tx(1800, 470, 'ALTITUD', { textAnchor: 'end', fontSize: 18, fill: DIM, letterSpacing: 2 }),
         tx(1800, 530, alt, { textAnchor: 'end', fontFamily: sans, fontWeight: 600, fontSize: 56, fill: H.dive > 0 ? OR : CY }),
         tx(1800, 566, 'KM', { textAnchor: 'end', fontSize: 18, fill: DIM }),
         ladder,
         tx(130, 150, '● ENLACE ACTIVO', { fontSize: 18, fill: Math.floor(T * 3) % 2 ? CY : WH, letterSpacing: 2 }),
-        tx(130, 182, 'ÁREA + BUFFER · 100%', { fontSize: 18, fill: OR, letterSpacing: 2 }),
-        H.capOut > 0 ? tx(130, 214, 'ESTACIONES LANZADAS ' + H.capOut + '/' + H.capN, { fontSize: 18, fill: '#3fff7a', letterSpacing: 2 }) : null,
-        tx(1790, 150, 'SAT-07 · ÓPTICA PRINCIPAL', { textAnchor: 'end', fontSize: 18, fill: DIM, letterSpacing: 2 })
+        H.capOut > 0 ? tx(130, 182, 'ESTACIONES LANZADAS ' + Math.round(H.capOut / H.capN * info.n) + '/' + info.n, { fontSize: 18, fill: '#3fff7a', letterSpacing: 2 }) : null,
+        tx(1790, 150, 'ASTRO JUAN 24 · ÓPTICA PRINCIPAL', { textAnchor: 'end', fontSize: 18, fill: DIM, letterSpacing: 2 })
       ),
       H.dive > 0 ? h('g', { opacity: H.dive * (Math.floor(T * 10) % 2 ? 1 : 0.55) },
         tx(cx, 900, 'DESCENSO', { textAnchor: 'middle', fontFamily: sans, fontWeight: 600, fontSize: 34, fill: OR, letterSpacing: 10 })
@@ -198,6 +194,11 @@ const AJUSTES = [
   ['fadeDur', 'Negro final: duración (s)', 0.05, 1.2, 0.05],
   ['blackMax', 'Negro máximo antes del encendido', 0, 1, 0.05],
   ['reveal', 'Encendido tipo monitor (s)', 0.2, 2, 0.05],
+  ['laserSep', 'Lasers: separación entre cañones', 0, 0.4, 0.01],
+  ['laserDrop', 'Lasers: bajan respecto al centro', -0.1, 0.2, 0.005],
+  ['laserT0', 'Lasers: salen tras la 1ª cápsula (s)', -0.3, 1, 0.05],
+  ['laserDur', 'Lasers: duración (s)', 0.3, 3, 0.05],
+  ['laserW', 'Lasers: grosor', 0.0005, 0.01, 0.0005],
   ['resScale', 'Resolución interna (aplica en la próxima repetición)', 0.4, 1, 0.05],
 ];
 
@@ -328,7 +329,8 @@ async function reproducir(o) {
   const R = armarCapa(visor, o.geom);
   let vivo = true, raf = 0, api = null;
   const S = { T: 0, playing: true, speed: 1, fase: 'carga', saltar: false, Tend: 16.5, api: null,
-    holdEnd: guardado.leer('holdEnd', false), liviana: guardado.leer('liviana', false), lon: o.lon, lat: o.lat, defaults: null };
+    holdEnd: guardado.leer('holdEnd', false), liviana: guardado.leer('liviana', false), lon: o.lon, lat: o.lat, defaults: null,
+    buf: o.buffer !== false, n: o.n != null ? o.n : (o.estaciones || []).length };
   // la senal que espera el guion del visor 3D para empezar los lasers
   // Arranque temprano: la animacion empieza en el clic, sobre el mapa 2D, sin esperar al servidor (que tarda 2-3 s en
   // dibujar el visor 3D). Cuando el visor llega, el guion de esa corrida la "adopta": la mueve dentro del visor
@@ -338,6 +340,8 @@ async function reproducir(o) {
     cancelar() { vivo = false; if (w.__y2kSatTemprano === ctrl) w.__y2kSatTemprano = null; limpiar(); },
     adoptar(v, P) {
       clearTimeout(S.reloj); o.turno = P.turno; R.mover(v);
+      if (P.buffer !== undefined) S.buf = P.buffer !== false;   // el servidor manda el estado real del buffer
+      if (P.n != null) S.n = P.n;
       if (o.host && o.host.style) o.host.style.position = o.posPrevia || '';
       if (w.__y2kSatTemprano === ctrl) w.__y2kSatTemprano = null;
       if (S.finPend) senal();
@@ -378,6 +382,9 @@ async function reproducir(o) {
     // imagen del primer plano: mosaico real de la zona (ya precalentado) o, si no se pudo, un terreno distinto segun el lugar
     const b = o.bbox || [o.lon - 0.1, o.lat - 0.1, o.lon + 0.1, o.lat + 0.1];
     const caja = cajaDe(b);
+    // coordenadas reales del centro de la cuenca (el parametro DIRECCION de la secuencia de lanzamiento)
+    const coma = v => Math.abs(v).toFixed(2).replace('.', ',');
+    const dirTxt = coma(o.lat) + '° ' + (o.lat >= 0 ? 'N' : 'S') + ' ' + coma(o.lon) + '° ' + (o.lon >= 0 ? 'E' : 'O');
     const dots = (o.estaciones || []).map(e => [(e[0] - b[0]) / (b[2] - b[0] || 1), (b[3] - e[1]) / (b[3] - b[1] || 1), e[2]])
       .filter(d => d[0] >= 0 && d[0] <= 1 && d[1] >= 0 && d[1] <= 1).slice(0, 250);
     let mos = null;
@@ -397,7 +404,8 @@ async function reproducir(o) {
       const conImg = H.tl < 0.5;
       R.img.style.display = conImg ? 'block' : 'none';
       if (conImg) { R.img.style.opacity = 1 - cl(H.tl / 0.45); R.img.style.transform = 'scale(' + (1.25 - 0.05 * cl(H.tm / 1.2)) + ')'; }
-      R.svg.innerHTML = hudSvg(H, S.T, caja, dots);
+      mod.setBuffer(S.buf);
+      R.svg.innerHTML = hudSvg(H, S.T, caja, dots, { dir: dirTxt, n: S.n, buf: S.buf, ta: t.ta });
       R.scan.style.opacity = H.pov * 0.5;
       R.white.style.opacity = H.white;
       // oscuridad: entra desde negro al inicio y, al final, se hace de noche durante el descenso

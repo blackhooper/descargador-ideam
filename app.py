@@ -177,13 +177,17 @@ def pantalla_inicio():
     st.markdown('<div class="y2k-hello"><h1>¿Dónde está tu cuenca?</h1><p>Elige cómo marcar el área. Después verás '
                 'las estaciones del IDEAM que caen adentro y cuántos datos tiene cada una.</p></div>',
                 unsafe_allow_html=True)
+    # Se baja por detras lo que necesita el mapa 2D; "Dibujar" espera a que termine para abrirlo sin esperas
+    with st.container(key="y2k_precal_mapa"):
+        components.html(terreno.precargar_mapa_2d(map_view.recursos_mapa()), height=0)
+        st.html(terreno.CSS_DIBUJAR_ESPERA)
     _, c1, c2, _ = st.columns([0.5, 2, 2, 0.5], gap="medium")
     with c1, st.container(border=True):
         st.markdown(f'<div class="y2k-card-head">{estilo.ICONO_DIBUJAR}<div><h2>Dibujar en el mapa</h2>'
                     '<p>Traza un rectángulo, mueve sus esquinas y bórralo cuando quieras.</p></div></div>'
                     '<div class="y2k-chips"><span class="y2k-chip">rectángulo</span>'
                     '<span class="y2k-chip">editar</span><span class="y2k-chip">buffer</span></div>', unsafe_allow_html=True)
-        if st.button("Dibujar mi cuenca", type="primary", use_container_width=True):
+        if st.button("Dibujar mi cuenca", type="primary", use_container_width=True, key="y2k_dibujar"):
             ss.cuenca = None
             ss.version_mapa += 1
             ss.estacion_sel = None
@@ -354,7 +358,7 @@ def pantalla_estaciones():
         bbox_intro = list((cuenca if cuenca is not None else area).total_bounds)
         est_intro = _estaciones_3d(zona, umbral)
         with st.container(key="y2k_precal"):
-            components.html(terreno.precalentar_satelite(bbox_intro, est_intro), height=0)
+            components.html(terreno.precalentar_satelite(bbox_intro, est_intro, buffer_on), height=0)
             st.html(terreno.css_boton_3d_espera(bbox_intro, est_intro))   # el boton 3D espera a que todo este listo
 
     # ---------------- mapa ----------------
@@ -422,7 +426,7 @@ def pantalla_estaciones():
                 with st.container(key="y2k_orbita"):
                     components.html(terreno.orbitar(orbita, ss.get("orbita", 0), intro, satelite), height=0)
                     if satelite:
-                        components.html(terreno.intro_satelital(ss.get("orbita", 0), bbox_intro, est_intro), height=0)
+                        components.html(terreno.intro_satelital(ss.get("orbita", 0), bbox_intro, est_intro, buffer_on), height=0)
                     components.html(terreno.AVISO_NAVEGADOR, height=0)
                     components.html(terreno.EXTRAS_3D, height=0)
                     # Botones ocultos: los pulsa el aviso de "sin memoria grafica" que pone EXTRAS_3D

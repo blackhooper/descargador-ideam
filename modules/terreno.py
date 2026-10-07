@@ -1,5 +1,6 @@
 import io
 import json
+from functools import lru_cache
 import math
 import threading
 from collections import OrderedDict
@@ -94,7 +95,7 @@ _HIPSOMETRICO = """
     const mpp = 156543.03392 * Math.cos(lat) / Math.pow(2, z);
     const salida = w.document.createElement("canvas");
     salida.width = salida.height = SALIDA;
-    const sc = salida.getContext("2d"), img = sc.createImageData(SALIDA, SALIDA), d = img.data;
+    const sc = salida.getContext("2d", {willReadFrequently: true}), img = sc.createImageData(SALIDA, SALIDA), d = img.data;
     const s = PASO, esc = 2 * s * mpp;
     for (let j = 0; j < SALIDA; j++) {
       for (let i = 0; i < SALIDA; i++) {
@@ -111,6 +112,8 @@ _HIPSOMETRICO = """
     }
     sc.putImageData(img, 0, 0);
     const blob = await new Promise(r => salida.toBlob(r, "image/png"));
+    // los lienzos no quedan esperando al recolector de basura (en la tarjeta grafica pesan)
+    origen.width = origen.height = 0; salida.width = salida.height = 0;
     return new Response(blob, {status: 200, headers: {"Content-Type": "image/png"}});
   }
   w.fetch = (entrada, opciones) => {
@@ -301,10 +304,17 @@ _ORBITA = """
     try {
       const ease = t => t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
       const cuadro = () => new Promise(r => w.requestAnimationFrame(r));
-      const durante = async (ms, f) => {
+      // Las capas de efectos se rehacen en cada cuadro (datos nuevos = buffers nuevos en la tarjeta grafica): se limita
+      // a ~30 cuadros por segundo para no generar tanta basura de memoria. La camara usa intervalo 0 (cada cuadro)
+      const durante = async (ms, f, intervalo = 33) => {
         const t0 = w.performance.now();
-        let t;
-        do { await cuadro(); t = Math.min(1, (w.performance.now() - t0) / ms); f(t); } while (t < 1 && vigente());
+        let t, ultimo = -1e9;
+        do {
+          await cuadro();
+          const ahora = w.performance.now();
+          t = Math.min(1, (ahora - t0) / ms);
+          if (t >= 1 || ahora - ultimo >= intervalo) { ultimo = ahora; f(t); }
+        } while (t < 1 && vigente());
       };
       // Antes de los lasers la camara sube suave a la posicion inicial (al repetir la animacion puede estar en cualquier lado)
       {
@@ -319,7 +329,7 @@ _ORBITA = """
             const k = ease(t), mezcla = (p, q) => p + (q - p) * k;
             deck.setProps({viewState: {...(deck.props.viewState || {}), longitude: mezcla(a.lon, O.lon), latitude: mezcla(a.lat, O.lat),
               zoom: mezcla(a.zoom, I.zoom), pitch: mezcla(a.pitch, I.pitch), bearing: a.bearing + dB * k, position: [0, 0, O.pivote], maxPitch: 85}});
-          });
+          }, 0);
           await esperar(200);
         }
       }
@@ -936,12 +946,23 @@ def _anillos(gdf):
             if parte.geom_type != "Polygon":
                 continue
             borde = parte.exterior
-            n = max(40, min(3000, int(borde.length / 0.0006)))
+            n = max(40, min(1600, int(borde.length / 0.0008)))
             anillos.append([borde.interpolate(i / n, normalized=True).coords[0] for i in range(n + 1)])
     return anillos
 
 
+@lru_cache(maxsize=64)
+def _camino_3d_cache(anillo, base):
+    return _camino_3d_calcular(anillo, base)
+
+
 def _camino_3d(anillo, base):
+    """Igual que abajo, pero recuerda el resultado: Streamlit repite todo el script en cada clic y estos
+    contornos (muchos miles de consultas de altura) no cambian mientras sea la misma zona."""
+    return [list(p) for p in _camino_3d_cache(tuple(map(tuple, anillo)), base)]
+
+
+def _camino_3d_calcular(anillo, base):
     """Contorno pegado al relieve. El relieve que dibuja el navegador es mas fino y distinto al que
     se consulta aqui (nivel 12), asi que se toma el punto mas alto de los alrededores y se sube un
     poco: de otro modo las lomas tapaban tramos de la linea."""

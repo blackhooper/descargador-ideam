@@ -91,13 +91,13 @@ function hudSvg(H, T, caja, dots, info) {
     const s = H.s, L = 34;
     kids.push(h('g', { opacity: H.satTag },
       corners(s.x - L, s.y - L, L * 2, L * 2, 10, { strokeOpacity: 0.9 }),
-      tx(s.x + L + 12, s.y - L + 14, 'SATÉLITE', { fontFamily: sans, fontWeight: 600, fontSize: 26, fill: WH, letterSpacing: 3 }),
+      tx(s.x + L + 12, s.y - L + 14, 'S Y S // J - U A . N 2 4', { fontFamily: sans, fontWeight: 600, fontSize: 26, fill: WH, letterSpacing: 3 }),
       tx(s.x + L + 12, s.y - L + 46, 'ÓRBITA MEO', { fontSize: 22, fill: DIM, letterSpacing: 2 })
     ));
   }
   if (H.satInfo > 0.001) {
     kids.push(h('g', { opacity: H.satInfo },
-      tx(72, 98, 'SATÉLITE · ÓRBITA MEO', { fontFamily: sans, fontWeight: 600, fontSize: 32, fill: WH, letterSpacing: 3 }),
+      tx(72, 98, 'S Y S // J - U A . N 2 4 · ÓRBITA MEO', { fontFamily: sans, fontWeight: 600, fontSize: 32, fill: WH, letterSpacing: 3 }),
       tx(72, 144, 'DATOS RECIBIDOS DESDE COLOMBIA', { fontSize: 24, fill: CY, letterSpacing: 2 })
     ));
   }
@@ -171,7 +171,7 @@ function hudSvg(H, T, caja, dots, info) {
         ladder,
         tx(130, 150, '● ENLACE ACTIVO', { fontSize: 24, fill: Math.floor(T * 3) % 2 ? CY : WH, letterSpacing: 2 }),
         H.capOut > 0 ? tx(130, 192, 'ESTACIONES LANZADAS ' + Math.round(H.capOut / H.capN * info.n) + '/' + info.n, { fontSize: 24, fill: '#3fff7a', letterSpacing: 2 }) : null,
-        tx(1790, 150, 'SATÉLITE · ÓPTICA PRINCIPAL', { textAnchor: 'end', fontSize: 24, fill: DIM, letterSpacing: 2 })
+        tx(1790, 150, 'S Y S // J - U A . N 2 4 · ÓPTICA PRINCIPAL', { textAnchor: 'end', fontSize: 24, fill: DIM, letterSpacing: 2 })
       ),
       H.dive > 0 ? h('g', { opacity: H.dive * (Math.floor(T * 10) % 2 ? 1 : 0.55) },
         tx(cx, 900, 'DESCENSO', { textAnchor: 'middle', fontFamily: sans, fontWeight: 600, fontSize: 40, fill: OR, letterSpacing: 10 })

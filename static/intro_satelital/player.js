@@ -251,10 +251,10 @@ function armarPanel(R, S, TUNE, mod) {
 }
 
 // ---- capa que tapa el visor 3D ----
-function armarCapa(visor) {
+function armarCapa(visor, geom) {
   const ov = document.createElement('div');
   ov.className = 'y2k-sat';
-  ov.style.cssText = 'position:absolute;inset:0;z-index:30;background:#000;overflow:hidden;border-radius:12px;display:flex;align-items:center;justify-content:center;pointer-events:auto';
+  ov.style.cssText = (geom ? 'position:absolute;left:0;width:100%;top:' + geom.top + 'px;height:' + geom.height + 'px;' : 'position:absolute;inset:0;') + 'z-index:30;background:#000;overflow:hidden;border-radius:12px;display:flex;align-items:center;justify-content:center;pointer-events:auto';
   const stage = document.createElement('div');
   stage.style.cssText = 'position:relative;width:100%;aspect-ratio:16/9;background:#000;overflow:hidden';
   const host = document.createElement('div'); host.style.cssText = 'position:absolute;inset:0';
@@ -270,7 +270,6 @@ function armarCapa(visor) {
   const black = capa('background:#000;opacity:1');
   const msg = document.createElement('div');
   msg.style.cssText = 'position:absolute;left:0;right:0;bottom:8%;text-align:center;color:#6f9fb0;font:500 14px ' + mono + ';letter-spacing:2px;pointer-events:none;z-index:2';
-  msg.textContent = 'CARGANDO ESCENA…';
   stage.append(host, img, svg, scan, vig, white, black, msg);
   ov.appendChild(stage);
   // encendido tipo monitor (barras que se abren) y boton de saltar
@@ -289,7 +288,9 @@ function armarCapa(visor) {
   };
   ajustar();
   const ro = new ResizeObserver(ajustar); ro.observe(ov);
-  return { ov, stage, host, img, svg, scan, white, black, msg, arriba, abajo, linea, saltar, cerrar() { ro.disconnect(); ov.remove(); } };
+  return { ov, stage, host, img, svg, scan, white, black, msg, arriba, abajo, linea, saltar,
+    mover(v) { v.appendChild(ov); ov.style.top = ''; ov.style.left = ''; ov.style.width = ''; ov.style.height = ''; ov.style.inset = '0'; },
+    cerrar() { ro.disconnect(); ov.remove(); } };
 }
 
 // ---- precalentamiento: se hace al confirmar la cuenca, antes de que el usuario pase a 3D ----
@@ -304,8 +305,10 @@ function precache(o) {
   return cache[k];
 }
 const urlEscena = v => new URL('satellite-scene.js?v=' + (v || 1), import.meta.url).href;
+let PRE = null;   // ultimos datos precalentados (cuenca confirmada)
 async function precalentar(p) {
   if (!p || !p.bbox) return;
+  PRE = p;
   const c = precache(p);
   const mod = await import(urlEscena(p.version));
   const espera = ms => new Promise(ok => setTimeout(ok, ms));
@@ -319,18 +322,35 @@ async function precalentar(p) {
 async function reproducir(o) {
   const w = window;
   if (w.__y2kSatActual) { try { w.__y2kSatActual.cancelar(); } catch (e) { /* ya terminada */ } }
-  const visor = o.visor;
+  const visor = o.visor || o.host;
+  if (o.clave) w.__y2kSatUltima = o.clave;   // el clic en 3D no vuelve a arrancar una intro temprana para esta cuenca
   visor.querySelectorAll('.y2k-sat').forEach(e => e.remove());
-  const R = armarCapa(visor);
+  const R = armarCapa(visor, o.geom);
   let vivo = true, raf = 0, api = null;
   const S = { T: 0, playing: true, speed: 1, fase: 'carga', saltar: false, Tend: 16.5, api: null,
     holdEnd: guardado.leer('holdEnd', false), liviana: guardado.leer('liviana', false), lon: o.lon, lat: o.lat, defaults: null };
   // la senal que espera el guion del visor 3D para empezar los lasers
-  const senal = () => { w.__y2kIntroSatFin = o.turno; };
-  const ctrl = { cancelar() { vivo = false; limpiar(); } };
+  // Arranque temprano: la animacion empieza en el clic, sobre el mapa 2D, sin esperar al servidor (que tarda 2-3 s en
+  // dibujar el visor 3D). Cuando el visor llega, el guion de esa corrida la "adopta": la mueve dentro del visor
+  // y le pone el numero de turno. Si nadie la adopta en 20 s (el servidor decidio no hacer intro), se retira sola.
+  const senal = () => { if (o.turno == null) { S.finPend = true; return; } w.__y2kIntroSatFin = o.turno; };
+  const ctrl = {
+    cancelar() { vivo = false; if (w.__y2kSatTemprano === ctrl) w.__y2kSatTemprano = null; limpiar(); },
+    adoptar(v, P) {
+      clearTimeout(S.reloj); o.turno = P.turno; R.mover(v);
+      if (o.host && o.host.style) o.host.style.position = o.posPrevia || '';
+      if (w.__y2kSatTemprano === ctrl) w.__y2kSatTemprano = null;
+      if (S.finPend) senal();
+    },
+  };
   w.__y2kSatActual = ctrl;
+  if (o.temprano) {
+    w.__y2kSatTemprano = ctrl;
+    S.reloj = setTimeout(() => { if (w.__y2kSatTemprano === ctrl) ctrl.cancelar(); }, 20000);
+  }
   function limpiar() {
-    cancelAnimationFrame(raf);
+    cancelAnimationFrame(raf); clearTimeout(S.reloj);
+    if (o.host && o.host.style && o.posPrevia != null) o.host.style.position = o.posPrevia;
     if (api) { try { api.destroy(); } catch (e) { /* ya liberada */ } api = null; S.api = null; }
     R.cerrar();
   }
@@ -429,5 +449,27 @@ async function reproducir(o) {
     vivo = false; senal(); limpiar();
   }
 }
+
+// Deteccion del clic en 3D (una sola vez en la pagina). Solo si el precalentamiento de esta cuenca termino y la intro
+// no se reprodujo ya para ella (el servidor tambien la omite si es la misma cuenca y buffer).
+function alClic(ev) {
+  const w = window, d = document;
+  if (!PRE || !PRE.clave) return;
+  const b = ev.target && ev.target.closest ? ev.target.closest('.st-key-vista button[role="radio"]') : null;
+  if (!b) return;
+  const radios = b.parentElement.querySelectorAll('button[role="radio"]');
+  if (b !== radios[radios.length - 1] || b.getAttribute('aria-checked') === 'true') return;
+  if (d.documentElement.dataset.y2kListo !== PRE.clave || w.__y2kSatUltima === PRE.clave) return;
+  if (w.matchMedia && w.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+  const fila = b.closest('[data-testid="stHorizontalBlock"]'), bloque = fila && fila.parentElement;
+  if (!fila || !bloque) return;
+  w.__y2kSatUltima = PRE.clave;
+  const rf = fila.getBoundingClientRect(), rb = bloque.getBoundingClientRect();
+  const posPrevia = bloque.style.position;
+  bloque.style.position = 'relative';
+  reproducir(Object.assign({}, PRE, { host: bloque, posPrevia, temprano: true, turno: null,
+    geom: { top: Math.round(rf.bottom - rb.top + 16), height: 650 } }));
+}
+if (!window.__y2kSatClic) { window.__y2kSatClic = true; document.addEventListener('click', alClic, true); }
 
 window.__y2kSat = { reproducir, precalentar };

@@ -169,6 +169,8 @@ _INTRO_SATELITAL = """
   const menos = w.matchMedia && w.matchMedia("(prefers-reduced-motion: reduce)").matches;
   w.__y2kIntroSatTurno = P.turno;
   if (!visor || menos) { fin(); return; }
+  // Si la animacion ya arranco en el clic (sobre el mapa 2D), se adopta en vez de empezar otra
+  if (w.__y2kSatTemprano && w.__y2kSatTemprano.adoptar) { try { w.__y2kSatTemprano.adoptar(visor, P); return; } catch (e) { console.error(e); } }
   // capa negra inmediata: el reproductor tarda un momento en cargar (la primera vez, bastante)
   visor.querySelectorAll(".y2k-sat").forEach(e => e.remove());
   const previo = d.createElement("div");
@@ -185,7 +187,7 @@ _INTRO_SATELITAL = """
         d.head.appendChild(s);
       });
     }
-    await w.__y2kSat.reproducir({visor: visor, lon: P.lon, lat: P.lat, bbox: P.bbox, estaciones: P.estaciones, turno: P.turno, panel: P.panel, version: P.version});
+    await w.__y2kSat.reproducir({visor: visor, clave: P.clave, lon: P.lon, lat: P.lat, bbox: P.bbox, estaciones: P.estaciones, turno: P.turno, panel: P.panel, version: P.version});
   } catch (e) {
     console.error("intro satelital", e);
     fin(); previo.remove();

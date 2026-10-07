@@ -17,6 +17,8 @@ export const TUNE = {
   fadeStart: 0.25,  // segundo del descenso en que empieza a oscurecer del todo
   fadeDur: 0.4,     // cuanto tarda en llegar a la oscuridad maxima
   reveal: 0.7,      // duracion (s) del encendido tipo monitor
+  capDown: 0.075,   // el lanzador de cápsulas: cuánto por debajo del centro de la imagen (centro-abajo)
+  capFwd: 0.25,     // y a qué distancia delante de la cámara
   laserSep: 0.16,   // separacion lateral de los dos cañones al disparar (distancia desde el centro de la camara)
   laserDrop: 0.05, // cuanto salen por debajo del centro de la imagen
   laserT0: 0.05,    // segundos tras el primer disparo de cápsulas en que salen los lasers
@@ -93,12 +95,13 @@ function ringPoint(p) {
 }
 const NCAP = 28, CAP_FIRE = 0.45, CAP_SPAN = 0.5, CAP_FLY = 1.7;
 const CAPS = Array.from({ length: NCAP }, (_, i) => ({ t0: CAP_FIRE + i * CAP_SPAN / NCAP + (hash(i * 3.1) - 0.5) * 0.012, ox: (hash(i * 7.3) - 0.5) * 0.06, oy: (hash(i * 11.9) - 0.5) * 0.06, sx: (hash(i * 5.7) - 0.5) * 0.008, sy: (hash(i * 2.3) - 0.5) * 0.008, yel: i % 3 === 1 }));
-const CAP_START = LENS.clone().addScaledVector(N, -0.04).addScaledVector(E, -0.018).addScaledVector(U, -0.012);
+// lanzador de capsulas: centro y abajo de la vista del satelite (ajustable con TUNE.capDown / capFwd)
+const capStart = () => LENS.clone().addScaledVector(N, -TUNE.capFwd).addScaledVector(U, -TUNE.capDown);
 function capPos(i, tp, out = V()) {
   const c = CAPS[i], s = (tp - c.t0) / CAP_FLY;
   if (s < 0 || s >= 1) return null;
   const e = 0.35 * s + 0.65 * s * s;
-  const start = out.copy(CAP_START).addScaledVector(E, c.sx).addScaledVector(U, c.sy);
+  const start = out.copy(capStart()).addScaledVector(E, c.sx).addScaledVector(U, c.sy);
   const end = C.clone().add(aimDir()).addScaledVector(E, c.ox).addScaledVector(U, c.oy).addScaledVector(N, 0.002);
   return start.lerp(end, e);
 }
@@ -730,12 +733,12 @@ async function createScene() {
   const fireGroup = new THREE.Group(); fireGroup.frustumCulled = false; scene.add(fireGroup);
   const beamGeo = new THREE.CylinderGeometry(1, 1, 1, 10, 1, true);
   const mkBeam = (col, glow) => {
-    const m = new THREE.MeshBasicMaterial({ color: col.clone().multiplyScalar(glow ? 1.1 : 1.8), transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false, depthTest: false, toneMapped: false, side: THREE.DoubleSide });
+    const m = new THREE.MeshBasicMaterial({ color: col.clone().multiplyScalar(glow ? 0.9 : 1.15), transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false, depthTest: false, toneMapped: false, side: THREE.DoubleSide });
     const o = new THREE.Mesh(beamGeo, m); o.frustumCulled = false; o.visible = false; o.renderOrder = 12; fireGroup.add(o); return o;
   };
-  const lasers = [{ col: CYAN, side: -1, core: mkBeam(new THREE.Color(0.8, 1, 1), false), glow: mkBeam(CYAN, true) },
-                  { col: ORANGE, side: 1, core: mkBeam(new THREE.Color(1, 0.9, 0.7), false), glow: mkBeam(ORANGE, true) }];
-  const launchFlash = sprite(tex.glow, new THREE.Color(0.9, 1.4, 0.7), 0.007); launchFlash.position.copy(CAP_START); capGroup.add(launchFlash);
+  const lasers = [{ col: CYAN, side: -1, core: mkBeam(CYAN.clone().lerp(new THREE.Color(1, 1, 1), 0.12), false), glow: mkBeam(CYAN, true) },
+                  { col: ORANGE, side: 1, core: mkBeam(ORANGE.clone().lerp(new THREE.Color(1, 1, 1), 0.12), false), glow: mkBeam(ORANGE, true) }];
+  const launchFlash = sprite(tex.glow, new THREE.Color(0.9, 1.4, 0.7), 0.007); launchFlash.position.copy(capStart()); capGroup.add(launchFlash);
 
   // warp streaks (camera space)
   const NSTK = 420, stk = new THREE.BufferGeometry(), stkPos = new Float32Array(NSTK * 6), stkCol = new Float32Array(NSTK * 6), stkSeed = [];
@@ -856,6 +859,7 @@ async function createScene() {
     capGroup.visible = st.caps != null;
     if (capGroup.visible) {
       const tp = st.caps, p = V(), q = V();
+      launchFlash.position.copy(capStart());
       for (let i = 0; i < NCAP; i++) {
         const c = caps[i], pos = capPos(i, tp, p);
         c.g.visible = c.k.visible = !!pos;
@@ -863,7 +867,7 @@ async function createScene() {
         c.g.position.copy(pos); c.k.position.copy(pos);
         const fl = 0.85 + 0.3 * hash(Math.floor(T * 40) + i);
         c.g.scale.setScalar(0.0013 * fl); c.k.scale.setScalar(0.0005);
-        const prev = capPos(i, tp - 0.05, q) || CAP_START;
+        const prev = capPos(i, tp - 0.05, q) || capStart();
         trailPos.set([pos.x, pos.y, pos.z, prev.x, prev.y, prev.z], i * 6);
         trailCol.set([c.col.r * 2, c.col.g * 2, c.col.b * 2, 0, 0, 0], i * 6);
       }

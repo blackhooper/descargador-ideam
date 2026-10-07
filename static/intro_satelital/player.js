@@ -93,13 +93,13 @@ function hudSvg(H, T, caja, dots, info) {
     const s = H.s, L = 34;
     kids.push(h('g', { opacity: H.satTag },
       corners(s.x - L, s.y - L, L * 2, L * 2, 10, { strokeOpacity: 0.9 }),
-      tx(s.x + L + 12, s.y - L + 14, 'ASTRO JUAN 24', { fontFamily: sans, fontWeight: 600, fontSize: 20, fill: WH, letterSpacing: 3 }),
+      tx(s.x + L + 12, s.y - L + 14, 'SAT-07', { fontFamily: sans, fontWeight: 600, fontSize: 20, fill: WH, letterSpacing: 3 }),
       tx(s.x + L + 12, s.y - L + 40, 'ÓRBITA MEO', { fontSize: 16, fill: DIM, letterSpacing: 2 })
     ));
   }
   if (H.satInfo > 0.001) {
     kids.push(h('g', { opacity: H.satInfo },
-      tx(72, 98, 'ASTRO JUAN 24 · ÓRBITA MEO', { fontFamily: sans, fontWeight: 600, fontSize: 26, fill: WH, letterSpacing: 3 }),
+      tx(72, 98, 'SAT-07 · ÓRBITA MEO', { fontFamily: sans, fontWeight: 600, fontSize: 26, fill: WH, letterSpacing: 3 }),
       tx(72, 134, 'DATOS RECIBIDOS DESDE COLOMBIA', { fontSize: 18, fill: CY, letterSpacing: 2 })
     ));
   }
@@ -107,7 +107,7 @@ function hudSvg(H, T, caja, dots, info) {
   if (H.can > 0.001) {
     // parametros de apuntado: se "calibran" uno tras otro y, con todo cargado, se dispara. Los valores son los de la escena
     // (el satelite se inclina 90°) y las coordenadas reales del centro de la cuenca
-    const filas = [['TELEMETRÍA', '', 0], ['ENLACE', '', 2], ['PROTOCOLO R.E.A.L', '', 3]];
+    const filas = [['TELEMETRÍA', '', 0], ['ENLACE', '', 2], ['PROTOCOLO R.E.A.L.', '', 3]];
     const pct = Math.round(H.charge * 100);
     // sin buffer: su barra se carga igual y, al disparar, se apaga
     const bufOff = !info.buf && info.ta > 0;
@@ -115,6 +115,7 @@ function hudSvg(H, T, caja, dots, info) {
     const pctB = Math.round(cargaB * 100);
     kids.push(h('g', { opacity: H.can },
       tx(72, 98, 'PREPARANDO LANZAMIENTO', { fontFamily: sans, fontWeight: 600, fontSize: 26, fill: WH, letterSpacing: 3 }),
+      tx(72, 122, 'S Y S // J - U A . N 2 4', { fontSize: 14, fill: DIM, letterSpacing: 2, opacity: 0.55 }),
       filas.map(([n, val, k], i) => {
         const v = H.steps[k], ok = v >= 1;
         return h('g', null,
@@ -172,7 +173,7 @@ function hudSvg(H, T, caja, dots, info) {
         ladder,
         tx(130, 150, '● ENLACE ACTIVO', { fontSize: 18, fill: Math.floor(T * 3) % 2 ? CY : WH, letterSpacing: 2 }),
         H.capOut > 0 ? tx(130, 182, 'ESTACIONES LANZADAS ' + Math.round(H.capOut / H.capN * info.n) + '/' + info.n, { fontSize: 18, fill: '#3fff7a', letterSpacing: 2 }) : null,
-        tx(1790, 150, 'ASTRO JUAN 24 · ÓPTICA PRINCIPAL', { textAnchor: 'end', fontSize: 18, fill: DIM, letterSpacing: 2 })
+        tx(1790, 150, 'SAT-07 · ÓPTICA PRINCIPAL', { textAnchor: 'end', fontSize: 18, fill: DIM, letterSpacing: 2 })
       ),
       H.dive > 0 ? h('g', { opacity: H.dive * (Math.floor(T * 10) % 2 ? 1 : 0.55) },
         tx(cx, 900, 'DESCENSO', { textAnchor: 'middle', fontFamily: sans, fontWeight: 600, fontSize: 34, fill: OR, letterSpacing: 10 })
@@ -194,6 +195,8 @@ const AJUSTES = [
   ['fadeDur', 'Negro final: duración (s)', 0.05, 1.2, 0.05],
   ['blackMax', 'Negro máximo antes del encendido', 0, 1, 0.05],
   ['reveal', 'Encendido tipo monitor (s)', 0.2, 2, 0.05],
+  ['capDown', 'Cápsulas: lanzador, hacia abajo del centro', -0.05, 0.2, 0.005],
+  ['capFwd', 'Cápsulas: lanzador, distancia delante', 0.05, 0.6, 0.01],
   ['laserSep', 'Lasers: separación entre cañones', 0, 0.4, 0.01],
   ['laserDrop', 'Lasers: bajan respecto al centro', -0.1, 0.2, 0.005],
   ['laserT0', 'Lasers: salen tras la 1ª cápsula (s)', -0.3, 1, 0.05],
@@ -202,11 +205,24 @@ const AJUSTES = [
   ['resScale', 'Resolución interna (aplica en la próxima repetición)', 0.4, 1, 0.05],
 ];
 
+// Segundo de la animacion en que se nota cada ajuste (para saber a donde ir con el deslizador). cue = inicio de cada plano
+const REF = {
+  capDown: (c, T) => c['POV'] + 0.45, capFwd: (c, T) => c['POV'] + 0.45,
+  laserSep: (c, T) => c['POV'] + 0.45 + T.laserT0 + 0.3, laserDrop: (c, T) => c['POV'] + 0.45 + T.laserT0 + 0.3,
+  laserT0: (c, T) => c['POV'] + 0.45 + T.laserT0, laserDur: (c, T) => c['POV'] + 0.45 + T.laserT0 + T.laserDur * 0.5,
+  laserW: (c, T) => c['POV'] + 0.45 + T.laserT0 + 0.3,
+  panAmt: (c, T) => c['Zoom óptico'] + (T.panStart + T.panEnd) / 2, panStart: (c, T) => c['Zoom óptico'] + T.panStart,
+  panEnd: (c, T) => c['Zoom óptico'] + T.panEnd, preDark: (c, T) => c['Zoom óptico'] + 0.5,
+  diveShift: (c, T) => c['Descenso'] + T.diveShift / 2, descenso: (c, T) => c['Descenso'] + T.descenso * 0.5,
+  fadeStart: (c, T) => c['Descenso'] + T.fadeStart, fadeDur: (c, T) => c['Descenso'] + T.fadeStart + T.fadeDur / 2,
+  blackMax: (c, T) => c['Descenso'] + T.fadeStart + T.fadeDur, reveal: (c, T) => c['Descenso'] + T.descenso,
+};
+
 function armarPanel(R, S, TUNE, mod) {
   const caja = document.createElement('div');
   caja.style.cssText = 'position:absolute;top:8px;left:8px;z-index:40;font:12px/1.3 ' + sans + ';color:#d8f6ff;max-width:300px;pointer-events:auto';
   const filas = AJUSTES.map(([k, et, mn, mx, st]) =>
-    `<label style="display:block;margin:5px 0">${et}: <b data-v="${k}"></b><input type="range" data-k="${k}" min="${mn}" max="${mx}" step="${st}" style="width:100%"></label>`).join('');
+    `<label style="display:block;margin:5px 0">${et}: <b data-v="${k}"></b>${REF[k] ? ` <span data-ts="${k}" style="color:#7fb3c4"></span> <button data-ir="${k}">ir ⏵</button>` : ''}<input type="range" data-k="${k}" min="${mn}" max="${mx}" step="${st}" style="width:100%"></label>`).join('');
   caja.innerHTML =
     '<button data-a="abrir" style="all:unset;cursor:pointer;background:rgba(4,14,26,.82);border:1px solid #35f0ff66;border-radius:8px;padding:5px 10px;font-weight:600">⚙ Ajustes (temporal)</button>' +
     '<div data-panel style="display:none;margin-top:6px;background:rgba(4,14,26,.92);border:1px solid #35f0ff55;border-radius:10px;padding:10px;max-height:70vh;overflow:auto">' +
@@ -248,7 +264,10 @@ function armarPanel(R, S, TUNE, mod) {
     else if (a === 'copiar') { const t = valores(), o = caja.querySelector('[data-out]'); o.style.display = 'block'; o.textContent = t; try { navigator.clipboard.writeText(t); } catch (e) { /* se puede copiar a mano */ } }
   });
   R.ov.appendChild(caja);
-  return { actualizar(T, Tend) { const t = caja.querySelector('[data-t]'); if (t) t.textContent = T.toFixed(2) + ' / ' + Tend.toFixed(2) + ' s'; const sc = caja.querySelector('[data-a="scrub"]'); if (sc && document.activeElement !== sc) { sc.max = Tend; sc.value = T; } } };
+  const ir = k => { if (!S.cue || !REF[k]) return; S.T = Math.max(0, REF[k](S.cue, TUNE)); S.playing = false; const b = caja.querySelector('[data-a="play"]'); if (b) b.textContent = '▶ Seguir'; };
+  caja.addEventListener('click', ev => { const k = ev.target && ev.target.dataset && ev.target.dataset.ir; if (k) ir(k); });
+  return { actualizar(T, Tend) {
+    if (S.cue) for (const k of Object.keys(REF)) { const e = caja.querySelector('[data-ts="' + k + '"]'); if (e) e.textContent = '⏱ ' + REF[k](S.cue, TUNE).toFixed(2) + ' s'; } const t = caja.querySelector('[data-t]'); if (t) t.textContent = T.toFixed(2) + ' / ' + Tend.toFixed(2) + ' s'; const sc = caja.querySelector('[data-a="scrub"]'); if (sc && document.activeElement !== sc) { sc.max = Tend; sc.value = T; } } };
 }
 
 // ---- capa que tapa el visor 3D ----
@@ -377,6 +396,7 @@ async function reproducir(o) {
     const cue = {}; let acc = 0;
     for (const n of Object.keys(DUR)) { cue[n] = acc; acc += DUR[n]; }
     const KOVR = { 'Encendido': 1e4 };   // la animacion original seguia con una maqueta del 3D: aqui el 3D es el real
+    S.cue = cue;
     const tick = () => { S.Tend = cue['Descenso'] + TUNE.descenso; };
     tick();
     // imagen del primer plano: mosaico real de la zona (ya precalentado) o, si no se pudo, un terreno distinto segun el lugar

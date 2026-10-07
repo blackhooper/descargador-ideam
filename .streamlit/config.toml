@@ -1,20 +1,20 @@
-# Dos tonos propios (claro y oscuro). "Apariencia" (barra superior de la app) elige Sistema, Claro u Oscuro
+# Dos tonos propios (claro y oscuro). "Apariencia" (capsula de arriba a la derecha) elige Sistema, Claro u Oscuro
 # usando el menu de Streamlit, que queda oculto con CSS (por eso toolbarMode es "viewer"). Los colores deben
 # coincidir con los tokens de modules/estilo.py.
 [theme]
 font = "sans serif"
 
 [theme.light]
-primaryColor = "#1A5FD0"
-backgroundColor = "#EEF2F7"
-secondaryBackgroundColor = "#E3E9F2"
-textColor = "#0E1A2F"
+primaryColor = "#1258D6"
+backgroundColor = "#E9EEF5"
+secondaryBackgroundColor = "#E1E7EF"
+textColor = "#0B1324"
 
 [theme.dark]
-primaryColor = "#6CB0FF"
-backgroundColor = "#070D1A"
-secondaryBackgroundColor = "#141E33"
-textColor = "#E9EFF9"
+primaryColor = "#7DB6FF"
+backgroundColor = "#0B0E14"
+secondaryBackgroundColor = "#1B1F27"
+textColor = "#F4F6FA"
 
 [client]
 toolbarMode = "viewer"

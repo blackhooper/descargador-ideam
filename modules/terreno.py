@@ -249,49 +249,6 @@ def precalentar_satelite(bbox, estaciones, buffer=True):
     return _PRECALENTAR_SATELITE.replace("__PARAMS__", json.dumps(_datos_satelite(bbox, estaciones, buffer)))
 
 
-_PRECARGAR_MAPA = """
-<script>
-(() => {
-  const w = window.parent, d = w.document;
-  const URLS = __URLS__;
-  if (w.__y2kMapaPre) return;
-  w.__y2kMapaPre = true;
-  const fin = () => { d.documentElement.dataset.y2kMapaListo = "1"; };
-  const pedir = u => w.fetch(u, {mode: "no-cors", cache: "force-cache"}).catch(() => null);
-  // teselas de satelite de todo Colombia a nivel 5 y 6 (las primeras que ve el mapa)
-  const tesela = (z, x, y) => new Promise(ok => {
-    const i = new w.Image();
-    i.onload = i.onerror = () => ok();
-    i.src = "https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/" + z + "/" + y + "/" + x;
-  });
-  const pares = [];
-  for (const z of [5, 6]) {
-    const n = Math.pow(2, z), xs = [-79.5, -66.5].map(l => Math.floor((l + 180) / 360 * n));
-    const ys = [13, -4.5].map(la => Math.floor((1 - Math.log(Math.tan(la * Math.PI / 180) + 1 / Math.cos(la * Math.PI / 180)) / Math.PI) / 2 * n));
-    for (let x = xs[0]; x <= xs[1]; x++) for (let y = ys[0]; y <= ys[1]; y++) pares.push([z, x, y]);
-  }
-  const tareas = URLS.map(pedir).concat(pares.slice(0, 24).map(q => tesela(q[0], q[1], q[2])));
-  Promise.race([Promise.all(tareas), new Promise(ok => setTimeout(ok, 12000))]).then(fin, fin);
-})();
-</script>
-"""
-
-
-def precargar_mapa_2d(urls):
-    """Guion que baja por detras lo que necesita el mapa 2D (librerias y teselas de Colombia)."""
-    return _PRECARGAR_MAPA.replace("__URLS__", json.dumps(urls))
-
-
-CSS_DIBUJAR_ESPERA = ('<style>html:not([data-y2k-mapa-listo]) .st-key-y2k_dibujar button'
-                      '{opacity:.4 !important;filter:grayscale(1);pointer-events:none !important;cursor:progress}'
-                      '.y2k-preparando{display:none}html:not([data-y2k-mapa-listo]) .y2k-preparando{display:block}</style>')
-
-
-CSS_DIBUJAR_ESPERA_SERVIDOR = ('<style>.st-key-y2k_dibujar button'
-                              '{opacity:.4 !important;filter:grayscale(1);pointer-events:none !important;cursor:progress}'
-                              '.y2k-preparando{display:block !important}</style>')
-
-
 def css_boton_3d_espera(bbox, estaciones):
     """CSS que deja el boton 3D gris y sin respuesta hasta que el precalentamiento de esta cuenca termina."""
     clave = _datos_satelite(bbox, estaciones)["clave"]
@@ -774,7 +731,7 @@ _ORBITA = """
 
 # Algunos navegadores (Safari en modo privado o con proteccion avanzada contra rastreo, Brave,
 # Firefox "resistFingerprinting") meten ruido a proposito en los pixeles que lee una pagina.
-# Las alturas del relieve vienen en los pixeles, asi que ese ruido se ve como miles de puas.
+# Las alturas del relieve vienen en los pixeles, asi que ese ruido se ve como miles de picos falsos.
 # Esto no se puede apagar desde la pagina: se detecta (una imagen de prueba que no vuelve
 # identica) y se avisa encima del mapa 3D.
 AVISO_NAVEGADOR = """
@@ -806,8 +763,8 @@ AVISO_NAVEGADOR = """
         "background:rgba(255,243,236,.92);color:#16213A;border:1px solid #EC835A;" +
         "font:12px/1.35 Figtree,system-ui,sans-serif";
       const texto = d.createElement("span");
-      texto.textContent = "⚠ Tu navegador altera las imágenes por privacidad y el relieve puede verse con púas. " +
-        "Prueba en una pestaña normal o con Chrome.";
+      texto.textContent = "⚠ Tu navegador altera las imágenes por privacidad y el relieve puede verse con picos falsos. " +
+        "Prueba en una ventana normal o en otro navegador.";
       const cerrar = d.createElement("button");
       cerrar.type = "button"; cerrar.textContent = "×"; cerrar.setAttribute("aria-label", "Cerrar aviso");
       cerrar.style.cssText = "all:unset;cursor:pointer;font:600 16px/1 Figtree,system-ui,sans-serif;padding:0 6px;color:#16213A";
@@ -1319,7 +1276,7 @@ def construir_deck(cuenca_gdf, area_gdf, estaciones, seleccionada=None, textura=
         tooltip={
             # Streamlit escapa el HTML que viene en los datos: el estilo va en la plantilla
             "html": "<b>{nombre}</b><br/>{codigo} · {altitud_txt}<br/>Cantidad probable: <b>{pct_txt}</b><br/>{zona}"
-                    "<div style='color:#EC835A'>{alerta}</div>",
+                    f"<div style='color:{paleta.get('alerta', '#8A3208')}'>{{alerta}}</div>",
             "style": {"backgroundColor": paleta["superficie"], "color": paleta["tinta"], "fontFamily": "Figtree, sans-serif",
                       "fontSize": "12px", "border": f"1px solid {paleta['borde']}", "borderRadius": "10px"},
         },

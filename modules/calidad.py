@@ -10,10 +10,10 @@
 # (limite_inferior, nombre, rango, carpeta_en_zip, color)
 # Colores: paleta de estado (bien / advertencia / serio / critico)
 CLASES_CALIDAD = [
-    (70, "Alta", "70-100 %", "1_Cobertura_Alta_70_100", "#0ca30c"),
-    (50, "Media", "50-70 %", "2_Cobertura_Media_50_70", "#fab219"),
-    (25, "Baja", "25-50 %", "3_Cobertura_Baja_25_50", "#ec835a"),
-    (0, "Crítica", "0-25 %", "4_Cobertura_Critica_0_25", "#d03b3b"),
+    (70, "Alta", "70–100 %", "1_Cobertura_Alta_70_100", "#0ca30c"),
+    (50, "Media", "50–70 %", "2_Cobertura_Media_50_70", "#fab219"),
+    (25, "Baja", "25–50 %", "3_Cobertura_Baja_25_50", "#ec835a"),
+    (0, "Crítica", "0–25 %", "4_Cobertura_Critica_0_25", "#d03b3b"),
 ]
 
 

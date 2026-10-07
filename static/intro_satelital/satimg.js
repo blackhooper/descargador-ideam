@@ -105,7 +105,6 @@ function buildTexture(grid, style, W = 1536) {
   return cv;
 }
 
-export function satelliteImage(W = 1280) { return buildTexture(buildGrid(1234), 'sat', W).toDataURL('image/jpeg', 0.9); }
 
 
 export function satelliteImage(W = 960) { return buildTexture(buildGrid(1234), 'sat', W).toDataURL('image/jpeg', 0.88); }

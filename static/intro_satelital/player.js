@@ -404,7 +404,10 @@ async function reproducir(o) {
   const ctrl = {
     cancelar() { vivo = false; if (w.__y2kSatTemprano === ctrl) w.__y2kSatTemprano = null; limpiar(); },
     adoptar(v, P) {
-      clearTimeout(S.reloj); o.turno = P.turno; R.mover(v);
+      clearTimeout(S.reloj); o.turno = P.turno;
+      // si ya termino o fallo (p. ej. no cargo Three.js), no se vuelve a poner su capa negra sobre el 3D: solo se avisa
+      if (!vivo) { if (w.__y2kSatTemprano === ctrl) w.__y2kSatTemprano = null; senal(); return; }
+      R.mover(v);
       if (P.buffer !== undefined) S.buf = P.buffer !== false;   // el servidor manda el estado real del buffer
       if (P.n != null) S.n = P.n;
       if (o.host && o.host.style) o.host.style.position = o.posPrevia || '';
@@ -538,14 +541,15 @@ function alClic(ev) {
   if (b !== radios[radios.length - 1] || b.getAttribute('aria-checked') === 'true') return;
   if (d.documentElement.dataset.y2kListo !== PRE.clave || w.__y2kSatUltima === PRE.clave) return;
   if (w.matchMedia && w.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-  const fila = b.closest('[data-testid="stHorizontalBlock"]'), bloque = fila && fila.parentElement;
-  if (!fila || !bloque) return;
+  // en modo Lite no hay intro (el servidor tampoco la manda)
+  if (w.getComputedStyle(d.documentElement).getPropertyValue('--y2k-lite').trim() === '1') return;
+  // la animacion cubre el escenario del mapa (que ocupa la pantalla); si no esta, el bloque de la vista
+  const bloque = d.querySelector('.st-key-y2k_escenario') || b.closest('[data-testid="stVerticalBlock"]');
+  if (!bloque) return;
   w.__y2kSatUltima = PRE.clave;
-  const rf = fila.getBoundingClientRect(), rb = bloque.getBoundingClientRect();
   const posPrevia = bloque.style.position;
-  bloque.style.position = 'relative';
-  reproducir(Object.assign({}, PRE, { host: bloque, posPrevia, temprano: true, turno: null,
-    geom: { top: Math.round(rf.bottom - rb.top + 16), height: 650 } }));
+  if (w.getComputedStyle(bloque).position === 'static') bloque.style.position = 'relative';
+  reproducir(Object.assign({}, PRE, { host: bloque, posPrevia, temprano: true, turno: null, geom: null }));
 }
 if (window.__y2kSatClicFn) document.removeEventListener('click', window.__y2kSatClicFn, true);
 window.__y2kSatClicFn = alClic;

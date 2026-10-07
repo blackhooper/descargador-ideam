@@ -28,7 +28,7 @@ canvas{width:100%;height:100%;display:block;image-rendering:pixelated;object-fit
 <div id="banner" hidden><div>¡DESCARGA COMPLETA!<small id="sub"></small></div></div>
 <script>
 (() => {
-const MODO = __MODO__, TOTAL = __TOTAL__, EST_SEG = __SEG__, COLORES_FIN = __COLORES__, SUB = __SUB__;
+const MODO = __MODO__, TOTAL = __TOTAL__, EST_SEG = __SEG__, COLORES_FIN = __COLORES__, SUB = __SUB__, LITE = __LITE__;
 const sc = document.getElementById("scene"), s = sc.getContext("2d");
 const PW = 256, PH = 144, SUELO = 122, VUELO = 1700;
 const ORIGEN = {x: 46, y: 60}, DESTINO = {x: 203, y: 93};
@@ -135,7 +135,7 @@ function escena(t){
 let ultimo = 0;
 function paso(now){
   requestAnimationFrame(paso);
-  if (now - ultimo < 66) return; ultimo = now;
+  if (now - ultimo < (LITE ? 200 : 66)) return; ultimo = now;   // modo Lite: 5 cuadros por segundo
   const t = now - t0;
   leerEstado(t);
   escena(t);
@@ -147,8 +147,9 @@ else requestAnimationFrame(paso);
 """
 
 
-def mostrar(modo="vivo", total=0, segundos_estimados=60, colores_finales=None, subtitulo="", alto=400):
+def mostrar(modo="vivo", total=0, segundos_estimados=60, colores_finales=None, subtitulo="", alto=400, lite=False):
     html = (_HTML.replace("__MODO__", json.dumps(modo))
+                 .replace("__LITE__", "true" if lite else "false")
                  .replace("__TOTAL__", str(int(total)))
                  .replace("__SEG__", str(float(segundos_estimados)))
                  .replace("__COLORES__", json.dumps(colores_finales or []))

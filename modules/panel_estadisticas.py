@@ -5,7 +5,7 @@ import pandas as pd
 import streamlit as st
 from modules import ideam_downloader
 from modules.calidad import CLASES_CALIDAD
-from modules.estilo import PALETAS
+from modules.estilo import PALETAS, detalles
 from modules.terreno import ALTITUD_DUDOSA_M
 
 NARANJA_ALERTA = "#EC835A"
@@ -22,7 +22,7 @@ def _cifras(items):
         f'<div class="v">{escape(str(valor))}</div>{f"<div class=s>{escape(sub)}</div>" if sub else ""}</div>'
         for etiqueta, valor, sub, ayuda in items
     )
-    st.markdown(f'<div class="y2k-cifras">{html}</div>', unsafe_allow_html=True)
+    st.html(f'<div class="y2k-cifras">{html}</div>')
 
 
 def _bloques_de(estaciones_df, fecha_ini, fecha_fin, dias_bloque):
@@ -48,7 +48,7 @@ def tabla_estaciones(seleccion):
         "Estación": seleccion["nombre"].astype(str).str.replace(r"\s*\[\d+\]\s*$", "", regex=True).str.strip().values,
         "Altitud (m)": pd.to_numeric(seleccion.get("altitud"), errors="coerce").values,
         "Terreno (m)": pd.to_numeric(seleccion["terreno"], errors="coerce").values if "terreno" in seleccion.columns else None,
-        "Alerta": ["⚠️" if d else "" for d in dudosa.fillna(False)],
+        "Alerta": ["⚠" if d else "" for d in dudosa.fillna(False)],
         "Cantidad probable": seleccion["Porcentaje (%)"].values,
     })
     return t.sort_values(["Cantidad probable", "Código"], ascending=[False, True]).reset_index(drop=True)
@@ -146,9 +146,10 @@ def _ver_en_3d():
 
 def tarjeta_seleccionada(fila, rango=None, vista="2D"):
     """Ficha de la estacion elegida (desde la lista, la grafica o el mapa)."""
-    with st.container(border=True):
+    with st.container(key="y2k_card_sel"):
         nombre = str(fila.get("nombre", ""))
-        st.markdown(f"**{nombre}**")
+        st.html(f'<p class="y2k-titulo-seccion">Estación seleccionada</p><p style="margin:2px 0 0;font-weight:700;'
+                f'color:var(--y2k-ink);font-size:14.5px">{escape(nombre)}</p>')
         try:
             altitud = _num(float(fila.get("altitud"))) + " m"
         except (TypeError, ValueError):
@@ -156,30 +157,31 @@ def tarjeta_seleccionada(fila, rango=None, vista="2D"):
         zona = "en la cuenca" if fila.get("zona") == "cuenca" else "en el buffer"
         st.caption(f"{ideam_downloader.codigo_de_estacion(fila)} · {altitud} · {zona}")
         if fila.get("altitud_dudosa") and fila.get("terreno") is not None:
-            with st.container(key="alerta_ficha"), st.expander("⚠️ Altitud inconsistente · ver más"):
+            with st.container(key="alerta_ficha"), st.expander("Altitud inconsistente · ver detalles",
+                                                                 icon=":material/warning:"):
                 st.markdown(f'<p class="y2k-hint" style="color:var(--y2k-ink-2) !important">'
                             f'{_explicacion_altitud(float(fila["altitud"]), float(fila["terreno"]), rango)}'
                             f'{" En el mapa 3D la marca naranja muestra dónde quedaría con la altitud del catálogo." if vista == "3D" else ""}'
                             f'</p>', unsafe_allow_html=True)
                 if vista != "3D":
                     st.button("Verla en el mapa 3D", key="ver_3d", icon=":material/landscape:",
-                              use_container_width=True, on_click=_ver_en_3d)
+                              width="stretch", on_click=_ver_en_3d)
         if fila.get("Serie DHIME") == "Sí":
             st.caption(f"Cantidad probable **{fila['Porcentaje (%)']:.0f} %** (cobertura {str(fila.get('Clase calidad', '')).lower()}) · "
                        f"serie {str(fila.get('Inicio serie'))[:4]}–{str(fila.get('Fin serie'))[:4]}")
         else:
             st.caption("Sin serie de este parámetro en DHIME")
-        if st.button("Quitar selección", key="quitar_sel", use_container_width=True):
+        if st.button("Quitar selección", key="quitar_sel", width="stretch", icon=":material/close:"):
             st.session_state["estacion_sel"] = None
             st.rerun()
 
 
 def mostrar_panel(zona, seleccion, param, fecha_ini, fecha_fin, umbral, seleccionada, tabla, tema="claro",
                   dudosas=None, rango=None, vista="2D"):
-    paleta = PALETAS[tema]
-    st.markdown("### RESUMEN")
+    """tema: nombre de la paleta ("claro"/"oscuro") o la paleta ya resuelta (dict)."""
+    paleta = tema if isinstance(tema, dict) else PALETAS.get(tema, PALETAS["claro"])
     if zona is None:
-        st.info("Dibuja o sube tu cuenca para ver aquí el resumen.")
+        st.html('<p class="y2k-hint">Dibuja o sube tu cuenca para ver aquí el resumen.</p>')
         return
     if zona.empty:
         st.warning("No hay estaciones del IDEAM dentro de la cuenca. Activa o agranda el buffer.")
@@ -206,9 +208,10 @@ def mostrar_panel(zona, seleccion, param, fecha_ini, fecha_fin, umbral, seleccio
          "frecuencia. El IDEAM no descuenta los datos faltantes."),
     ])
     # Nivel de aprobacion del dato (ver manual): mucho dato reciente sigue siendo preliminar
-    st.markdown('<p class="y2k-hint">Los datos del IDEAM tienen un nivel de aprobación (preliminar, en revisión '
-                'o definitivo) y los recientes pueden estar en nivel preliminar, sujetos a cambios. '
-                'Cada Excel lo trae en la columna «Nivel de Aprobación».</p>', unsafe_allow_html=True)
+    detalles("Los datos recientes pueden ser preliminares.",
+             "<p>Cada dato del IDEAM tiene un nivel de aprobación (preliminar, en revisión o definitivo); los "
+             "preliminares pueden cambiar. Cada Excel lo trae en la columna «Nivel de Aprobación».</p>",
+             ver="Nivel de aprobación")
 
     # Estaciones cuya altitud del catalogo no cuadra con el relieve real
     if dudosas is not None and len(dudosas):
@@ -219,7 +222,8 @@ def mostrar_panel(zona, seleccion, param, fecha_ini, fecha_fin, umbral, seleccio
                      if rango else "")
         # Alerta pequena de una linea; el detalle queda adentro ("ver más")
         with st.container(key="alerta_altura"), st.expander(
-                f"⚠️ Inconsistencia en altura de estaciones ({len(dudosas)}) · ver más"):
+                f"Altitud inconsistente en {len(dudosas)} {'estaciones' if len(dudosas) != 1 else 'estación'} · ver lista",
+                icon=":material/warning:"):
             st.markdown(
                 f'<p class="y2k-hint" style="color:var(--y2k-ink-2) !important">'
                 f'{len(dudosas)} {"estaciones" if len(dudosas) != 1 else "estación"}'
@@ -229,7 +233,7 @@ def mostrar_panel(zona, seleccion, param, fecha_ini, fecha_fin, umbral, seleccio
                 f'terreno mide {_num(peor["Terreno"])} m ({_num(abs(peor["Diferencia"]))} m de diferencia). '
                 f'Clic en una para verla en el mapa 3D.</p>', unsafe_allow_html=True)
             st.dataframe(
-                dudosas, hide_index=True, use_container_width=True, key="tabla_dudosas",
+                dudosas, hide_index=True, width="stretch", key="tabla_dudosas",
                 on_select="rerun", selection_mode="single-row",
                 column_order=["Estación", "Catálogo", "Terreno", "Diferencia"],
                 column_config={"Catálogo": st.column_config.NumberColumn(format="%d m"),
@@ -238,24 +242,25 @@ def mostrar_panel(zona, seleccion, param, fecha_ini, fecha_fin, umbral, seleccio
                                                                            help="Catálogo menos terreno")})
 
     if param.get("avanzado") and len(seleccion):
-        st.warning(f"⏳ Descarga avanzada: {bloques} consultas de {param['dias_bloque']} días "
-                   f"(≈ {bloques // max(1, len(seleccion))} por estación).")
+        st.warning(f"Descarga avanzada: {bloques} consultas de {param['dias_bloque']} días "
+                   f"(≈ {bloques // max(1, len(seleccion))} por estación).", icon=":material/hourglass_top:")
 
     if len(seleccion) == 0:
         st.warning(f"Ninguna estación supera {umbral} % de cantidad probable. Baja el mínimo o cambia las fechas.")
         return
 
-    st.markdown("**Cobertura del periodo consultado**")
-    st.markdown('<p class="y2k-hint">Estaciones por clase, según qué parte de tu periodo cubre su registro '
-                '(entre su primer y su último dato). 100 % = el registro abarca todo el periodo, aunque '
-                'puede tener huecos internos.</p>', unsafe_allow_html=True)
-    st.altair_chart(_grafica_clases(seleccion, paleta), use_container_width=True)
+    st.html('<p class="y2k-titulo-seccion">Cobertura del periodo</p>')
+    detalles("Estaciones por clase de cobertura.",
+             "<p>Según qué parte de tu periodo cubre el registro de cada estación (entre su primer y su último "
+             "dato). 100 % = el registro abarca todo el periodo, aunque puede tener huecos internos.</p>",
+             ver="Cómo se calcula")
+    st.altair_chart(_grafica_clases(seleccion, paleta), width="stretch")
 
     grafica, minimo, maximo = _grafica_altitud(tabla, seleccionada, paleta)
-    st.markdown("**Altitud de las estaciones**")
-    st.altair_chart(grafica, use_container_width=True, on_select="rerun", selection_mode="punto", key="graf_alt")
-    st.caption(f"De la más baja a la más alta · de {_num(minimo)} a {_num(maximo)} m ({_num(maximo - minimo)} m de desnivel). "
-               f"Clic en un punto para ubicarla{' · naranja = altitud inconsistente' if (tabla['Alerta'] != '').any() else ''}.")
+    st.html('<p class="y2k-titulo-seccion">Altitud de las estaciones</p>')
+    st.altair_chart(grafica, width="stretch", on_select="rerun", selection_mode="punto", key="graf_alt")
+    st.caption(f"{_num(minimo)} a {_num(maximo)} m ({_num(maximo - minimo)} m de desnivel) · clic en un punto para "
+               f"ubicarla{' · naranja = altitud inconsistente' if (tabla['Alerta'] != '').any() else ''}")
 
     en_cuenca = int((seleccion["zona"] == "cuenca").sum()) if "zona" in seleccion.columns else len(seleccion)
     fines = pd.to_datetime(seleccion["Fin serie"], errors="coerce")
@@ -264,11 +269,11 @@ def mostrar_panel(zona, seleccion, param, fecha_ini, fecha_fin, umbral, seleccio
     st.markdown(f"En la cuenca **{en_cuenca}**{buffer_txt}  \nActivas hoy **{activas}** · Históricas **{len(seleccion) - activas}**")
 
     st.dataframe(
-        tabla, hide_index=True, use_container_width=True, height=260,
+        tabla, hide_index=True, width="stretch", height=260,
         on_select="rerun", selection_mode="single-row", key="tabla_est",
         column_order=["Alerta", "Estación", "Altitud (m)", "Cantidad probable"],
         column_config={
-            "Alerta": st.column_config.TextColumn("⚠", width=34, help="⚠️ = altitud inconsistente con el terreno real"),
+            "Alerta": st.column_config.TextColumn("⚠", width=34, help="⚠ = altitud inconsistente con el terreno real"),
             "Altitud (m)": st.column_config.NumberColumn("Altitud", format="%d m"),
             "Cantidad probable": st.column_config.ProgressColumn("Prob.", format="%.0f %%", min_value=0, max_value=100),
         },

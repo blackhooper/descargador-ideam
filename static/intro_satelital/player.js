@@ -73,9 +73,7 @@ function hudSvg(H, T, caja, dots, info) {
   if (H.map > 0.001) {
     kids.push(h('g', { opacity: H.map },
       h('rect', { x: 28, y: 28, width: 1864, height: 1024, fill: 'none', stroke: CY, strokeOpacity: 0.22 }),
-      corners(28, 28, 1864, 1024, 36, { strokeOpacity: 0.7 }),
-      tx(72, 98, 'MAPA OPERATIVO', { fontFamily: sans, fontWeight: 600, fontSize: 30, fill: WH, letterSpacing: 4 }),
-      tx(72, 132, 'COLOMBIA · CAPA DE LÍMITES', { fill: DIM, fontSize: 18, letterSpacing: 2 })
+      corners(28, 28, 1864, 1024, 36, { strokeOpacity: 0.7 })
     ));
   }
 
@@ -498,6 +496,8 @@ function alClic(ev) {
   reproducir(Object.assign({}, PRE, { host: bloque, posPrevia, temprano: true, turno: null,
     geom: { top: Math.round(rf.bottom - rb.top + 16), height: 650 } }));
 }
-if (!window.__y2kSatClic) { window.__y2kSatClic = true; document.addEventListener('click', alClic, true); }
+if (window.__y2kSatClicFn) document.removeEventListener('click', window.__y2kSatClicFn, true);
+window.__y2kSatClicFn = alClic;
+document.addEventListener('click', alClic, true);
 
 window.__y2kSat = { reproducir, precalentar };

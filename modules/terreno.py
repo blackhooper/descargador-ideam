@@ -178,7 +178,7 @@ _INTRO_SATELITAL = """
   previo.style.cssText = "position:absolute;inset:0;z-index:30;background:#000;border-radius:12px";
   visor.appendChild(previo);
   try {
-    if (!w.__y2kSat) {
+    if (!w.__y2kSat || w.__y2kSatV !== P.version) {
       await new Promise((ok, no) => {
         const s = d.createElement("script");
         s.type = "module";
@@ -186,6 +186,7 @@ _INTRO_SATELITAL = """
         s.onload = ok; s.onerror = () => no(new Error("no se pudo cargar el reproductor"));
         d.head.appendChild(s);
       });
+      w.__y2kSatV = P.version;
     }
     await w.__y2kSat.reproducir({visor: visor, clave: P.clave, lon: P.lon, lat: P.lat, bbox: P.bbox, estaciones: P.estaciones, n: P.n, buffer: P.buffer, turno: P.turno, panel: P.panel, version: P.version});
   } catch (e) {
@@ -222,8 +223,9 @@ _PRECALENTAR_SATELITE = """
   const w = window.parent, d = w.document;
   const P = __PARAMS__;
   try {
-    if (!w.__y2kSat) {
-      if (!w.__y2kSatCargando) {
+    if (!w.__y2kSat || w.__y2kSatV !== P.version) {
+      if (!w.__y2kSatCargando || w.__y2kSatCargandoV !== P.version) {
+        w.__y2kSatCargandoV = P.version;
         w.__y2kSatCargando = new Promise((ok, no) => {
           const s = d.createElement("script");
           s.type = "module";
@@ -233,6 +235,7 @@ _PRECALENTAR_SATELITE = """
         });
       }
       await w.__y2kSatCargando;
+      w.__y2kSatV = P.version;
     }
     await w.__y2kSat.precalentar(P);
   } catch (e) { console.warn("precalentamiento de la intro", e); }

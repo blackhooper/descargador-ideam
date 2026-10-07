@@ -42,7 +42,8 @@ Conecta este repositorio en [share.streamlit.io](https://share.streamlit.io), co
 | `modules/calidad.py` | Clases de cobertura (alta ≥ 70 %, media ≥ 50 %, baja ≥ 25 %, crítica) |
 | `modules/map_view.py` | Mapa 2D (Leaflet vía `streamlit-folium`) |
 | `modules/escaner.py`, `modules/scan_overlay.js` | Escáner del mapa 2D: animación mientras se calculan las estaciones y aparición de los pines en orden |
-| `modules/terreno.py` | Vista 3D: relieve, pines, cámara y secuencia de entrada |
+| `modules/terreno.py` | Vista 3D: relieve, textura por altura, pines, cámara, secuencia de entrada y guiones de la intro satelital |
+| `static/intro_satelital/` | Intro satelital (del mapa 2D al 3D): escena Three.js, reproductor, mosaico de satélite |
 | `modules/panel_estadisticas.py` | Tablas, gráficas y lista de altitudes dudosas |
 | `modules/escena_descarga.py` | Animación pixel art de la descarga |
 | `modules/estilo.py` | CSS, tema claro/oscuro, pie y créditos de las fuentes |
@@ -54,6 +55,7 @@ Conecta este repositorio en [share.streamlit.io](https://share.streamlit.io), co
 - Solo se puede dibujar un **rectángulo** (con lápiz para mover sus esquinas y basurita para borrarlo). Un rectángulo nuevo reemplaza al anterior. La cuenca subida desde archivo puede tener cualquier forma.
 - Al soltar (o editar) el rectángulo corre un **escáner** sobre él mientras el servidor calcula las estaciones; al terminar se desvanece, muestra "N estaciones encontradas" y los pines aparecen de norte a sur con un pequeño rebote. Mientras corre, el mapa no se mueve ni hace zoom; la barra de dibujo sigue activa y dibujar otra vez reinicia el escáner. Tope de 30 s por si algo falla; con `prefers-reduced-motion` no corre.
 - Aún no hay animación para la cuenca subida desde archivo (el mapa todavía no existe mientras se calcula).
+- Al abrir la pantalla de inicio se **precargan por detrás** las librerías de Leaflet y las teselas de satélite de Colombia; el botón "Dibujar mi cuenca" queda gris hasta que terminan (`map_view.recursos_mapa`, `terreno.precargar_mapa_2d`). El montaje del mapa con todo el catálogo sigue ocurriendo en el navegador al pulsar.
 
 **Contratos que no hay que romper** (si cambias `app.py`, `map_view.py` o `escaner.py`):
 
@@ -81,7 +83,7 @@ Está en `modules/terreno.py` y en el bloque `vista == "3D"` de `app.py`. Usa `p
 - Streamlit maneja la vista como estado de React (controlado), así que `deck.setProps({viewState})` no mueve nada. El guion busca el `deck` por dentro de React (`__reactFiber$`) y llama a `deck.props.onViewStateChange` en cada cuadro.
 - La cámara gira alrededor de un punto en `z = 0`; para orbitar una estación a otra altura se usa `position: [0, 0, altura]`.
 - La secuencia de entrada se esconde y anima las capas con `layer.clone()` y al final devuelve las originales. Corre una sola vez por cuenca y buffer (`ss._intro_firma` / `ss._intro_turno` en `app.py`) y se ata al turno de la vuelta para que el HTML no cambie entre recargas. Respeta `prefers-reduced-motion`.
-- La cubierta "Alistando las estaciones" es CSS puro dentro de `st.container(key="y2k_visor3d")`; el guion la levanta con `data-listo="1"` y se quita sola a los 25 s si algo falla.
+- Mientras corre la secuencia, un CSS (que manda Python) tapa el visor hasta que el guion escondió las capas y marcó `data-mostrar="<turno>"`; se destapa solo a los 12 s si algo falla. Ya no hay cubierta de "Alistando las estaciones": la intro satelital cubre la espera.
 - Cada ejecución del guion lleva un número (`__y2kOrbitaId`): si arranca otra, la anterior se detiene.
 
 **Escena.** Toda la escena se baja la altura del terreno en el centro de la cuenca (la cámara apunta a nivel 0). Contornos, pines y relieve usan esa misma base. `EXAGERACION = 2`.
@@ -97,6 +99,44 @@ Está en `modules/terreno.py` y en el bloque `vista == "3D"` de `app.py`. Usa `p
 - `map_style="__MAP_STYLE__"` evita que Streamlit ponga un mapa plano de fondo a nivel 0.
 - El 3D se arma en el servidor (≈ 3 s con caché fría en un PC; más en la nube) y el navegador baja los tiles después.
 - Los `components.html` de `app.py` corren en un iframe de altura 0 y llegan al DOM principal por `window.parent`.
+
+## Intro satelital (del mapa 2D al despliegue 3D)
+
+Animación de ~16,5 s (Three.js) que **cubre la carga del 3D**: un satélite recibe los datos de Colombia, apunta al cuadro del usuario y dispara los láseres de área y buffer y las cápsulas (las estaciones); después la pantalla se enciende como un monitor y el relieve real deck.gl empieza su secuencia (láseres, caída de pines, haces naranjas). El diseño viene de Claude Design (zip "Animación despliegue 3D estaciones").
+
+**Archivos** (`static/intro_satelital/`, servidos por Streamlit en `/app/static/intro_satelital/`):
+
+| Archivo | Para qué sirve |
+|---|---|
+| `satellite-scene.js` | Escena (globo, satélite, haz, cápsulas, láseres, brillo). Exporta `TUNE` (ajustes), `setBoxLonLat`, `setBuffer`, `precargarDatos`, `getScene` |
+| `player.js` | Reproductor: capa que tapa el visor, interfaz (HUD SVG), reloj, panel de ajustes temporal, precalentamiento, arranque en el clic y encendido |
+| `mosaico.js` | Primer plano con mosaico de satélite (Esri) de la cuenca; si falla, `satimg.js` pinta un terreno de respaldo |
+
+**Flujo.**
+1. Al **confirmar la cuenca** (`app.py`, tras `rango = ...`) se precalienta por detrás: se carga el reproductor, se arma el mosaico y se bajan d3/topojson/mapa mundial. No se crea WebGL. El botón **3D queda gris** hasta que `document.documentElement.dataset.y2kListo` iguala la clave de la cuenca.
+2. Al pulsar 3D la animación **arranca en el clic**, sobre el mapa 2D (Streamlit tarda 2–3 s en dibujar el visor). Cuando el visor llega, el guion `_INTRO_SATELITAL` la **adopta** (la mueve dentro) o, si no hubo arranque temprano, la inicia él.
+3. El guion `_ORBITA` esconde las capas de deck.gl, espera a que termine la intro (`window.__y2kIntroSatFin == turno`) y entonces corre la secuencia de entrada.
+4. La intro solo corre una vez por cuenca y buffer (igual que la secuencia). No corre en celulares, en modo liviano ni con `prefers-reduced-motion`.
+
+**Interfaz (HUD) de la intro.** Se dibuja en SVG dentro de `hudSvg` (`player.js`) y solo muestra datos con sentido; no hay botones de zoom ni escalas falsas.
+- **Altitud** (km) en cuenta regresiva durante el descenso; transmite la velocidad, por eso no hay medidor de km/s.
+- **"Calculando trayectoria"** mientras la cámara se acerca; pasa a "Lista" cuando el objetivo queda fijado.
+- **Lista "Preparando lanzamiento"** con tres pasos que se calibran en orden, y debajo las barras **ÁREA** y **BUFFER** con su porcentaje. Con todo cargado se dispara.
+- **"Estaciones lanzadas n/N"** usa el total real de estaciones (la intro solo dibuja hasta 250 puntos, pero el contador usa `n`, el total que manda `_datos_satelite`).
+- **Sin buffer:** las dos barras se cargan juntas y, al disparar, se apagan la barra y el cañón naranja del buffer (`setBuffer` en `satellite-scene.js`). El estado `buffer` viaja desde `app.py` (`precalentar_satelite` e `intro_satelital`), así que cambiarlo repite la intro.
+- Los textos de ambientación (nombre del satélite, "enlace activo", "objetivo fijado") son decoración y no representan datos.
+
+**Cosas que no hay que romper.**
+- Un solo contexto WebGL reutilizado: crear y destruir contextos (o `forceContextLoss`) termina en "context loss and was blocked" de Chrome. `destroy()` solo libera geometrías, texturas y buffers.
+- No mandar las capas de deck.gl escondidas desde Python: cualquier re-render de React las repone y "se borra todo" al terminar. Se tapa el visor con CSS y las esconde el guion (con una guardia que las vuelve a esconder).
+- `TUNE` en `satellite-scene.js` guarda los valores por defecto; el panel los cambia en vivo y los recuerda en `localStorage` (prefijo `y2k_sat_`).
+- Tras editar los archivos de la intro hay que **recargar la página del navegador** (F5, mejor Ctrl + F5): el reproductor se carga una sola vez por página y, si no se recarga, sigue corriendo la versión vieja aunque el archivo ya cambió. El parámetro `?v=` de las direcciones cambia con la fecha de los archivos.
+
+**Temporal (quitar antes de presentar):** `PANEL_SATELITE = True` en `terreno.py` (panel "⚙ Ajustes": pausa, tiempo, cámara final, láseres, cápsulas, con el segundo en que se nota cada ajuste y un botón "ir") y el botón "▶ Repetir animación (temporal)" de `app.py`.
+
+## Textura "Altura" del 3D
+
+Tercera textura (junto a Satélite y Topográfico): el relieve se colorea por altitud (verdes abajo, naranjas y rojos arriba) con sombreado de ladera. Hay dos escalas: **Rango de la zona** (mínimo y máximo de la cuenca con buffer) y **Rango de Colombia** (0–5.730 m, más pixelada para ahorrar memoria). Un guion (`_HIPSOMETRICO`) intercepta `window.fetch` y devuelve, para las imágenes con la marca `y2k_hipso`, el tile de elevación coloreado. La leyenda sale de `terreno.leyenda_altura()`.
 
 ## Cómo probar cambios
 

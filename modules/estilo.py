@@ -194,7 +194,8 @@ a{color:var(--y2k-accent)}
   outline:2px solid var(--y2k-foco) !important;outline-offset:2px !important;box-shadow:none !important}
 .stMarkdown p, [data-testid="stMarkdownContainer"] p{color:var(--y2k-ink-2)}
 [data-testid="stWidgetLabel"] p{color:var(--y2k-ink) !important;font-weight:600;font-size:13px !important}
-[data-testid="stCaptionContainer"], [data-testid="stCaptionContainer"] p{color:var(--y2k-ink-3) !important}
+/* Streamlit pinta los captions al 60 % de opacidad (quedan bajo 4,5:1): se usa el color del token, opaco */
+[data-testid="stCaptionContainer"], [data-testid="stCaptionContainer"] p{color:var(--y2k-ink-3) !important;opacity:1 !important}
 .y2k-hint,[data-testid="stMarkdownContainer"] p.y2k-hint{font-size:12.5px !important;line-height:1.45 !important;color:var(--y2k-ink-3) !important;margin:0 !important}
 [data-testid="stMarkdownContainer"]:has(> .y2k-md){margin-bottom:0 !important}
 [data-testid="stCheckbox"] label:has(input:focus-visible) > span + div{outline:2px solid var(--y2k-foco);outline-offset:2px}

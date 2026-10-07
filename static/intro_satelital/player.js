@@ -306,9 +306,14 @@ function precache(o) {
 const urlEscena = v => new URL('satellite-scene.js?v=' + (v || 1), import.meta.url).href;
 async function precalentar(p) {
   if (!p || !p.bbox) return;
-  precache(p);
+  const c = precache(p);
   const mod = await import(urlEscena(p.version));
-  mod.precargarDatos().catch(() => { /* sin red: se reintenta al reproducir */ });
+  const espera = ms => new Promise(ok => setTimeout(ok, ms));
+  // listo = mosaico armado (o fallido) y datos descargados; si algo tarda de mas, se da por listo igual (se reintenta al reproducir)
+  await Promise.all([
+    Promise.race([c.mosaico, espera(9000)]),
+    Promise.race([mod.precargarDatos().catch(() => null), espera(15000)]),
+  ]);
 }
 
 async function reproducir(o) {

@@ -355,6 +355,7 @@ def pantalla_estaciones():
         est_intro = _estaciones_3d(zona, umbral)
         with st.container(key="y2k_precal"):
             components.html(terreno.precalentar_satelite(bbox_intro, est_intro), height=0)
+            st.html(terreno.css_boton_3d_espera(bbox_intro, est_intro))   # el boton 3D espera a que todo este listo
 
     # ---------------- mapa ----------------
     with col_mapa:

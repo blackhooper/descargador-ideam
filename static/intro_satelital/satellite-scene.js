@@ -578,25 +578,29 @@ export function precargarDatos() {
   return _datos;
 }
 export function setLowPower(v) { _degrade = !!v; }
+let _renderer = null;   // se reutiliza entre repeticiones; solo se libera lo que pesa (geometrias, texturas, buffers)
 export function getScene(host) {
   if (!_inst) { if (_losses > 1) return Promise.reject(new Error('webgl-blocked')); _inst = createScene().catch(e => { _inst = null; throw e; }); }
   return _inst.then(api => { api.attach(host); return api; });
 }
 
 async function createScene() {
-  const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: false, powerPreference: 'high-performance' });
+  const renderer = _renderer || (_renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: false, powerPreference: 'high-performance' }));
   const gl = renderer.getContext(), dbg = gl.getExtension('WEBGL_debug_renderer_info');
   const gpu = String(dbg ? gl.getParameter(dbg.UNMASKED_RENDERER_WEBGL) : gl.getParameter(gl.RENDERER));
   const lowPower = _degrade || /swiftshader|llvmpipe|software/i.test(gpu);
   const RS = (lowPower ? 0.6 : 1) * TUNE.resScale; LINE_RS = RS;
   const listeners = new Set(), notify = () => listeners.forEach(f => { try { f(); } catch (e) { /* listener gone */ } });
   let lost = false, dead = false, lostTimer = 0;
-  renderer.domElement.addEventListener('webglcontextlost', e => {
+  const onLost = e => {
+    if (dead) return;
     e.preventDefault(); lost = true; _degrade = true; notify();
     clearTimeout(lostTimer);
-    lostTimer = setTimeout(() => { if (!lost) return; dead = true; _inst = null; _losses++; try { renderer.dispose(); } catch (err) { /* already gone */ } renderer.domElement.remove(); notify(); }, 6000);
-  });
-  renderer.domElement.addEventListener('webglcontextrestored', () => { lost = false; clearTimeout(lostTimer); notify(); });
+    lostTimer = setTimeout(() => { if (!lost) return; dead = true; _inst = null; _renderer = null; _losses++; try { renderer.dispose(); } catch (err) { /* already gone */ } renderer.domElement.remove(); notify(); }, 6000);
+  };
+  const onRestored = () => { lost = false; clearTimeout(lostTimer); notify(); };
+  renderer.domElement.addEventListener('webglcontextlost', onLost);
+  renderer.domElement.addEventListener('webglcontextrestored', onRestored);
   renderer.setPixelRatio(1); renderer.setSize(W * RS, H * RS, false);
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.05;
@@ -863,7 +867,9 @@ async function createScene() {
           ms.forEach(m => { for (const k in m) { const v = m[k]; if (v && v.isTexture) v.dispose(); } m.dispose(); });
         });
       } catch (e) { /* ya liberado */ }
-      try { renderer.dispose(); renderer.forceContextLoss(); } catch (e) { /* ya liberado */ }
+      // el contexto se conserva para la siguiente repeticion; se encoge el lienzo y se sueltan las listas internas
+      try { renderer.domElement.removeEventListener('webglcontextlost', onLost); renderer.domElement.removeEventListener('webglcontextrestored', onRestored); } catch (e) { /* ya quitados */ }
+      try { renderer.setRenderTarget(null); renderer.renderLists.dispose(); renderer.setSize(1, 1, false); } catch (e) { /* ya liberado */ }
       renderer.domElement.remove(); listeners.clear();
     },
     attach(el) { if (el && renderer.domElement.parentNode !== el) el.appendChild(renderer.domElement); },

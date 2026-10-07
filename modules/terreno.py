@@ -198,7 +198,7 @@ _INTRO_SATELITAL = """
 def _datos_satelite(bbox, estaciones):
     """Lo que necesita la intro de la cuenca: caja envolvente y estaciones ([lon, lat, 1 si cumple]) para dibujarlas."""
     x0, y0, x1, y1 = (float(v) for v in bbox)
-    return {"lon": round((x0 + x1) / 2, 4), "lat": round((y0 + y1) / 2, 4),
+    return {"clave": f"{x0:.5f},{y0:.5f},{x1:.5f},{y1:.5f}", "lon": round((x0 + x1) / 2, 4), "lat": round((y0 + y1) / 2, 4),
             "bbox": [round(x0, 5), round(y0, 5), round(x1, 5), round(y1, 5)],
             "estaciones": [[round(float(e["lon"]), 4), round(float(e["lat"]), 4), 1 if e.get("ok") else 0] for e in estaciones[:250]],
             "panel": bool(PANEL_SATELITE), "version": _version_satelite()}
@@ -232,6 +232,8 @@ _PRECALENTAR_SATELITE = """
     }
     await w.__y2kSat.precalentar(P);
   } catch (e) { console.warn("precalentamiento de la intro", e); }
+  // el boton 3D se habilita (ver CSS que manda app.py) cuando ya esta todo precalentado
+  d.documentElement.dataset.y2kListo = P.clave;
 })();
 </script>
 """
@@ -240,6 +242,13 @@ _PRECALENTAR_SATELITE = """
 def precalentar_satelite(bbox, estaciones):
     """Guion (para components.html) que precalienta la intro satelital de esta cuenca."""
     return _PRECALENTAR_SATELITE.replace("__PARAMS__", json.dumps(_datos_satelite(bbox, estaciones)))
+
+
+def css_boton_3d_espera(bbox, estaciones):
+    """CSS que deja el boton 3D gris y sin respuesta hasta que el precalentamiento de esta cuenca termina."""
+    clave = _datos_satelite(bbox, estaciones)["clave"]
+    return ('<style>html:not([data-y2k-listo="' + clave + '"]) .st-key-vista button[role="radio"]:last-of-type'
+            '{opacity:.4 !important;filter:grayscale(1);pointer-events:none !important;cursor:progress}</style>')
 
 
 # Cache propia de imagenes de relieve, compartida por todas las sesiones y segura entre

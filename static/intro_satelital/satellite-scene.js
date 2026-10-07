@@ -8,8 +8,8 @@ const W = 1920, H = 1080;
 // Ajustes que se pueden mover desde el panel temporal del reproductor (player.js)
 export const TUNE = {
   panAmt: 1,        // cuanto gira la mirada hacia el cuadro del usuario durante el zoom optico (0 = nada, 1 = todo)
-  panStart: 0,      // segundo (dentro del zoom optico) en que empieza ese giro
-  panEnd: 1,        // segundo en que termina
+  giroIni: -0.2,    // segundo (desde que empieza la vista del satelite, plano POV) en que empieza el giro hacia tu cuadro; negativo = ya girado al empezar
+  giroFin: 0,       // segundo en que termina el giro (0 = girado desde el primer cuadro del POV)
   diveShift: 0.8,   // duracion (s) del traslado de la camara hasta quedar sobre el cuadro, ya en el descenso
   descenso: 0.9,    // duracion total (s) del descenso, antes del encendido
   preDark: 0.25,    // oscuridad (0-1) durante el zoom optico
@@ -171,7 +171,7 @@ function camAt(T, K, t) {
   if (t.tp < 0) return camAim(t.ta);
   const Dn = aimDir();
   if (t.td < 0) {
-    const k = io3(seg(t.to, TUNE.panStart, Math.max(TUNE.panEnd, TUNE.panStart + 0.01)));
+    const k = io3(seg(t.tp, TUNE.giroIni, Math.max(TUNE.giroFin, TUNE.giroIni + 0.01)));
     return { pos: LENS.clone(), look: C.clone().add(N.clone().lerp(Dn, k).normalize()), up: U.clone().lerp(upAt(Dn), k).normalize(), fov: t.to < 0 ? 40 : povFov(t.to) };
   }
   // descenso: la mirada ya esta sobre el cuadro y la camara se desplaza hasta quedar justo encima

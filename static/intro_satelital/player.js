@@ -199,8 +199,8 @@ const GRUPOS = [
   ]],
   ['Cámara que baja hacia tu cuadro', [
     ['panAmt', 'Cuánto gira la mirada hacia tu cuadro', '0 = sigue mirando el punto fijo de Colombia; 1 = termina mirando justo tu cuadro.', 0, 1.5, 0.05],
-    ['panStart', 'El giro empieza (s del zoom óptico)', 'Segundo, contado desde que empieza el zoom óptico, en que empieza a girar.', 0, 1.2, 0.05],
-    ['panEnd', 'El giro termina (s del zoom óptico)', 'Segundo en que termina de girar. Debe ser mayor que el de inicio.', 0.1, 1.2, 0.05],
+    ['giroIni', 'El giro empieza (s desde que empieza la vista del satélite)', 'Con el valor por defecto la cámara ya mira tu cuadro desde el primer cuadro; súbelo para ver cómo gira desde el punto fijo de Colombia.', -0.5, 2, 0.05],
+    ['giroFin', 'El giro termina (s desde que empieza la vista del satélite)', 'Segundo en que termina de girar. Debe ser mayor que el de inicio.', -0.4, 2.5, 0.05],
     ['diveShift', 'Cuánto tarda en ponerse sobre el cuadro', 'Segundos del descenso que tarda la cámara en quedar justo encima de tu cuadro.', 0.1, 1.5, 0.05],
   ]],
   ['Descenso, negro y encendido', [
@@ -223,8 +223,8 @@ const REF = {
   laserSep: (c, T) => c['POV'] + 0.45 + T.laserT0 + 0.45, laserDrop: (c, T) => c['POV'] + 0.45 + T.laserT0 + 0.45,
   laserT0: (c, T) => c['POV'] + 0.45 + T.laserT0 + 0.2, laserDur: (c, T) => c['POV'] + 0.45 + T.laserT0 + T.laserDur * 0.6,
   laserW: (c, T) => c['POV'] + 0.45 + T.laserT0 + 0.45, laserSolo: (c, T) => c['POV'] + 0.45 + T.laserT0 + 0.45,
-  panAmt: (c, T) => c['Zoom óptico'] + (T.panStart + T.panEnd) / 2 + 0.6, panStart: (c, T) => c['Zoom óptico'] + T.panStart + 0.3,
-  panEnd: (c, T) => c['Zoom óptico'] + T.panEnd, preDark: (c, T) => c['Zoom óptico'] + 0.5,
+  panAmt: (c, T) => c['POV'] + 0.9, giroIni: (c, T) => c['POV'] + Math.max(0, T.giroIni) + 0.3,
+  giroFin: (c, T) => c['POV'] + Math.max(0.3, T.giroFin), preDark: (c, T) => c['Zoom óptico'] + 0.5,
   diveShift: (c, T) => c['Descenso'] + T.diveShift / 2, descenso: (c, T) => c['Descenso'] + T.descenso * 0.5,
   fadeStart: (c, T) => c['Descenso'] + T.fadeStart + 0.1, fadeDur: (c, T) => c['Descenso'] + T.fadeStart + T.fadeDur / 2,
   blackMax: (c, T) => c['Descenso'] + T.fadeStart + T.fadeDur, reveal: (c, T) => c['Descenso'] + T.descenso,

@@ -274,7 +274,7 @@ def tablero(zona, descargables, seleccion, param, cifras, dudosas=None, rango=No
         column_order=["●", "Estación", "Cobertura"],
         column_config={
             "●": st.column_config.TextColumn("", width=28, help="Color de su clase de cobertura (ver la leyenda)"),
-            "Estación": st.column_config.TextColumn(width=176, help="⚠ = altitud dudosa (no coincide con el relieve)"),
+            "Estación": st.column_config.TextColumn(width=176),
             "Cobertura": st.column_config.TextColumn(width=66, help="Cantidad probable: qué parte del periodo cubre el "
                                                                      "registro de la estación"),
         },

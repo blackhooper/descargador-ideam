@@ -290,11 +290,10 @@ dl.glosario dd{margin:0;color:var(--ink-2)}
               <li><span class="ui">Especial</span>: primero eliges la <span class="ui">Frecuencia</span> (decadal, multianual o de alta frecuencia: cada 10, 5 o 2 minutos) y después la variable.</li>
             </ul>
           </li>
-          <li><span class="ui">Variable</span>: la serie exacta del IDEAM con su unidad, por ejemplo <em>Precipitación total diaria (mm)</em>. Puedes abrir la lista o <strong>escribir</strong> para buscar. Mientras la lista del IDEAM carga, el desplegable está en gris; un punto pequeño junto a la palabra «Variable» se enciende en verde cuando ya cargó.</li>
+          <li><span class="ui">Variable</span>: la serie exacta del IDEAM con su unidad, por ejemplo <em>Precipitación total diaria (mm)</em>. Puedes abrir la lista o <strong>escribir</strong> para buscar. Mientras la lista del IDEAM carga, el desplegable está en gris; un punto pequeño junto a la palabra «Variable» se enciende en azul cuando ya cargó.</li>
           <li><span class="ui">Desde</span> y <span class="ui">Hasta</span>: el periodo, en formato día/mes/año (por defecto del 01/01/2000 al 31/12/2020). La fecha inicial debe ser anterior a la final. Si con esa frecuencia el periodo daría más de un millón de filas por estación, más de lo que admite Excel, la tarjeta te pide acortarlo.</li>
-          <li><span class="ui">Separar el ZIP en carpetas por cobertura</span> (marcado por defecto): cada Excel va dentro de la carpeta de su clase de cobertura (ver <a href="#cobertura">Cobertura del periodo</a>). Si lo desmarcas, todos quedan juntos.</li>
         </ol>
-        <p>El botón <span class="ui primario">Seleccionar área en el mapa</span> se enciende cuando el mapa y los datos de la variable elegida terminaron de cargar. Así el paso al mapa es inmediato. Debajo, tres pasos resumen el recorrido: <em>Consulta</em>, <em>Área y estaciones</em> y <em>Descarga</em>.</p>
+        <p>Cuando el mapa y los datos de la variable elegida terminaron de cargar, <span class="ui primario">Seleccionar área en el mapa</span> te lleva al mapa sin esperas. Si lo pulsas antes, no avanza y da dos destellos rojos: espera a que el punto de «Variable» se encienda. Debajo, tres pasos resumen el recorrido: <em>Establecer parámetros</em>, <em>Delimitar el área de análisis</em> y <em>Preparar la descarga</em>.</p>
         <p>El IDEAM entrega un número limitado de años por consulta. La app divide tu periodo en bloques de ese tamaño y después los une en un solo Excel:</p>
         <div class="tabla">
           <table>
@@ -369,6 +368,8 @@ dl.glosario dd{margin:0;color:var(--ink-2)}
       <section id="estaciones">
         <h2><span class="etiqueta">EL MAPA</span>Estaciones en el mapa</h2>
         <p>Todo se recalcula solo cuando cambias algo: el área, el buffer o las estaciones que incluyes. En el computador, el botón de la esquina del panel lo oculta para ver más mapa; <span class="ui">Consulta</span>, arriba a la izquierda, lo vuelve a mostrar.</p>
+        <h3>Filtrar por cobertura</h3>
+        <p>Con el área ya evaluada aparece, arriba a la izquierda del mapa, un botón redondo de <strong>filtro</strong>. Ábrelo y mueve los dos extremos del rango de <em>Cobertura del periodo</em> (de 5 en 5 %): las estaciones que quedan fuera dejan de verse en el mapa y en la lista, y no se descargan. Con el filtro activo, el botón muestra el rango (por ejemplo <span class="ui">50–100 %</span>); <span class="ui">Quitar el filtro</span> vuelve a mostrarlas todas.</p>
         <h3>Qué significa cada punto</h3>
         <p>El color de cada estación indica su clase de cobertura del periodo consultado (ver <a href="#cobertura">Cobertura del periodo</a>):</p>
         <div class="clases" aria-label="Colores de las estaciones">
@@ -394,13 +395,13 @@ dl.glosario dd{margin:0;color:var(--ink-2)}
 
       <section id="vista-3d">
         <h2><span class="etiqueta">VISTA 3D</span>El mapa 3D</h2>
-        <p>Abajo a la izquierda está el selector <span class="ui">2D</span> <span class="ui">3D</span>. La vista 3D muestra el <strong>relieve real</strong> con la foto satelital. A su lado, el menú <span class="ui">Textura</span> cambia entre <em>Satélite</em>, <em>Topográfico</em> y <em>Altura</em>; esta última colorea el relieve según la altitud, con la escala de la zona o la de todo Colombia.</p>
+        <p>Abajo a la izquierda está el selector <span class="ui">2D</span> <span class="ui">3D</span> (en el celular, elegir uno cierra la consulta para que veas el mapa). La vista 3D muestra el <strong>relieve real</strong> con la foto satelital. En la cápsula de la derecha, el botón de capas abre <span class="ui">Textura del relieve</span>: <em>Satélite</em>, <em>Topográfico</em> o <em>Altura</em>; esta última colorea el relieve según la altitud, con la escala de la zona o la de todo Colombia.</p>
         <ul>
-          <li><strong>Animación de entrada:</strong> la primera vez que abres el 3D con un área, una animación satelital cubre la pantalla mientras el relieve se carga por detrás. Puedes saltarla con <span class="ui">Saltar animación</span> o la tecla <span class="ui">Esc</span>, y verla otra vez con el botón ↻ junto a la textura. No se reproduce en el celular ni en modo Lite. Si tu equipo pide reducir el movimiento, no se reproduce sola, pero el botón ↻ la muestra si quieres verla.</li>
+          <li><strong>Animación de entrada:</strong> la primera vez que abres el 3D con un área, una animación satelital cubre la pantalla mientras el relieve se carga por detrás. Puedes saltarla con <span class="ui">Saltar animación</span> o la tecla <span class="ui">Esc</span>, y verla otra vez con el botón ↻ junto al selector 2D/3D. No se reproduce en el celular ni en modo Lite. Si tu equipo pide reducir el movimiento, no se reproduce sola, pero el botón ↻ la muestra si quieres verla.</li>
           <li>El relieve está <strong>exagerado ×2</strong> para que los desniveles se noten. Cada pin se apoya en el terreno real.</li>
           <li>En 3D solo aparecen las estaciones que tienen serie de la variable elegida.</li>
           <li><strong>Vuelta de cámara:</strong> al abrir el 3D, la cámara da una vuelta lenta alrededor del centro de las estaciones, para que veas dónde queda cada una respecto a las montañas. Si eliges una estación, la vuelta es alrededor de ella. Cualquier interacción con el mapa la detiene.</li>
-          <li><strong>Girar e inclinar:</strong> Ctrl + arrastrar en el computador; rueda del mouse para acercar. En el celular, arrastra para moverte y pellizca para acercar. La cápsula de la derecha hace lo mismo sin gestos: acercar, alejar, girar, inclinar y orientar al norte.</li>
+          <li><strong>Girar e inclinar:</strong> Ctrl + arrastrar en el computador; rueda del mouse para acercar. En el celular, arrastra para moverte y pellizca para acercar. La cápsula de la derecha hace lo mismo sin gestos: <span class="ui">+</span> y <span class="ui">−</span> acercan y alejan, y el menú <span class="ui">Cámara</span> gira, inclina y orienta al norte (sigue abierto para pulsar varias veces).</li>
           <li><strong>Clic en un pin</strong> para seleccionar la estación. Pasa el cursor para ver su ficha.</li>
         </ul>
         <div class="nota">
@@ -421,7 +422,7 @@ dl.glosario dd{margin:0;color:var(--ink-2)}
           <p>La app expresa ese número como porcentaje del total que tendría una serie ininterrumpida en todo tu periodo. Así que el porcentaje te dice cuánto de tu periodo alcanza a cubrir el registro de la estación, no qué tan densa es la serie por dentro. Una estación con 100 % puede tener vacíos importantes: significa que su registro empieza antes y termina después de tu periodo.</p>
           <p>Sirve para descartar estaciones cuyo registro no llega a tu periodo. Los huecos reales se revisan en los Excel descargados.</p>
         </div>
-        <p>Con ese porcentaje, cada estación cae en una clase de <strong>cobertura</strong> del periodo consultado. Si dejas marcada la opción de carpetas (en el paso 1), cada Excel va en la carpeta de su clase:</p>
+        <p>Con ese porcentaje, cada estación cae en una clase de <strong>cobertura</strong> del periodo consultado. Si dejas marcada la opción de carpetas (al final, antes de descargar el ZIP), cada Excel va en la carpeta de su clase:</p>
         <div class="clases">
           <div class="clase"><span class="punto" style="background:var(--alta)"></span><b>Alta</b><span>70–100 %</span><code>1_Cobertura_Alta_70_100</code></div>
           <div class="clase"><span class="punto" style="background:var(--media)"></span><b>Media</b><span>50–70 %</span><code>2_Cobertura_Media_50_70</code></div>
@@ -486,6 +487,7 @@ dl.glosario dd{margin:0;color:var(--ink-2)}
         </ul>
         <h3>Guardar el ZIP</h3>
         <ol>
+          <li><span class="ui">Separar en carpetas por cobertura</span> (marcado por defecto): cada Excel va dentro de la carpeta de su clase de cobertura (ver <a href="#cobertura">Cobertura del periodo</a>). Si lo desmarcas, todos quedan juntos. Puedes cambiarlo sin volver a descargar; el recibo de la derecha lo refleja.</li>
           <li>En <span class="ui">Nombre del archivo ZIP</span> viene un nombre sugerido, como <code>IDEAM_PTPM_CON_20000101-20201231</code>. Si quieres otro (por ejemplo <em>descarga 1</em>), escríbelo; el <code>.zip</code> se agrega solo.</li>
           <li>Pulsa <span class="ui primario">Descargar el ZIP</span>.</li>
           <li>Con <span class="ui">Volver al mapa</span> ajustas y descargas otra vez (desde ahí, el nombre de la variable en el panel te lleva a cambiar la variable o el periodo); con <span class="ui">Nueva consulta</span> empiezas de cero.</li>
@@ -591,7 +593,7 @@ dl.glosario dd{margin:0;color:var(--ink-2)}
         <details>
           <summary>No veo la animación al pasar a 3D</summary>
           <ul>
-            <li>Se reproduce una sola vez por área: para verla otra vez, usa el botón ↻ junto a la textura.</li>
+            <li>Se reproduce una sola vez por área: para verla otra vez, usa el botón ↻ junto al selector 2D/3D.</li>
             <li>No se reproduce en modo Lite ni en el celular. Revisa si junto a Ajustes aparece la marca <span class="ui">Lite</span>.</li>
             <li>Si tu equipo pide reducir el movimiento (en Windows: <em>Efectos de animación</em> desactivados), no se reproduce sola; el botón ↻ la muestra igual.</li>
           </ul>

@@ -967,6 +967,27 @@ def duracion_texto(segundos):
     return f"{h} h {m:02d} min"
 
 
+def zip_con_carpetas(resultado):
+    """El ZIP de la descarga con cada Excel dentro de la carpeta de su clase de cobertura. Se arma al final, si la
+    persona lo elige, a partir del ZIP plano (sin volver a descargar); resumen_descarga.csv se rehace con las rutas
+    nuevas."""
+    carpetas = resultado.get("carpetas") or {}
+    if not carpetas:
+        return resultado["zip"]
+    salida = io.BytesIO()
+    with zipfile.ZipFile(io.BytesIO(resultado["zip"])) as origen, \
+            zipfile.ZipFile(salida, "w", zipfile.ZIP_DEFLATED) as destino:
+        for info in origen.infolist():
+            nombre = info.filename
+            if nombre == "resumen_descarga.csv" and resultado.get("resumen") is not None:
+                filas = [{**f, "Archivo": f"{carpetas[f['Archivo']]}/{f['Archivo']}" if f.get("Archivo") in carpetas
+                          else f.get("Archivo", "")} for f in resultado["resumen"]]
+                destino.writestr(nombre, pd.DataFrame(filas).to_csv(index=False).encode("utf-8-sig"))
+            else:
+                destino.writestr(f"{carpetas[nombre]}/{nombre}" if nombre in carpetas else nombre, origen.read(nombre))
+    return salida.getvalue()
+
+
 def procesar_descargas(estaciones_df, clasificar_en_carpetas, fecha_ini, fecha_fin, param, ui):
     """
     Descarga todas las estaciones (4 a la vez) y arma el ZIP.
@@ -1016,6 +1037,7 @@ def procesar_descargas(estaciones_df, clasificar_en_carpetas, fecha_ini, fecha_f
         )
 
     zip_buffer = io.BytesIO()
+    carpetas = {}   # nombre del Excel -> carpeta de su clase (para armar el ZIP en carpetas al final, si se elige)
     pool = ThreadPoolExecutor(max_workers=HILOS_DESCARGA)
     try:
         with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:
@@ -1073,6 +1095,7 @@ def procesar_descargas(estaciones_df, clasificar_en_carpetas, fecha_ini, fecha_f
                         + f"_{param['etiqueta']}.xlsx"
                     ruta_en_zip = carpeta + nombre_archivo
                     zip_file.writestr(ruta_en_zip, excel_data)
+                    carpetas[ruta_en_zip] = clase["carpeta"]
                     guardadas += 1
                     colores.append(clase["color"])
                     log(f"GUARDADO {ruta_en_zip}")
@@ -1106,6 +1129,8 @@ def procesar_descargas(estaciones_df, clasificar_en_carpetas, fecha_ini, fecha_f
     pintar(1.0, 0, terminado=True)
     return {
         "zip": zip_buffer.getvalue(),
+        "carpetas": {} if clasificar_en_carpetas else carpetas,
+        "resumen": resumen,
         "guardadas": guardadas,
         "omitidas": terminadas - guardadas,
         "duracion": duracion,

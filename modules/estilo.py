@@ -106,6 +106,11 @@ TOKENS = {
         "lg-filtro-regular": "blur(24px) saturate(185%) brightness(1.05)",
         "y2k-velo": "radial-gradient(120% 95% at 50% 45%,rgba(233,238,245,.30),rgba(214,224,238,.62))",
         "y2k-mapa-fondo": "#C9D6E4", "y2k-cielo": "linear-gradient(180deg,#8FBBE6 0%,#C9DFF3 55%,#E8F0F8 100%)",
+        # boton principal: vidrio liquido azul (tinte, brillo superior, caustica abajo y canto de luz)
+        "y2k-boton-tinte": "rgba(6,58,172,.92)",
+        "y2k-boton-brillo": "linear-gradient(180deg,rgba(255,255,255,.38) 0%,rgba(255,255,255,.07) 40%,rgba(255,255,255,0) 50%,rgba(255,255,255,.05) 100%)",
+        "y2k-boton-caustica": "radial-gradient(120% 70% at 50% 130%,rgba(140,200,255,.38),transparent 60%)",
+        "y2k-boton-canto": "inset 0 1px 0 rgba(255,255,255,.62),inset 0 -1px 0 rgba(2,24,80,.40),inset 0 0 0 1px rgba(255,255,255,.20)",
     },
     "oscuro": {
         "y2k-tono": "oscuro", "y2k-alto": "0",
@@ -127,6 +132,10 @@ TOKENS = {
         "lg-filtro-regular": "blur(26px) saturate(160%) brightness(.55)",
         "y2k-velo": "radial-gradient(120% 95% at 50% 45%,rgba(8,11,17,.38),rgba(6,9,14,.74))",
         "y2k-mapa-fondo": "#11161F", "y2k-cielo": "linear-gradient(180deg,#0A1224 0%,#16264A 60%,#233A63 100%)",
+        "y2k-boton-tinte": "rgba(125,182,255,.88)",
+        "y2k-boton-brillo": "linear-gradient(180deg,rgba(255,255,255,.50) 0%,rgba(255,255,255,.14) 44%,rgba(255,255,255,0) 54%,rgba(255,255,255,.06) 100%)",
+        "y2k-boton-caustica": "radial-gradient(120% 70% at 50% 128%,rgba(255,255,255,.40),transparent 62%)",
+        "y2k-boton-canto": "inset 0 1px 0 rgba(255,255,255,.75),inset 0 -1px 0 rgba(0,20,60,.30),inset 0 0 0 1px rgba(255,255,255,.28)",
     },
 }
 # Alto contraste: superficies opacas, bordes nitidos, sin desenfoque ni brillos (no es el modo oscuro: va con
@@ -143,6 +152,7 @@ TOKENS_ALTO = {
         "lg-borde": "#000000", "lg-luz": "transparent", "lg-filo": "#000000", "lg-especular": "transparent",
         "lg-sombra": "0 0 #0000", "lg-filtro-claro": "none", "lg-filtro-regular": "none",
         "y2k-velo": "rgba(255,255,255,.82)",
+        "y2k-boton-tinte": "#0037A6", "y2k-boton-brillo": "none", "y2k-boton-caustica": "none", "y2k-boton-canto": "0 0 #0000",
     },
     "oscuro": {
         "y2k-alto": "1", "y2k-bg": "#000000", "y2k-ink": "#FFFFFF", "y2k-ink-2": "#F2F2F2", "y2k-ink-3": "#E0E0E0",
@@ -155,6 +165,7 @@ TOKENS_ALTO = {
         "lg-borde": "#FFFFFF", "lg-luz": "transparent", "lg-filo": "#FFFFFF", "lg-especular": "transparent",
         "lg-sombra": "0 0 #0000", "lg-filtro-claro": "none", "lg-filtro-regular": "none",
         "y2k-velo": "rgba(0,0,0,.84)",
+        "y2k-boton-tinte": "#9CCBFF", "y2k-boton-brillo": "none", "y2k-boton-caustica": "none", "y2k-boton-canto": "0 0 #0000",
     },
 }
 
@@ -187,8 +198,8 @@ def _tokens_css(tema, contraste):
 
 
 # Superficies de vidrio: contenedores de Streamlit (por su clave) y piezas HTML propias
-VIDRIO_CLARO = (".st-key-y2k_ajustes,.st-key-y2k_herr,.st-key-y2k_abrir,.st-key-y2k_dock_izq,.st-key-y2k_dock_der,"
-                ".lg-claro")
+VIDRIO_CLARO = (".st-key-y2k_ajustes,.st-key-y2k_herr,.st-key-y2k_abrir,.st-key-y2k_filtro,.st-key-y2k_dock_izq,"
+                ".st-key-y2k_dock_der,.lg-claro")
 VIDRIO_REGULAR = ".st-key-y2k_panel,.st-key-y2k_ficha,.st-key-y2k_inicio,.st-key-y2k_exportar,.lg-regular"
 VIDRIO = VIDRIO_CLARO + "," + VIDRIO_REGULAR
 
@@ -202,6 +213,7 @@ CSS = """
   /* esquina de abajo a la derecha reservada al boton de Streamlit Community Cloud ("Manage app" o su logo), que va
      fuera de la app y no se puede mover: la pone aplicar(sello=True) */
   --y2k-sello:0px;
+  --y2k-fundido:18px;
   --y2k-lite:0; --y2k-dur:.32s; --y2k-curva:cubic-bezier(.2,.8,.2,1);
   --y2k-centro:calc(var(--y2k-libre-izq) + (100vw - var(--y2k-libre-izq)) / 2);
   color-scheme:light dark;
@@ -268,7 +280,7 @@ a{color:var(--y2k-accent-texto)}
 :is(__VIDRIO_CLARO__) button p{color:inherit !important;font-weight:600 !important;font-size:13.5px !important}
 :is(__VIDRIO_CLARO__) button:hover{background:var(--y2k-hover) !important}
 :is(__VIDRIO_CLARO__) button:active{transform:scale(.96)}
-:is(__VIDRIO_CLARO__) button[kind="primary"]{background:var(--y2k-accent) !important;color:var(--y2k-sobre-acento) !important}
+:is(__VIDRIO_CLARO__) button[kind="primary"]{color:var(--y2k-sobre-acento) !important}
 .st-key-y2k_dock_izq [data-testid="stButtonGroup"]{width:auto}
 .st-key-y2k_dock_izq [data-testid="stButtonGroup"] > div{gap:2px;background:transparent;border:0;flex-wrap:nowrap}
 .st-key-y2k_dock_izq button[role="radio"]{padding:0 14px !important;min-height:36px !important;min-width:52px}
@@ -320,7 +332,8 @@ a{color:var(--y2k-accent-texto)}
 :is(.st-key-y2k_ajustes,.st-key-y2k_dock_izq) > div,.st-key-y2k_ajustes .stPopover{overflow:visible !important}
 .st-key-y2k_ajustes .stPopover button{width:36px;min-width:36px;padding:0 !important;justify-content:center}
 .st-key-y2k_ajustes .stPopover button [data-testid="stMarkdownContainer"]{position:absolute !important;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
-.st-key-y2k_ajustes .stPopover button [data-testid="stIconMaterial"]{font-size:21px !important}
+.st-key-y2k_ajustes .stPopover button [data-testid="stIconMaterial"],.st-key-y2k_filtro .stPopover button [data-testid="stIconMaterial"]{
+  font-size:21px !important;width:21px;height:21px;line-height:21px !important;justify-content:center;overflow:visible}
 .st-key-y2k_ajustes [data-testid="stPopoverButton"] > div > div[aria-hidden="true"]{display:none !important}
 .y2k-lite-chip{display:inline-flex;align-items:center;height:28px;padding:0 10px 0 8px;border-radius:999px;font:700 12px/1 "Figtree",sans-serif;
   letter-spacing:.04em;color:var(--y2k-sobre-acento);background:var(--y2k-accent);gap:4px}
@@ -345,8 +358,11 @@ a{color:var(--y2k-accent-texto)}
 :is(.st-key-y2k_inicio,.st-key-y2k_exportar,.st-key-y2k_ficha) > [data-testid="stLayoutWrapper"]{flex:1 1 auto;min-height:0;display:flex;
   flex-direction:column;width:100% !important}
 .st-key-y2k_inicio_cuerpo,.st-key-y2k_exportar_cuerpo,.st-key-y2k_ficha_cuerpo{flex:1 1 auto;min-height:0;overflow-y:auto;overscroll-behavior:contain;
-  scrollbar-width:thin;scrollbar-color:var(--y2k-line-2) transparent;scrollbar-gutter:auto}
-.st-key-y2k_inicio_cuerpo{margin:16px 4px 16px 0 !important;padding:12px 26px 6px 30px !important;gap:14px !important}
+  scrollbar-width:thin;scrollbar-color:var(--y2k-line-2) transparent;scrollbar-gutter:auto;margin:0 !important;
+  /* el contenido se desvanece al llegar al borde (igual arriba y abajo), sin una franja ni un corte marcado */
+  -webkit-mask-image:linear-gradient(180deg,transparent 0,#000 var(--y2k-fundido),#000 calc(100% - var(--y2k-fundido)),transparent 100%);
+  mask-image:linear-gradient(180deg,transparent 0,#000 var(--y2k-fundido),#000 calc(100% - var(--y2k-fundido)),transparent 100%)}
+.st-key-y2k_inicio_cuerpo{padding:28px 30px !important;gap:14px !important}
 @keyframes y2k-entra-centro{from{opacity:0;transform:translate(-50%,calc(-50% + 14px)) scale(.985)}}
 .y2k-cab-inicio .eyebrow{font-size:12px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--y2k-accent-texto);margin:0}
 .y2k-cab-inicio h1{font-size:clamp(25px,3.1vw,32px) !important;line-height:1.12 !important;font-weight:700 !important;letter-spacing:-.022em;
@@ -358,8 +374,8 @@ a{color:var(--y2k-accent-texto)}
 /* punto de estado de la lista de parametros: gris mientras carga, se enciende al estar lista */
 .y2k-punto{width:7px;height:7px;border-radius:50%;background:var(--y2k-line-2);flex:none;margin-left:2px}
 .y2k-punto[data-estado="cargando"]{animation:y2k-respira 1.6s ease-in-out infinite}
-.y2k-punto[data-estado="listo"]{background:var(--y2k-ok-luz);box-shadow:0 0 0 2.5px color-mix(in srgb,var(--y2k-ok-luz) 24%,transparent),
-  0 0 9px 1px color-mix(in srgb,var(--y2k-ok-luz) 70%,transparent);animation:y2k-enciende 1s ease-out 1}
+.y2k-punto[data-estado="listo"]{background:var(--y2k-accent);box-shadow:0 0 0 2.5px color-mix(in srgb,var(--y2k-accent) 24%,transparent),
+  0 0 9px 1px color-mix(in srgb,var(--y2k-accent) 70%,transparent);animation:y2k-enciende 1s ease-out 1}
 .y2k-punto[data-estado="error"]{background:var(--y2k-peligro)}
 @keyframes y2k-respira{50%{opacity:.3}}
 @keyframes y2k-enciende{0%{transform:scale(.3);opacity:.4}55%{transform:scale(1.5);opacity:1}100%{transform:scale(1)}}
@@ -376,11 +392,30 @@ a{color:var(--y2k-accent-texto)}
 .st-key-serie button[aria-checked="true"]{background:var(--y2k-lente) !important;box-shadow:var(--y2k-lente-sombra) !important;
   border-color:transparent !important}
 .st-key-serie button[aria-checked="true"] p{font-weight:700 !important}
-/* boton principal: alto y ancho; espera (gris) hasta que el mapa y los datos esten listos */
-.st-key-ir_mapa button{min-height:52px !important;font-size:15.5px !important;border-radius:999px !important}
+/* boton principal: siempre azul. Si se pulsa antes de que el mapa y los datos esten listos no avanza y da dos
+   destellos rojos (el guion le pone .y2k-parpadeo); la senal de la carga es el punto de "Variable" */
+.st-key-ir_mapa button{min-height:52px !important;font-size:15.5px !important;border-radius:999px !important;position:relative;overflow:hidden}
 .st-key-ir_mapa button p{font-size:15.5px !important}
-html:not([data-y2k-mapa-listo]) .st-key-ir_mapa button,.st-key-ir_mapa button[aria-disabled="true"]{opacity:.5;filter:saturate(.3);
-  box-shadow:none !important;cursor:progress}
+.st-key-ir_mapa button > *{position:relative;z-index:1}
+.st-key-ir_mapa button::after{content:"";position:absolute;inset:0;border-radius:inherit;background:var(--y2k-peligro);opacity:0;pointer-events:none}
+.st-key-ir_mapa button.y2k-parpadeo::after{animation:y2k-rojo .9s ease-in-out}
+@keyframes y2k-rojo{0%,50%,100%{opacity:0}22%,72%{opacity:.95}}
+/* marcas para el guion: no ocupan lugar */
+[data-testid="stElementContainer"]:has(.y2k-oculto){display:none !important}
+/* avisos discretos: una linea con su icono; el detalle, al abrirla */
+.y2k-aviso{margin:0;font-size:12.5px;line-height:1.45;color:var(--y2k-ink-2)}
+p.y2k-aviso,details.y2k-aviso > summary{display:flex;align-items:flex-start;gap:7px}
+details.y2k-aviso > summary{cursor:pointer;list-style:none;border-radius:6px}
+details.y2k-aviso > summary::-webkit-details-marker{display:none}
+.y2k-aviso svg{width:15px;height:15px;flex:none;margin-top:1px;color:var(--y2k-alerta)}
+.y2k-aviso[data-tono="error"] svg{color:var(--y2k-peligro)}
+.y2k-aviso[data-tono="info"] svg{color:var(--y2k-accent-texto)}
+.y2k-aviso summary > span:first-of-type,p.y2k-aviso > span{flex:1 1 auto;min-width:0}
+.y2k-aviso .ver{color:var(--y2k-accent-texto);font-weight:600;text-decoration:underline;text-underline-offset:2px;white-space:nowrap;flex:none}
+.y2k-aviso .ver::after{content:" ▾"}
+details.y2k-aviso[open] .ver::after{content:" ▴"}
+details.y2k-aviso > div{margin:5px 0 0 22px}
+details.y2k-aviso > div p{margin:0 !important;font-size:12.5px !important;color:var(--y2k-ink-3) !important}
 /* pasos de la consulta: el actual resaltado, los demas en linea fina */
 .y2k-como{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:2px 0 0;padding:0;list-style:none;counter-reset:paso}
 .y2k-como li{display:flex;flex-direction:column;gap:4px;padding:10px 12px 11px;border-radius:16px;margin:0;font-size:12.5px;line-height:1.4;
@@ -415,8 +450,10 @@ html[data-y2k-panel="cerrado"]{--y2k-libre-izq:0px}
 .y2k-panel-cab .t,[data-testid="stMarkdownContainer"] .y2k-panel-cab p.t{margin:0;font-size:17px !important;font-weight:700;letter-spacing:-.01em;
   color:var(--y2k-ink) !important;line-height:1.2 !important}
 .y2k-hoja-cerrar{display:none !important}
-.st-key-y2k_cuerpo{flex:1 1 auto;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding:0 18px 18px !important;
-  gap:12px !important;scrollbar-width:thin;scrollbar-color:var(--y2k-line-2) transparent}
+.st-key-y2k_cuerpo{flex:1 1 auto;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding:6px 18px 18px !important;
+  gap:12px !important;scrollbar-width:thin;scrollbar-color:var(--y2k-line-2) transparent;
+  -webkit-mask-image:linear-gradient(180deg,transparent 0,#000 12px,#000 calc(100% - 14px),transparent 100%);
+  mask-image:linear-gradient(180deg,transparent 0,#000 12px,#000 calc(100% - 14px),transparent 100%)}
 /* secciones del panel: titulo y, a la derecha, su dato (cifra en capsula o la variable consultada) */
 .y2k-sec{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:10px 0 -2px;min-height:30px}
 .y2k-sec .t{font-size:11.5px;text-transform:uppercase;letter-spacing:.08em;font-weight:700;color:var(--y2k-ink-3);margin:0;flex:none}
@@ -451,7 +488,7 @@ html[data-y2k-panel="cerrado"]{--y2k-libre-izq:0px}
 .y2k-boton{all:unset;box-sizing:border-box;display:inline-flex;align-items:center;gap:8px;height:40px;padding:0 14px;border-radius:999px;cursor:pointer;
   font:700 13.5px/1 "Figtree",sans-serif;white-space:nowrap;transition:transform .12s,filter var(--y2k-dur),box-shadow var(--y2k-dur)}
 .y2k-boton svg{width:17px;height:17px;flex:none}
-.y2k-boton.prim{background:var(--y2k-accent);color:var(--y2k-sobre-acento);box-shadow:inset 0 1px 0 rgba(255,255,255,.35),0 8px 18px -10px var(--y2k-accent)}
+.y2k-boton.prim{color:var(--y2k-sobre-acento)}
 .y2k-boton.sec{color:var(--y2k-ink);box-shadow:0 0 0 1px var(--y2k-campo-borde) inset;background:var(--y2k-campo)}
 .y2k-boton.sec svg{color:var(--y2k-accent-texto)}
 .y2k-boton.sec:hover{box-shadow:0 0 0 1.5px var(--y2k-accent) inset}
@@ -473,6 +510,20 @@ html[data-y2k-panel="cerrado"]{--y2k-libre-izq:0px}
 .st-key-alerta_altura [data-testid="stExpander"] summary,.st-key-alerta_ficha [data-testid="stExpander"] summary{min-height:0;padding-top:5px;padding-bottom:5px}
 .st-key-alerta_altura [data-testid="stIconMaterial"],.st-key-alerta_ficha [data-testid="stIconMaterial"]{color:var(--y2k-alerta) !important}
 .st-key-alerta_altura summary p,.st-key-alerta_ficha summary p{font-size:12.5px !important;font-weight:500 !important;color:var(--y2k-ink-2) !important}
+/* filtro de estaciones por cobertura: boton circular arriba a la izquierda del mapa; activo, muestra el rango */
+.st-key-y2k_filtro{position:fixed !important;top:var(--y2k-g);left:max(var(--y2k-g),var(--y2k-libre-izq));z-index:50;width:auto !important;
+  height:var(--y2k-capsula);border-radius:999px;padding:4px !important;margin:0 !important;display:flex !important;flex-direction:row !important;
+  align-items:center;gap:0 !important;overflow:visible !important;transition:left var(--y2k-dur) var(--y2k-curva);animation:y2k-menu .3s var(--y2k-curva) backwards}
+html[data-y2k-panel="cerrado"] .st-key-y2k_filtro{left:calc(var(--y2k-g) * 2 + var(--y2k-abrir-w,120px))}
+.st-key-y2k_filtro > div{width:auto !important;flex:none !important}
+.st-key-y2k_filtro:not(:has(.stPopover)){display:none !important}
+.st-key-y2k_filtro .stPopover button{min-height:36px !important;height:36px;padding:0 13px 0 9px !important;justify-content:center;gap:6px}
+.st-key-y2k_filtro .stPopover button p{font-size:13.5px !important;font-weight:700 !important;font-variant-numeric:tabular-nums}
+.st-key-y2k_filtro:not(:has(.y2k-filtro-on)) .stPopover button{width:36px;min-width:36px;padding:0 !important}
+.st-key-y2k_filtro:not(:has(.y2k-filtro-on)) .stPopover button [data-testid="stMarkdownContainer"]{position:absolute !important;width:1px;height:1px;
+  overflow:hidden;clip:rect(0 0 0 0)}
+.st-key-y2k_filtro:has(.y2k-filtro-on) .stPopover button [data-testid="stIconMaterial"]{color:var(--y2k-accent-texto)}
+.st-key-y2k_filtro [data-testid="stPopoverButton"] > div > div[aria-hidden="true"]{display:none !important}
 /* boton para volver a mostrar el panel (escritorio) */
 .st-key-y2k_abrir{position:fixed !important;top:var(--y2k-g);left:var(--y2k-g);z-index:50;height:var(--y2k-capsula);width:auto !important;
   border-radius:999px;padding:4px !important;margin:0 !important}
@@ -485,17 +536,17 @@ html:not([data-y2k-panel="cerrado"]) .st-key-y2k_abrir{display:none !important}
 .y2k-ico svg{width:19px;height:19px;transition:transform var(--y2k-dur)}
 /* capsula de herramientas (derecha, bajo Ajustes): dibujo, capas y zoom en 2D; camara en 3D */
 .st-key-y2k_herr{position:fixed !important;right:var(--y2k-g);top:calc(var(--y2k-g) + var(--y2k-capsula) + 8px);z-index:50;width:auto !important;
-  padding:4px !important;margin:0 !important;border-radius:24px;gap:0 !important;animation:y2k-menu .3s var(--y2k-curva) both}
+  padding:4px !important;margin:0 !important;border-radius:24px;gap:0 !important;animation:y2k-menu .3s var(--y2k-curva) backwards}
 .st-key-y2k_herr:not(:has(.y2k-herr)),.st-key-y2k_abrir:not(:has([data-y2k-panel-btn])),.st-key-y2k_dock:not(:has(.st-key-y2k_dock_izq)),
 .st-key-y2k_panel:not(:has(.st-key-y2k_panel_cab)),.st-key-y2k_inicio:not(:has(.y2k-cab-inicio)),
 .st-key-y2k_exportar:not(:has(.y2k-cab-export)){display:none !important}
 .y2k-herr{display:flex;flex-direction:column;align-items:center;gap:2px}
-.y2k-herr button.h,.y2k-camara button{all:unset;box-sizing:border-box;width:36px;height:36px;display:grid;place-items:center;border-radius:50%;cursor:pointer;
+.y2k-herr button.h{all:unset;box-sizing:border-box;width:36px;height:36px;display:grid;place-items:center;border-radius:50%;cursor:pointer;
   color:var(--y2k-ink);transition:background var(--y2k-dur),transform .12s}
-.y2k-herr button.h:hover,.y2k-camara button:hover{background:var(--y2k-hover)}
+.y2k-herr button.h:hover{background:var(--y2k-hover)}
 .y2k-herr button.h[aria-expanded="true"]{box-shadow:var(--y2k-lente-sombra);background:var(--y2k-lente)}
-.y2k-herr button.h:active,.y2k-camara button:active{transform:scale(.92)}
-.y2k-herr button.h:focus-visible,.y2k-camara button:focus-visible{outline:2px solid var(--y2k-foco);outline-offset:-2px}
+.y2k-herr button.h:active{transform:scale(.92)}
+.y2k-herr button.h:focus-visible{outline:2px solid var(--y2k-foco);outline-offset:-2px}
 .y2k-herr svg{width:19px;height:19px}
 .y2k-herr hr{width:20px;border:0;border-top:1px solid var(--y2k-line);margin:3px 0}
 .y2k-grupo{position:relative}
@@ -542,12 +593,12 @@ html:not([data-y2k-panel="cerrado"]) .st-key-y2k_abrir{display:none !important}
 .st-key-preparar button{min-height:44px !important;padding:0 20px !important;font-size:15px !important;gap:8px}
 .st-key-preparar button p{font-size:15px !important;font-weight:700 !important}
 .st-key-preparar button:disabled{opacity:.55 !important;filter:saturate(.35)}
-.st-key-y2k_dock_der .stButton > button[kind="primary"]{box-shadow:inset 0 1px 0 rgba(255,255,255,.35),0 10px 22px -10px var(--y2k-accent) !important}
+.st-key-y2k_dock_der .stButton button[kind="primary"]{box-shadow:var(--y2k-boton-canto),0 10px 22px -10px var(--y2k-accent) !important}
 /* ficha de la estacion seleccionada (arriba a la derecha, junto a la columna de Ajustes) */
 .st-key-y2k_ficha{position:fixed !important;z-index:42;top:var(--y2k-g);right:calc(var(--y2k-g) * 2 + var(--y2k-capsula));
   width:320px !important;max-height:calc(100dvh - var(--y2k-dock-h) - var(--y2k-g) * 3);overflow:hidden;display:flex !important;
-  flex-direction:column;padding:0 !important;gap:0 !important;animation:y2k-menu .25s var(--y2k-curva) both}
-.st-key-y2k_ficha_cuerpo{padding:14px 16px !important;gap:8px !important}
+  flex-direction:column;padding:0 !important;gap:0 !important;animation:y2k-menu .25s var(--y2k-curva) backwards}
+.st-key-y2k_ficha_cuerpo{padding:14px 16px !important;gap:8px !important;--y2k-fundido:10px}
 .st-key-y2k_ficha:not(:has(.y2k-ficha-cab)){display:none !important}
 .y2k-ficha-cab{display:flex;flex-direction:column;gap:2px}
 .y2k-ficha-cab small{font-size:11.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--y2k-ink-3)}
@@ -562,12 +613,18 @@ html:not([data-y2k-panel="cerrado"]) .st-key-y2k_abrir{display:none !important}
 :is(.st-key-y2k_panel,.st-key-y2k_ficha,.st-key-y2k_inicio,.st-key-y2k_exportar) .stButton > button[kind="secondary"] p{color:var(--y2k-ink) !important}
 :is(.st-key-y2k_panel,.st-key-y2k_ficha,.st-key-y2k_inicio,.st-key-y2k_exportar) .stButton > button[kind="secondary"]:hover{
   box-shadow:0 0 0 1.5px var(--y2k-accent) inset !important}
-.stButton > button[kind="primary"],.stDownloadButton > button[kind="primary"]{background:var(--y2k-accent) !important;border:0 !important;
-  color:var(--y2k-sobre-acento) !important;box-shadow:inset 0 1px 0 rgba(255,255,255,.35),0 8px 18px -10px var(--y2k-accent) !important;
-  border-radius:999px !important;font-weight:700 !important}
-.stButton > button[kind="primary"] p,.stDownloadButton > button[kind="primary"] p{color:var(--y2k-sobre-acento) !important;font-weight:700 !important}
-.stButton > button[kind="primary"]:hover,.stDownloadButton > button[kind="primary"]:hover{filter:brightness(1.07)}
-.stButton > button:disabled,.stButton > button[kind="primary"]:disabled{opacity:.5;filter:saturate(.3);box-shadow:none !important}
+/* botones principales: vidrio liquido azul, con la misma textura que el resto (tinte del acento que deja pasar un poco
+   del fondo desenfocado, brillo superior, caustica abajo y canto de luz). El texto mantiene AA sobre el tinte */
+:is(.stButton button[kind="primary"],.stDownloadButton button[kind="primary"],.y2k-boton.prim,.y2k-dialogo button.prim){
+  background:var(--y2k-boton-brillo),var(--y2k-boton-caustica),var(--y2k-boton-tinte) !important;
+  -webkit-backdrop-filter:blur(10px) saturate(170%);backdrop-filter:blur(10px) saturate(170%);border:0 !important;
+  color:var(--y2k-sobre-acento) !important;border-radius:999px !important;font-weight:700 !important;
+  box-shadow:var(--y2k-boton-canto),0 10px 22px -12px var(--y2k-accent),0 2px 6px -3px rgba(0,0,0,.28) !important;
+  transition:filter var(--y2k-dur),transform .12s}
+:is(.stButton button[kind="primary"],.stDownloadButton button[kind="primary"],.y2k-boton.prim,.y2k-dialogo button.prim):active{transform:scale(.97)}
+.stButton button[kind="primary"] p,.stDownloadButton button[kind="primary"] p{color:var(--y2k-sobre-acento) !important;font-weight:700 !important}
+.stButton button[kind="primary"]:hover,.stDownloadButton button[kind="primary"]:hover{filter:brightness(1.07)}
+.stButton button:disabled,.stButton button[kind="primary"]:disabled{opacity:.5;filter:saturate(.3);box-shadow:none !important}
 .stButton > button[kind="tertiary"]{color:var(--y2k-accent-texto) !important;min-height:32px;padding:0 6px !important}
 :is(.st-key-y2k_panel,.st-key-y2k_ficha) [data-testid="stExpander"] details{border-radius:14px !important;
   border:0 !important;background:var(--y2k-campo);box-shadow:0 0 0 1px var(--y2k-campo-borde) inset}
@@ -638,7 +695,7 @@ details.y2k-det b{color:var(--y2k-ink)}
 .y2k-dialogo .botones{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px}
 .y2k-dialogo button{all:unset;box-sizing:border-box;cursor:pointer;font:600 13.5px/1 "Figtree",sans-serif;border-radius:999px;padding:11px 16px;
   color:var(--y2k-ink);background:var(--y2k-campo);box-shadow:0 0 0 1px var(--y2k-campo-borde) inset}
-.y2k-dialogo button.prim{background:var(--y2k-accent);color:var(--y2k-sobre-acento);box-shadow:none}
+.y2k-dialogo button.prim{color:var(--y2k-sobre-acento)}
 .y2k-dialogo button:focus-visible{outline:2px solid var(--y2k-foco);outline-offset:2px}
 
 /* ================= PANTALLA 3: EXPORTACION ================= */
@@ -646,7 +703,7 @@ details.y2k-det b{color:var(--y2k-ink)}
   width:min(960px,calc(100vw - 32px)) !important;max-height:calc(100dvh - 2 * (var(--y2k-g) + var(--y2k-capsula) + 8px));overflow:hidden;
   padding:0 !important;gap:0 !important;border-radius:30px;display:flex !important;flex-direction:column;
   animation:y2k-entra-centro .5s var(--y2k-curva) both}
-.st-key-y2k_exportar_cuerpo{margin:16px 4px 16px 0 !important;padding:10px 26px 8px 30px !important;gap:16px !important}
+.st-key-y2k_exportar_cuerpo{padding:26px 30px !important;gap:16px !important}
 .y2k-cab-export .eyebrow{font-size:12px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--y2k-accent-texto);margin:0;
   display:flex;align-items:center;gap:8px}
 .y2k-cab-export h1{font-size:clamp(23px,2.8vw,29px) !important;line-height:1.15 !important;font-weight:700 !important;letter-spacing:-.02em;
@@ -700,7 +757,7 @@ details.y2k-det b{color:var(--y2k-ink)}
 .st-key-y2k_exportar [data-testid="stColumn"] > div{gap:14px}
 
 /* cambio de pantalla: lo de la pantalla anterior se esconde en cuanto llega la nueva (Streamlit lo quita al terminar) */
-:is(__P_PARAM__,__P_EXPORT__) :is(.st-key-y2k_panel,.st-key-y2k_dock,.st-key-y2k_herr,.st-key-y2k_ficha,.st-key-y2k_abrir),
+:is(__P_PARAM__,__P_EXPORT__) :is(.st-key-y2k_panel,.st-key-y2k_dock,.st-key-y2k_herr,.st-key-y2k_ficha,.st-key-y2k_abrir,.st-key-y2k_filtro),
 :is(__P_PARAM__,__P_EXPORT__) :is(.st-key-y2k_escenario .y2k-sobre,.st-key-y2k_visor3d){display:none !important}
 :is(__P_MAPA__,__P_EXPORT__) .st-key-y2k_inicio,:is(__P_MAPA__,__P_PARAM__) .st-key-y2k_exportar{display:none !important}
 """
@@ -720,7 +777,7 @@ html{--y2k-libre-izq:0px !important;--y2k-g:10px}
   left:var(--y2k-g);right:var(--y2k-g);transform:none !important;width:auto !important;border-radius:26px;
   max-height:calc(100dvh - var(--y2k-capsula) - var(--y2k-g) * 3 - var(--y2k-sello) - env(safe-area-inset-bottom));
   animation:y2k-entra-abajo .45s var(--y2k-curva) both}
-.st-key-y2k_inicio_cuerpo,.st-key-y2k_exportar_cuerpo{margin:14px 3px 14px 0 !important;padding:8px 15px 6px 18px !important}
+.st-key-y2k_inicio_cuerpo,.st-key-y2k_exportar_cuerpo{padding:22px 18px !important;--y2k-fundido:14px}
 .y2k-como{gap:6px}
 .y2k-como li{padding:8px 8px 9px;font-size:11.5px}
 .y2k-como li span{display:none}
@@ -758,17 +815,26 @@ html:not([data-y2k-hoja="abierta"]) .st-key-y2k_panel{transform:translateY(14px)
 .y2k-hoja-cerrar{display:inline-flex !important}
 .st-key-y2k_cuerpo{padding:0 16px 16px !important}
 /* con la consulta abierta se aparta lo demas (herramientas, leyenda, escala y creditos del mapa, ficha, camara 3D) */
-html[data-y2k-hoja="abierta"] :is(.st-key-y2k_herr,.st-key-y2k_ficha,.y2k-leyenda,.y2k-atrib3d,.y2k-nota-mov,.y2k-aviso3d){
-  opacity:0 !important;visibility:hidden !important;pointer-events:none !important;transition:opacity .15s,visibility 0s .15s}
+/* con la consulta abierta se ocultan enseguida; al cerrarla vuelven cuando la tarjeta ya bajo, en su mismo lugar */
+:is(.st-key-y2k_herr,.st-key-y2k_ficha,.st-key-y2k_filtro,.y2k-leyenda,.y2k-atrib3d){transition:opacity .2s ease .28s,visibility 0s .28s}
+html[data-y2k-hoja="abierta"] :is(.st-key-y2k_herr,.st-key-y2k_ficha,.st-key-y2k_filtro,.y2k-leyenda,.y2k-atrib3d,.y2k-nota-mov,.y2k-aviso3d){
+  opacity:0 !important;visibility:hidden !important;pointer-events:none !important;transition:opacity .1s,visibility 0s .1s}
+.st-key-y2k_filtro,html[data-y2k-panel="cerrado"] .st-key-y2k_filtro{left:var(--y2k-g) !important}
 html[data-y2k-hoja="abierta"][data-y2k-p="mapa"] .y2k-cierre-hoja{display:block;position:fixed;inset:0;z-index:39;background:transparent;
   -webkit-tap-highlight-color:transparent}
 .st-key-y2k_ficha{top:var(--y2k-g) !important;left:var(--y2k-g);right:calc(var(--y2k-g) * 2 + var(--y2k-capsula)) !important;width:auto !important;
   max-height:38dvh}
+.stApp:has(.st-key-y2k_filtro .stPopover) .st-key-y2k_ficha{top:calc(var(--y2k-g) * 2 + var(--y2k-capsula)) !important}
 .st-key-y2k_ficha_cuerpo{padding:12px 14px !important}
 .y2k-menu{min-width:min(240px,calc(100vw - 90px))}
-.y2k-atrib3d{font-size:10px;max-width:62vw}
+.y2k-atrib3d{font-size:9.5px;max-width:62vw;padding:3px 9px}
 .y2k-leyenda{max-width:calc(100vw - 80px)}
 .y2k-vacio{top:35%}
+"""
+# Celular en Streamlit Community Cloud: la franja de abajo (junto a su boton) lleva el credito del relieve 3D
+CSS_SELLO_MOVIL = """
+.y2k-atrib3d{left:var(--y2k-g) !important;right:auto !important;bottom:calc(env(safe-area-inset-bottom) + 5px) !important;
+  max-width:calc(100vw - 132px) !important;font-size:9.5px !important;padding:3px 9px !important;line-height:1.25 !important}
 """
 # Muy estrecho: las pildoras se compactan
 CSS_ESTRECHO = """
@@ -780,9 +846,9 @@ CSS_ESTRECHO = """
 # Pantallas bajas (celular en horizontal): todo mas compacto
 CSS_BAJO = """
 :root{--y2k-capsula:40px;--y2k-g:8px;--y2k-panel-w:300px}
-.st-key-y2k_inicio_cuerpo,.st-key-y2k_exportar_cuerpo{margin:10px 4px 10px 0 !important;padding:6px 16px 4px 20px !important;gap:10px !important}
+.st-key-y2k_inicio_cuerpo,.st-key-y2k_exportar_cuerpo{padding:16px 20px !important;gap:10px !important;--y2k-fundido:12px}
 .y2k-como{display:none}
-.y2k-herr button.h,.y2k-camara button{width:32px;height:32px}
+.y2k-herr button.h{width:32px;height:32px}
 .st-key-preparar button{min-height:38px !important}
 """
 
@@ -800,10 +866,10 @@ CSS_ALTO = """
 .y2k-km{background:transparent;color:var(--y2k-ink)}
 .y2k-menu{background:var(--lg-denso) !important}
 .stButton > button,.stDownloadButton > button{border:2px solid var(--y2k-line-2) !important}
-.stButton > button[kind="primary"],.stDownloadButton > button[kind="primary"],.y2k-boton.prim{box-shadow:none !important}
+.stButton button[kind="primary"],.stDownloadButton button[kind="primary"],.y2k-boton.prim{box-shadow:none !important}
 :is(button,a,input,select,textarea,summary,[role="radio"],[role="tab"],[tabindex]):focus-visible{outline:3px solid var(--y2k-foco) !important;outline-offset:3px !important}
 .y2k-hint,[data-testid="stMarkdownContainer"] p.y2k-hint,[data-testid="stCaptionContainer"] p{color:var(--y2k-ink-2) !important}
-a,details.y2k-det summary .ver{text-decoration:underline !important}
+a,details.y2k-det summary .ver,.y2k-aviso .ver{text-decoration:underline !important}
 .st-key-y2k_escenario::after{-webkit-backdrop-filter:none;backdrop-filter:none}
 .y2k-barra{box-shadow:0 0 0 2px var(--y2k-line-2) inset}
 .y2k-barra i{background:var(--y2k-accent);box-shadow:none}
@@ -814,7 +880,9 @@ a,details.y2k-det summary .ver{text-decoration:underline !important}
 # Lite: los mismos controles y datos sin desenfoque, brillos ni transiciones (variante de baja transparencia)
 CSS_LITE = """
 :root{--y2k-lite:1;--y2k-dur:0s;--lg-claro:var(--lg-denso);--lg-regular:var(--lg-denso);--lg-filtro-claro:none;--lg-filtro-regular:none;--lg-brillo:none;
-  --lg-especular:transparent}
+  --lg-especular:transparent;--y2k-boton-caustica:none}
+:is(.stButton button[kind="primary"],.stDownloadButton button[kind="primary"],.y2k-boton.prim,.y2k-dialogo button.prim){
+  -webkit-backdrop-filter:none !important;backdrop-filter:none !important}
 :is(__VIDRIO__){box-shadow:inset 0 1px 0 var(--lg-luz),0 0 0 1px var(--lg-filo),0 10px 24px -14px rgba(0,0,0,.5) !important}
 [data-testid="stPopoverBody"]{-webkit-backdrop-filter:none;backdrop-filter:none}
 .st-key-y2k_escenario::after{-webkit-backdrop-filter:none;backdrop-filter:none}
@@ -837,7 +905,7 @@ CSS_FORZADOS = """
 @media (forced-colors: active){
   :is(__VIDRIO__),.y2k-menu{border:1px solid CanvasText !important;forced-color-adjust:auto}
   :is(__VIDRIO__)::before,:is(__VIDRIO__)::after{display:none}
-  .y2k-ico,.y2k-herr button.h,.y2k-camara button,.y2k-dialogo button,.y2k-chip,.y2k-km,.y2k-boton,.y2k-kpi,.y2k-menu button,.y2k-como li{
+  .y2k-ico,.y2k-herr button.h,.y2k-dialogo button,.y2k-chip,.y2k-km,.y2k-boton,.y2k-kpi,.y2k-menu button,.y2k-como li{
     border:1px solid ButtonText !important}
   .stButton > button,.stDownloadButton > button,.stPopover button,[data-testid="stExpander"] details,[data-testid="stFileUploaderDropzone"]{
     border:1px solid ButtonText !important}
@@ -869,7 +937,7 @@ def _vidrio(css):
 def aplicar(tema="sistema", contraste="sistema", lite=False, sello=False):
     """Estilos de toda la pagina (st.html con solo <style> no dibuja nada). `sello`: la app corre en Streamlit
     Community Cloud, que pone su boton abajo a la derecha (fuera de la app): esa esquina queda libre."""
-    css = (CSS + (":root{--y2k-sello:46px}@media " + MOVIL + "{:root{--y2k-sello:42px}}" if sello else "")
+    css = (CSS + (":root{--y2k-sello:46px}@media " + MOVIL + "{:root{--y2k-sello:42px}" + CSS_SELLO_MOVIL + "}" if sello else "")
            + "@media (min-width: 761px) and (max-width: 1100px){" + CSS_MEDIO + "}"
            + "@media " + MOVIL + "{" + CSS_MOVIL + "}" + "@media (max-width: 380px){" + CSS_ESTRECHO + "}"
            + "@media " + BAJO + "{" + CSS_BAJO + "}"
@@ -925,6 +993,9 @@ ICONOS = {
     "rayo": _svg('<path d="M13 2 4 14h7l-1 8 9-12h-7z"/>'),
     "mapa2d": _svg('<path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2z"/><path d="M9 4v14M15 6v14"/>'),
     "consulta": _svg('<path d="M4 6h16M4 12h16M4 18h10"/>'),
+    "info": _svg('<circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/>'),
+    "camara": _svg('<path d="M12 3a9 9 0 1 0 9 9"/><path d="M21 3v6h-6"/><path d="M21 9a9 9 0 0 0-3-4"/>'
+                   '<circle cx="12" cy="12" r="2.5"/>'),
     "cerrar": _svg('<path d="M6 6l12 12M18 6 6 18"/>'),
     "volver": _svg('<path d="M15 6l-6 6 6 6"/>'),
     "excel": _svg('<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><path d="M9 12l4 5M13 12l-4 5"/>'),
@@ -1083,7 +1154,11 @@ _UI = r"""
   function hojaAbierta() { return raiz.getAttribute("data-y2k-hoja") === "abierta"; }
   function ponerHoja(abierta) {
     raiz.setAttribute("data-y2k-hoja", abierta ? "abierta" : "cerrada");
-    marcarIframe(); sincronizar(); distribuir(); setTimeout(distribuir, 380);
+    // con la consulta abierta el 3D no gira solo (el telefono no dibuja de mas debajo de la tarjeta)
+    if (abierta) w.__y2kParaVuelta = w.performance.now();
+    // la escala y los creditos del mapa se apartan al abrir y vuelven cuando la tarjeta ya se cerro
+    if (abierta) marcarIframe(); else setTimeout(marcarIframe, 300);
+    sincronizar(); distribuir(); setTimeout(distribuir, 380);
   }
   function abrirPanel() {
     if (esMovil()) { if (!hojaAbierta()) ponerHoja(true); }
@@ -1147,12 +1222,21 @@ _UI = r"""
   // ---------- "Seleccionar area en el mapa": espera a que el mapa 2D haya cargado ----------
   var mapaVisto = 0;
   function mapaListo() { return raiz.getAttribute("data-y2k-mapa-listo") === "1"; }
+  // listo para pasar al mapa: lo dice Python (lista, variable, fechas y series) y el navegador (el mapa cargo)
+  function ctaListo() {
+    var m = d.querySelector(".y2k-cta-listo");
+    return mapaListo() && !!m && m.getAttribute("data-listo") === "1";
+  }
   function esperaMapa() {
-    var listo = mapaListo();
+    var v = ctaListo() ? "false" : "true";
     d.querySelectorAll(".st-key-ir_mapa button").forEach(function (b) {
-      var v = b.disabled ? null : (listo ? "false" : "true");
-      if (v && b.getAttribute("aria-disabled") !== v) b.setAttribute("aria-disabled", v);
+      if (b.getAttribute("aria-disabled") !== v) b.setAttribute("aria-disabled", v);
     });
+  }
+  function parpadear(b) {
+    b.classList.remove("y2k-parpadeo"); void b.offsetWidth; b.classList.add("y2k-parpadeo");
+    clearTimeout(b.__y2kParpadeo);
+    b.__y2kParpadeo = setTimeout(function () { b.classList.remove("y2k-parpadeo"); }, 950);
   }
   function revisarMapaListo() {
     if (mapaListo()) return;
@@ -1188,16 +1272,18 @@ _UI = r"""
     "[data-y2k-subir],[data-y2k-editar],[data-y2k-borrar],[data-y2k-capa],[data-y2k-zoom],[data-y2k-menu],[data-y2k-2d],[data-y2k-ver],[data-y2k-pulsar]";
   function alClic(ev) {
     var t = ev.target && ev.target.closest ? ev.target : null;
-    // el boton principal de Parametros no responde hasta que el mapa esta listo
+    // el boton principal de Parametros no avanza hasta que todo esta listo: parpadea en rojo
     var cta = t && t.closest(".st-key-ir_mapa button");
-    if (cta && !mapaListo()) { ev.preventDefault(); ev.stopPropagation(); return; }
-    // con la consulta abierta (celular), tocar el mapa la cierra
+    if (cta && !ctaListo()) { ev.preventDefault(); ev.stopPropagation(); parpadear(cta); return; }
+    // con la consulta abierta (celular), tocar el mapa la cierra; elegir 2D o 3D tambien (para ver el mapa)
     if (t && t.closest(".y2k-cierre-hoja")) { ev.preventDefault(); ponerHoja(false); return; }
+    if (t && esMovil() && hojaAbierta() && t.closest(".st-key-vista")) ponerHoja(false);
     var b = t ? t.closest(SELECTORES) : null;
     if (!t || !t.closest(".y2k-grupo")) cerrarMenus(null);
     if (!b) return;
     if (b.getAttribute("aria-disabled") === "true" && !b.hasAttribute("data-y2k-area")) return;
-    if (b.closest(".y2k-menu")) cerrarMenus(null);
+    // las opciones de camara se pulsan varias veces seguidas: su menu sigue abierto
+    if (b.closest(".y2k-menu") && !b.hasAttribute("data-y2k-cam")) cerrarMenus(null);
     if (b.hasAttribute("data-y2k-menu")) { alternarMenu(b, ev.detail === 0); return; }
     if (b.hasAttribute("data-y2k-panel-btn")) ponerPanel(estadoPanel() === "abierto" ? "cerrado" : "abierto");
     else if (b.hasAttribute("data-y2k-consulta")) ponerHoja(!hojaAbierta());
@@ -1287,14 +1373,19 @@ _UI = r"""
     var W = w.innerWidth, H = w.innerHeight, movil = esMovil();
     var ajustes = caja(".st-key-y2k_ajustes"), herr = caja(".st-key-y2k_herr"), abrir = caja(".st-key-y2k_abrir");
     var ficha = caja(".st-key-y2k_ficha"), dock = caja(".st-key-y2k_dock"), panel = caja(".st-key-y2k_panel");
+    var filtro = caja(".st-key-y2k_filtro");
     var pIzq = caja(".st-key-y2k_dock_izq"), pDer = caja(".st-key-y2k_dock_der");
     var col = [ajustes, herr].filter(Boolean);
     var izq = G, der = col.length ? W - Math.min.apply(null, col.map(function (r) { return r.left; })) + G : G;
     var arriba = abrir ? abrir.bottom + G : G, abajo = G;
     if (!movil && estadoPanel() === "abierto" && panel) izq = panel.right + G;
+    if (filtro) arriba = Math.max(arriba, filtro.bottom + G);
+    if (abrir) raiz.style.setProperty("--y2k-abrir-w", Math.round(abrir.width) + "px");
     if (dock) raiz.style.setProperty("--y2k-dock-h", Math.round(movil ? H - dock.top : H - dock.top + G) + "px");
     if (movil) {
-      abajo = H - Math.min(panel ? panel.top : H, dock ? dock.top : H) + G;
+      // con la consulta abierta lo que va sobre el mapa se oculta: se reparte como si estuviera cerrada, asi al
+      // cerrarla nada salta de lugar
+      abajo = H - (dock ? dock.top : H) + G;
       if (ficha) arriba = Math.max(arriba, ficha.bottom + G);
     }
     // franja inferior: lo que comparte columna con una pildora sube por encima de ella
@@ -1414,7 +1505,8 @@ _UI = r"""
       if (win.map && win.map.invalidateSize) try { win.map.invalidateSize(); } catch (e) {}
     }
     var cl = doc.documentElement.classList;
-    cl.toggle("y2k-hoja-abierta", esMovil() && hojaAbierta() && pantalla() === "mapa");
+    // un iframe nuevo con la consulta abierta tambien aparta la escala (al cerrarla la quita ponerHoja, con demora)
+    if (esMovil() && hojaAbierta() && pantalla() === "mapa") cl.add("y2k-hoja-abierta");
     cl.toggle("y2k-lite", esLite()); cl.toggle("y2k-oscuro", css("--y2k-tono") === "oscuro"); cl.toggle("y2k-alto", css("--y2k-alto") === "1");
     var map = win.map, L = win.L;
     if (!map || !L) return;
@@ -1748,12 +1840,28 @@ def etiqueta(texto, punto=None, opcional=False):
        f'{"<span class=opc aria-hidden=true>· opcional</span>" if opcional else ""}{pt}</p>')
 
 
+def marca_listo(listo):
+    """Marca invisible para el guion: si la consulta ya puede pasar al mapa (el guion suma si el mapa cargo)."""
+    md(f'<span class="y2k-oculto y2k-cta-listo" data-listo="{1 if listo else 0}" hidden></span>')
+
+
+def aviso(resumen, detalle="", tono="alerta"):
+    """Aviso discreto: una linea con su icono y, si hay detalle, "Ver más". `tono`: "alerta", "error" o "info"."""
+    icono = ICONOS["info"] if tono == "info" else ICONOS["alerta"]
+    rol = ' role="alert"' if tono == "error" else ""
+    if detalle:
+        md(f'<details class="y2k-aviso" data-tono="{tono}"{rol}><summary>{icono}<span>{escape(resumen)}</span>'
+           f'<span class="ver">Ver más</span></summary><div><p>{escape(detalle)}</p></div></details>')
+    else:
+        md(f'<p class="y2k-aviso" data-tono="{tono}"{rol}>{icono}<span>{escape(resumen)}</span></p>')
+
+
 def como_funciona():
     """Pasos de la consulta (el actual resaltado). En el celular solo los titulos."""
     md('<ol class="y2k-como" aria-label="Pasos de la consulta">'
-       '<li aria-current="step"><b>Consulta</b><span>Serie, variable y periodo.</span></li>'
-       '<li><b>Área y estaciones</b><span>Delimitación de la zona y revisión de la cobertura de cada estación.</span></li>'
-       '<li><b>Descarga</b><span>Un Excel por estación, con resumen y cita de la fuente.</span></li></ol>')
+       '<li aria-current="step"><b>Establecer parámetros</b><span>Serie, variable y periodo.</span></li>'
+       '<li><b>Delimitar el área de análisis</b><span>Zona de estudio y cobertura de cada estación.</span></li>'
+       '<li><b>Preparar la descarga</b><span>Nombre del ZIP y organización de los archivos.</span></li></ol>')
 
 
 def pie_inicio(texto_legal):
@@ -1861,17 +1969,41 @@ def herramientas_2d(hay_cuenca):
        '</div>')
 
 
-def controles_camara():
-    """Botones de camara del 3D (en la capsula de herramientas, y2k_herr): alternativa a arrastrar, girar e inclinar."""
-    b = [("acercar", "mas", "Acercar"), ("alejar", "menos", "Alejar"), None,
-         ("izq", "girar_izq", "Girar a la izquierda"), ("der", "girar_der", "Girar a la derecha"), None,
-         ("subir", "inclinar_mas", "Inclinar más"), ("bajar", "inclinar_menos", "Inclinar menos"),
-         ("norte", "norte", "Orientar al norte")]
-    html = "".join("<hr>" if x is None else
-                   f'<button type="button" data-y2k-cam="{x[0]}" aria-label="{x[2]}" title="{x[2]}">{ICONOS[x[1]]}</button>'
-                   for x in b)
-    md(f'<div class="y2k-herr y2k-camara" role="group" aria-label="Cámara 3D">{html}'
+def herramientas_3d(textura, escala):
+    """Capsula de herramientas del 3D (va en y2k_herr), como la del 2D: menu de camara (girar, inclinar, norte; es la
+    alternativa a los gestos), menu de capas (textura del relieve y, con Altura, su escala) y zoom. Las opciones de
+    capas pulsan botones ocultos (y2k_tex_<n>, y2k_esc_<n>)."""
+    camara = "".join(f'<button type="button" role="menuitem" data-y2k-cam="{c}">{ICONOS[i]}<span>{t}</span></button>'
+                     for c, i, t in (("izq", "girar_izq", "Girar a la izquierda"), ("der", "girar_der", "Girar a la derecha"),
+                                     ("subir", "inclinar_mas", "Inclinar más"), ("bajar", "inclinar_menos", "Inclinar menos"),
+                                     ("norte", "norte", "Orientar al norte")))
+    texturas = "".join(f'<button type="button" role="menuitemradio" aria-checked="{"true" if t == textura else "false"}" '
+                       f'data-y2k-pulsar="y2k_tex_{i}"><span>{t}</span></button>'
+                       for i, t in enumerate(("Satélite", "Topográfico", "Altura")))
+    escalas = ("<hr><p class=\"tit\" aria-hidden=\"true\">Escala de colores</p>" + "".join(
+        f'<button type="button" role="menuitemradio" aria-checked="{"true" if e == escala else "false"}" '
+        f'data-y2k-pulsar="y2k_esc_{i}"><span>{e.replace("Rango", "Escala")}</span></button>'
+        for i, e in enumerate(("Rango de la zona", "Rango de Colombia")))) if textura == "Altura" else ""
+    md('<div class="y2k-herr" role="toolbar" aria-orientation="vertical" aria-label="Herramientas del 3D">'
+       '<div class="y2k-grupo">'
+       f'<button type="button" class="h" data-y2k-menu="camara" aria-haspopup="menu" aria-expanded="false" '
+       f'aria-label="Cámara" title="Cámara">{ICONOS["camara"]}</button>'
+       '<div class="y2k-menu" role="menu" data-y2k-menu-de="camara" aria-label="Cámara" hidden>'
+       f'<p class="tit" aria-hidden="true">Cámara</p>{camara}</div></div>'
+       '<div class="y2k-grupo">'
+       f'<button type="button" class="h" data-y2k-menu="capas3d" aria-haspopup="menu" aria-expanded="false" '
+       f'aria-label="Textura del relieve" title="Textura del relieve">{ICONOS["capas"]}</button>'
+       '<div class="y2k-menu" role="menu" data-y2k-menu-de="capas3d" aria-label="Textura del relieve" hidden>'
+       f'<p class="tit" aria-hidden="true">Textura del relieve</p>{texturas}{escalas}</div></div>'
+       '<hr>'
+       f'<button type="button" class="h" data-y2k-cam="acercar" aria-label="Acercar" title="Acercar">{ICONOS["mas"]}</button>'
+       f'<button type="button" class="h" data-y2k-cam="alejar" aria-label="Alejar" title="Alejar">{ICONOS["menos"]}</button>'
        '<span class="y2k-vh y2k-camara-estado" aria-live="polite"></span></div>')
+
+
+def marca_filtro():
+    """Marca (invisible) de que el filtro de cobertura esta activo: el boton muestra el rango en vez del icono solo."""
+    md('<span class="y2k-oculto y2k-filtro-on" hidden></span>')
 
 
 def leyenda_estaciones(colores, en3d=False, hay_excluidas=False):

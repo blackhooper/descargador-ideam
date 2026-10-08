@@ -37,9 +37,9 @@ ALTITUD_DUDOSA_M = 200
 ALTO_PIN_SEL = 260          # m reales del pin de la seleccionada (en la escena x EXAGERACION)
 DISTANCIA_ORBITA = 4000     # m de la camara a la estacion
 ALTO_VISOR = 650            # px, alto del mapa 3D en la app (para convertir distancia en zoom)
-# inclinacion de la camara: 35 = casi cenital, 60 = de lado (mas inclinada pide relieve hasta el
-# horizonte y llena la memoria grafica)
-PITCH_MIN, PITCH_MAX = 35, 60
+# inclinacion de la vuelta de camara: 35 = casi cenital, 45 = el tope con que termina la animacion de entrada (mas
+# inclinada mira hacia el borde del relieve y pide tiles lejanos que no aportan)
+PITCH_MIN, PITCH_MAX = 35, 45
 MAX_PITCH = 70              # tope de inclinacion al arrastrar o con los botones de camara
 MARGEN_VISTA = 6            # grados de holgura sobre el horizonte de montanas
 DISTANCIAS_HORIZONTE = (100, 200, 350, 550, 800, 1100, 1500, 2000, 2600, 3300, 4000)
@@ -1013,8 +1013,8 @@ def _orbita_grupo(estaciones, zona_gdf, base):
         t0 = base
     alturas = [((altura_terreno(e["lon"], e["lat"]) or t0) - base) * EXAGERACION for e in grupo] or [(t0 - base) * EXAGERACION]
     z_min, z_max = min(alturas), max(alturas) + 170 * EXAGERACION
-    # vista de conjunto: la camara mas alta (inclinacion max. 55) para ver todas las estaciones
-    return _parametros_orbita(lon, lat, t0, z_min, z_max, alcance, pitch_max=55)
+    # vista de conjunto: la camara alta para ver todas las estaciones (inclinacion maxima PITCH_MAX)
+    return _parametros_orbita(lon, lat, t0, z_min, z_max, alcance)
 
 
 def _parametros_orbita(lon, lat, t0, z_min, z_max, alcance, pitch_max=PITCH_MAX):
@@ -1169,9 +1169,15 @@ def construir_deck(cuenca_gdf, area_gdf, estaciones, seleccionada=None, textura=
     visible = lambda z: ancho_px * 360 / (512 * 2 ** z)   # grados que caben a lo ancho de la pantalla
     margen = max(maxx - minx, maxy - miny, 0.06, 0.9 * visible(orbita["inicio"]["zoom"]))
     extension = [minx - margen, miny - margen, maxx + margen, maxy + margen]
-    # Alejarse tiene un tope: hasta que el recuadro del relieve casi llena la pantalla (no se ve suelto en la neblina)
+    # Alejarse tiene un tope: hasta que el recuadro del relieve casi llena la pantalla a lo ancho y, con la inclinacion
+    # maxima, el borde de abajo de la pantalla sigue cayendo dentro de el (la camara queda detras del punto que mira,
+    # a unas 0,76 alturas de pantalla; si no, el relieve se ve suelto en el cielo). Nunca por encima del encuadre inicial
     ancho_ext = min(extension[2] - extension[0], extension[3] - extension[1])
-    orbita["minZoom"] = round(min(math.log2(ancho_px * 360 / (512 * 0.9 * ancho_ext)), orbita["inicio"]["zoom"] - 0.3), 2)
+    z_ancho = math.log2(ancho_px * 360 / (512 * 0.9 * ancho_ext))
+    metros_px_z0 = 40075016.686 * math.cos(math.radians(lat_c)) / 512
+    mitad_alto_m = (extension[3] - extension[1]) / 2 * 111320
+    z_inclinado = math.log2(metros_px_z0 * 0.76 * (850 if celular else 900) / mitad_alto_m)
+    orbita["minZoom"] = round(min(max(z_ancho, z_inclinado), orbita["inicio"]["zoom"] - 0.3), 2)
     orbita["maxPitch"] = MAX_PITCH
     # La vista arranca donde empieza la vuelta de camara (si el guion no corre, igual se ve bien).
     # "position" sube el punto de giro a la altura de la estacion o del grupo. Inclinacion maxima de 70 grados (deck.gl

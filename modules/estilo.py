@@ -106,8 +106,9 @@ TOKENS = {
         "lg-filtro-claro": "blur(14px) saturate(210%) brightness(1.06)",
         "lg-filtro-regular": "blur(24px) saturate(185%) brightness(1.05)",
         "y2k-velo": "radial-gradient(120% 95% at 50% 45%,rgba(233,238,245,.30),rgba(214,224,238,.62))",
-        "y2k-mapa-fondo": "#C9D6E4", "y2k-cielo": "linear-gradient(180deg,#A9C9EA 0%,#DCE7F2 38%,#DCE7F2 100%)",
-        "y2k-niebla": "#DCE7F2",
+        # el 3D usa el cielo y la neblina oscuros tambien en el tema claro (se ven mejor sobre el relieve)
+        "y2k-mapa-fondo": "#C9D6E4", "y2k-cielo": "linear-gradient(180deg,#0B1428 0%,#1C2D4F 38%,#1C2D4F 100%)",
+        "y2k-niebla": "#1C2D4F",
         # boton principal: vidrio liquido azul (tinte, brillo superior, caustica abajo y canto de luz)
         "y2k-boton-tinte": "rgba(6,58,172,.92)",
         "y2k-boton-brillo": "linear-gradient(180deg,rgba(255,255,255,.38) 0%,rgba(255,255,255,.07) 40%,rgba(255,255,255,0) 50%,rgba(255,255,255,.05) 100%)",
@@ -320,10 +321,13 @@ a{color:var(--y2k-accent-texto)}
 .st-key-y2k_visor3d iframe[title*="st_folium"]{height:100% !important;width:100% !important;display:block;border:0}
 /* cielo detras del relieve 3D (el 3D no tiene mapa plano de fondo) */
 [data-testid="stDeckGlJsonChart"]{background:var(--y2k-cielo);overflow:hidden}
-/* neblina hacia el horizonte: el relieve solo se dibuja alrededor de la zona y su borde lejano se funde en ella */
-.y2k-neblina{position:absolute;inset:0;pointer-events:none;opacity:0;transition:opacity .25s linear;
-  background:linear-gradient(180deg,var(--y2k-niebla) 0%,color-mix(in srgb,var(--y2k-niebla) 90%,transparent) 12%,
-    color-mix(in srgb,var(--y2k-niebla) 50%,transparent) 27%,transparent 46%)}
+/* neblina lejana: el relieve solo se pide alrededor de la zona y su borde se funde en ella. El guion calcula en que
+   altura de la pantalla queda ese borde (--n-y) y la franja de transicion (--n-banda); si el borde no se ve, no hay
+   neblina. Por encima del borde solo hay cielo, del mismo color */
+.y2k-neblina{position:absolute;inset:0;pointer-events:none;opacity:0;transition:opacity .3s linear;
+  background:linear-gradient(180deg,var(--y2k-niebla) 0,var(--y2k-niebla) var(--n-y,0px),
+    color-mix(in srgb,var(--y2k-niebla) 50%,transparent) calc(var(--n-y,0px) + var(--n-banda,80px) * .4),
+    transparent calc(var(--n-y,0px) + var(--n-banda,80px)))}
 @media (prefers-reduced-motion: reduce){.y2k-neblina{transition:none}}
 /* velo sobre el mapa en Parametros y Exportacion: se ve detras, desenfocado, y no recibe clics */
 .st-key-y2k_escenario::after{content:"";position:absolute;inset:0;z-index:30;pointer-events:none;opacity:0;visibility:hidden;
@@ -1908,24 +1912,51 @@ _UI = r"""
     var p = m.querySelector(".y2k-cam-lectura");
     if (p && p.textContent !== txt) p.textContent = txt;
   }
-  // Neblina hacia el horizonte: crece con la inclinacion (mirando hacia abajo no hace falta). Y el clic derecho, que gira
-  // e inclina, no abre el menu del navegador
-  function neblina(v) {
+  // Neblina lejana, solo donde termina el relieve que se pide (el `extent` de la capa "terreno"): se busca en que altura
+  // de la pantalla el suelo sale de ese recuadro (en tres columnas, la mas baja) y la neblina tapa de ahi hacia arriba,
+  // con una franja de transicion. Si el borde no se ve (de cerca o mirando hacia abajo), no hay neblina. Antes dependia
+  // solo de la inclinacion: de cerca, al levantar la vista, aparecia a pocos metros
+  function bordeRelieve(deck, W, H) {
+    var capa = deck.layerManager && deck.layerManager.getLayers().find(function (x) { return x.id === "terreno"; });
+    var ext = capa && capa.props.extent, vps = deck.getViewports ? deck.getViewports() : [];
+    var vp = vps && vps[0];
+    if (!ext || !vp || !vp.unproject) return null;
+    var fuera = function (x, y) {
+      var q;
+      try { q = vp.unproject([x, y], {targetZ: 0}); } catch (e) { return true; }
+      return !q || !isFinite(q[0]) || !isFinite(q[1]) || q[0] < ext[0] || q[0] > ext[2] || q[1] < ext[1] || q[1] > ext[3];
+    };
+    var borde = null;
+    [0.08, 0.5, 0.92].forEach(function (f) {
+      var x = W * f;
+      // se busca entre el borde de arriba y el centro (que es el punto que mira la camara, dentro de la zona)
+      if (!fuera(x, 0) || fuera(x, H / 2)) return;   // arriba aun hay relieve (o ni el centro lo tiene): sin borde aqui
+      var a = 0, b = H / 2;                          // a: fuera del recuadro; b: dentro
+      for (var i = 0; i < 12 && b - a > 1.5; i++) { var m = (a + b) / 2; if (fuera(x, m)) a = m; else b = m; }
+      borde = borde === null ? b : Math.max(borde, b);
+    });
+    return borde;
+  }
+  function neblina(deck) {
     var zona = d.querySelector('[data-testid="stDeckGlJsonChart"]'), l = lienzo3d();
     if (!zona || !l) return;
+    // el clic derecho, que gira e inclina, no abre el menu del navegador
     if (!zona.__y2kMenuCtx) { zona.__y2kMenuCtx = true; zona.addEventListener("contextmenu", function (e) { e.preventDefault(); }); }
     var n = zona.querySelector(".y2k-neblina");
     if (!n) { n = d.createElement("div"); n.className = "y2k-neblina"; n.setAttribute("aria-hidden", "true"); l.insertAdjacentElement("afterend", n); }
-    var o = w.__y2kEnIntro ? 0 : Math.max(0, Math.min(1, ((v.pitch || 0) - 30) / 32));
-    o = Math.round(o * 20) / 20;
-    if (n.__o !== o) { n.__o = o; n.style.opacity = String(o); }
+    var r = zona.getBoundingClientRect(), y = w.__y2kEnIntro ? null : bordeRelieve(deck, r.width, r.height);
+    var o = y === null ? "0" : "1";
+    if (y !== null) {
+      var yr = Math.round(y), banda = Math.round(Math.max(48, r.height * 0.12));
+      if (n.__y !== yr) { n.__y = yr; n.style.setProperty("--n-y", yr + "px"); n.style.setProperty("--n-banda", banda + "px"); }
+    }
+    if (n.style.opacity !== o) n.style.opacity = o;
   }
   function vigia3d() {
     if (!lienzo3d()) return;
     var deck = buscarDeck();
     if (!deck) return;
-    var v = vistaActual(deck);
-    neblina(v); lecturaCamara(v);
+    neblina(deck); lecturaCamara(vistaActual(deck));
   }
 
   // ---------- avisos de fallo (sobre la zona libre del mapa) ----------
@@ -2080,7 +2111,7 @@ _UI = r"""
 
 def instalar_ui():
     """Inyecta el guion de la interfaz en la pagina principal (sobrevive a las recargas de Streamlit)."""
-    codigo = (_UI.replace("__V__", "33").replace("__ICONO_ALERTA__", json.dumps(ICONOS["alerta"]))
+    codigo = (_UI.replace("__V__", "34").replace("__ICONO_ALERTA__", json.dumps(ICONOS["alerta"]))
               .replace("__MOVIL__", json.dumps(MOVIL)).replace("__VIDRIO__", json.dumps(VIDRIO)))
     cuerpo = ("(function(){var w=window.parent;var s=w.document.createElement('script');"
               f"s.textContent={json.dumps(codigo)};w.document.head.appendChild(s);s.remove();}})();")

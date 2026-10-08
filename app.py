@@ -1,4 +1,5 @@
 import json
+import os
 import re
 import threading
 import time
@@ -44,7 +45,21 @@ PANTALLA = {"parametros": "parametros", "mapa": "mapa", "descarga": "exportar"}[
 ss._mapa_en_run_anterior = ss.get("_mapa_en_esta_run", False)
 ss._mapa_en_esta_run = False
 
-estilo.aplicar(ss.tema, ss.contraste, ss.lite)
+
+
+def _en_streamlit_cloud():
+    """True en Streamlit Community Cloud, que pone su boton ("Manage app" o su logo) abajo a la derecha, fuera de la
+    app: esa esquina se deja libre. Y2K_SELLO=1 simula ese boton para revisar la disposicion en otro servidor."""
+    if os.environ.get("Y2K_SELLO") == "1" or os.getcwd().startswith("/mount/src"):
+        return True
+    try:
+        h = st.context.headers
+        return any(".streamlit.app" in (h.get(k) or "") for k in ("Host", "Origin", "X-Forwarded-Host"))
+    except Exception:
+        return False
+
+
+estilo.aplicar(ss.tema, ss.contraste, ss.lite, sello=_en_streamlit_cloud())
 estilo.guiones_globales(PANTALLA)
 # Guion que colorea el relieve en la textura "Altura": se instala desde el arranque de la pagina (no cuesta nada
 # si no se usa) para que ya este puesto antes de que el visor 3D pida sus imagenes
@@ -187,21 +202,46 @@ def _sin_tildes(texto):
     return "".join(c for c in unicodedata.normalize("NFD", str(texto).lower()) if unicodedata.category(c) != "Mn")
 
 
-def _parametros_de(catalogo_param, frecuencia):
-    """{etiqueta: parametro} de todas las variables con esa frecuencia, con un nombre legible en "nombre": la
-    descripcion y la unidad, con la variable delante si la descripcion no la nombra. Sin codigos (salvo que dos
-    parametros se llamen igual)."""
-    params = [p for p in catalogo_param if p["frecuencia"] == frecuencia]
+_ORDEN_FRECUENCIAS = {f: i for i, f in enumerate(ideam_parameters.FRECUENCIAS_NORMALES)}
+_RAIZ_FRECUENCIA = {"Diario": "diari", "Mensual": "mensual", "Anual": "anual", "Horario": "horari",
+                    "03 Veces al Día": "veces", "02 Veces al Día": "veces"}
+
+
+def _variables_de(catalogo_param, serie, frecuencia=None):
+    """{etiqueta: parametro} de la serie elegida, con un nombre legible en "nombre": la descripcion y la unidad, con
+    la variable delante si la descripcion no la nombra. En la serie estandar se agrega la frecuencia (si la
+    descripcion no la dice), porque ahi se elige sin filtrarla antes. Sin codigos (salvo que dos se llamen igual)."""
+    if serie == "Especial":
+        params = [p for p in catalogo_param if p["frecuencia"] == frecuencia]
+    else:
+        params = [p for p in catalogo_param if not p.get("especial", ideam_parameters.es_especial(p["frecuencia"]))]
     nombres = {}
     for p in params:
-        var = p["variable_nombre"]
-        desc = p["descripcion"]
+        var, desc = p["variable_nombre"], p["descripcion"]
         nombre = desc if _sin_tildes(var.split()[0]) in _sin_tildes(desc) else f"{var} · {desc[:1].lower()}{desc[1:]}"
-        nombres[p["etiqueta"]] = f"{nombre} ({p['unidad']})" if p["unidad"] else nombre
+        if p["unidad"]:
+            nombre += f" ({p['unidad']})"
+        raiz = _RAIZ_FRECUENCIA.get(p["frecuencia"], _sin_tildes(p["frecuencia"]))
+        if serie != "Especial" and raiz not in _sin_tildes(desc):
+            nombre += f" · {ideam_parameters.nombre_frecuencia(p['frecuencia']).lower()}"
+        nombres[p["etiqueta"]] = nombre
     repetidos = {n for n in nombres.values() if list(nombres.values()).count(n) > 1}
-    ordenados = sorted(params, key=lambda p: (_sin_tildes(p["variable_nombre"]), _sin_tildes(nombres[p["etiqueta"]])))
+    ordenados = sorted(params, key=lambda p: (_sin_tildes(p["variable_nombre"]), _ORDEN_FRECUENCIAS.get(p["frecuencia"], 99),
+                                              _sin_tildes(nombres[p["etiqueta"]])))
     return {p["etiqueta"]: {**p, "nombre": nombres[p["etiqueta"]] + (f" · {p['etiqueta']}" if nombres[p["etiqueta"]] in repetidos else "")}
             for p in ordenados}
+
+
+def _variable_por_defecto(opciones):
+    """Posicion de la variable que se ofrece primero: el dia pluviometrico, o la primera precipitacion diaria."""
+    etiquetas = list(opciones)
+    for prueba in (lambda p: p["etiqueta"] == "PTPM_CON",
+                   lambda p: p["variable"] == "PRECIPITACION" and p["frecuencia"] == "Diario",
+                   lambda p: p["variable"] == "PRECIPITACION"):
+        i = next((i for i, e in enumerate(etiquetas) if prueba(opciones[e])), None)
+        if i is not None:
+            return i
+    return 0
 
 
 def _param_de(etiqueta):
@@ -429,44 +469,63 @@ def pantalla_parametros():
     mapa_de_fondo()
     pendientes = []
     with hueco_inicio:
+        # la tarjeta de vidrio no se desplaza: lo hace este cuerpo (asi el brillo y el canto de luz quedan fijos)
+        cuerpo = st.container(key="y2k_inicio_cuerpo")
+    with cuerpo:
         estilo.cabecera_inicio()
-        avanzado = bool(ss.get("avanzado", False))
-        frecuencias = ideam_parameters.FRECUENCIAS_AVANZADAS if avanzado else ideam_parameters.FRECUENCIAS_NORMALES
-        estilo.etiqueta("Frecuencia")
-        frecuencia = st.selectbox("Frecuencia", frecuencias, key=f"frec_{int(avanzado)}", label_visibility="collapsed",
-                                  persist_state="session")
+        # Serie de tiempo y frecuencia, como en la pagina del IDEAM
+        serie = st.segmented_control(
+            "Serie de tiempo y frecuencia", ["Estándar", "Especial"], default="Estándar", key="serie", required=True,
+            width="stretch", persist_state="session",
+            help="**Estándar:** series diarias, mensuales, anuales, horarias y de 2 o 3 datos al día; solo se elige la "
+                 "variable.\n\n**Especial:** series decadales y multianuales, y de alta frecuencia (cada 10, 5 o 2 "
+                 "minutos); primero se elige la frecuencia.")
 
-        # Lista de parametros del IDEAM: el desplegable queda en gris hasta que carga (el punto se enciende)
+        # Lista de variables del IDEAM: los desplegables quedan en gris hasta que carga (el punto se enciende)
         estado_cat = "cargando" if not _precarga["listo"] else ("error" if _precarga["error"] else "listo")
-        opciones = {}
+        catalogo_param = []
         if estado_cat == "listo":
             try:
-                opciones = _parametros_de(ideam_parameters.obtener_catalogo_parametros(), frecuencia)
+                catalogo_param = ideam_parameters.obtener_catalogo_parametros()
             except Exception as e:
                 estado_cat, _precarga["error"] = "error", str(e)
         if estado_cat == "cargando":
             pendientes.append(lambda: not _precarga["listo"])
-        estilo.etiqueta("Parámetro", punto=estado_cat)
+        vacio = "No disponible" if estado_cat == "error" else None
+
+        frecuencia = None
+        if serie == "Especial":
+            estilo.etiqueta("Frecuencia")
+            frecuencias = ideam_parameters.frecuencias_especiales(catalogo_param) if catalogo_param else []
+            if frecuencias:
+                frecuencia = st.selectbox("Frecuencia", frecuencias, key="frec_especial", label_visibility="collapsed",
+                                          format_func=ideam_parameters.nombre_frecuencia, persist_state="session")
+            else:
+                st.selectbox("Frecuencia", [], index=None, key="frec_espera", label_visibility="collapsed", disabled=True,
+                             placeholder=vacio or ("Sin series especiales" if estado_cat == "listo" else "Frecuencia"))
+        opciones = _variables_de(catalogo_param, serie, frecuencia) if catalogo_param else {}
+        estilo.etiqueta("Variable", punto=estado_cat)
         etiquetas = list(opciones)
-        clave_param = f"par_{frecuencia}"
+        clave_param = f"par_esp_{frecuencia}" if serie == "Especial" else "par_estandar"
         if etiquetas:
-            # se puede escribir para buscar; por defecto, el primero de precipitacion
-            defecto = next((i for i, e in enumerate(etiquetas) if opciones[e]["variable"] == "PRECIPITACION"), 0)
-            etiqueta = st.selectbox("Parámetro", etiquetas, index=defecto, key=clave_param, label_visibility="collapsed",
+            etiqueta = st.selectbox("Variable", etiquetas, index=_variable_por_defecto(opciones), key=clave_param,
+                                    label_visibility="collapsed",
                                     format_func=lambda e: opciones[e]["nombre"] if e in opciones else e,
                                     placeholder="Escribe para buscar", persist_state="session")
         else:
             # mientras carga (o si fallo), un desplegable gris que no se puede abrir; otra clave, para que el de
-            # verdad nazca con su valor por defecto
-            etiqueta = st.selectbox("Parámetro", [], index=None, key="par_espera", label_visibility="collapsed",
-                                    disabled=True, placeholder=("Cargando la lista del IDEAM…" if estado_cat == "cargando"
-                                                                else "No se pudo cargar la lista" if estado_cat == "error"
-                                                                else "No hay parámetros con esta frecuencia"))
+            # verdad nazca con su valor por defecto. El unico aviso de la carga es el punto de la etiqueta
+            etiqueta = st.selectbox("Variable", [], index=None, key="par_espera", label_visibility="collapsed",
+                                    disabled=True, placeholder=vacio or ("Sin variables" if estado_cat == "listo" else "Variable"))
         param = opciones.get(etiqueta) if etiqueta else None
         if estado_cat == "error":
-            st.error(f"No se pudo cargar la lista de parámetros del IDEAM. {_precarga['error'] or ''}".strip(),
+            st.error(f"No se pudo cargar la lista de variables del IDEAM. {_precarga['error'] or ''}".strip(),
                      icon=":material/cloud_off:")
             st.button("Reintentar", key="reintentar_catalogo", icon=":material/replay:", on_click=_reintentar_catalogo)
+        if param and param.get("avanzado"):
+            estilo.detalles("El IDEAM entrega estas series de a un mes por consulta.",
+                            "<p>Diez años son 120 consultas por estación. Conviene usar periodos cortos y pocas "
+                            "estaciones.</p>", ver="Ver más")
 
         c1, c2 = st.container(key="y2k_fechas").columns(2, gap="small")   # en una fila tambien en el celular
         with c1:
@@ -486,38 +545,17 @@ def pantalla_parametros():
             st.warning(f"Con frecuencia {_frecuencia_txt(param['frecuencia'])}, este periodo daría hasta {_num(filas)} filas por "
                        "estación y Excel admite alrededor de un millón por hoja. Acorta el periodo.",
                        icon=":material/table_rows:")
+        st.checkbox("Separar el ZIP en carpetas por cobertura", value=True, key="carpetas", persist_state="session",
+                    help="Alta (70–100 %), media (50–70 %), baja (25–50 %) y crítica (0–25 %) del periodo consultado.")
 
-        with st.expander("Ajustes avanzados", icon=":material/tune:"):
-            st.toggle("Series cada 2, 5 o 10 minutos", key="avanzado", persist_state="session",
-                      help="Descarga avanzada: series con muchísimos datos. El IDEAM entrega solo un mes por consulta.")
-            if avanzado:
-                st.warning("El IDEAM entrega estos datos de **un mes por consulta** (10 años = 120 consultas por estación). "
-                           "Usa periodos cortos y pocas estaciones.", icon=":material/hourglass_top:")
-            st.checkbox("Separar el ZIP en carpetas por cobertura", value=True, key="carpetas", persist_state="session",
-                        help="Alta (70–100 %), media (50–70 %), baja (25–50 %) y crítica (0–25 %) del periodo consultado.")
-
-        # Series del parametro elegido: se piden por detras mientras la persona termina de elegir
+        # Estaciones con la serie elegida: se piden por detras mientras la persona termina de elegir. El boton se
+        # enciende cuando todo esta listo (sin textos de carga)
         series = _precargar_series(param["etiqueta"]) if param else None
         if series and not series["listo"]:
             pendientes.append(lambda s=series: not s["listo"])
-        if estado_cat == "cargando":
-            texto, estado = "Cargando la lista de parámetros del IDEAM…", "cargando"
-        elif estado_cat == "error":
-            texto, estado = "Sin la lista de parámetros no se puede continuar.", "error"
-        elif param is None:
-            texto, estado = "Elige un parámetro para continuar.", "pendiente"
-        elif not fechas_ok or excede:
-            texto, estado = "Revisa las fechas para continuar.", "error"
-        elif not series["listo"]:
-            texto, estado = "Consultando qué estaciones tienen este parámetro…", "cargando"
-        elif series["error"]:
-            texto, estado = "El IDEAM no respondió; se volverá a intentar en el mapa.", "listo"
-        else:
-            texto, estado = "Todo listo: el mapa y los datos ya cargaron.", "listo"
+        listo = bool(param and fechas_ok and not excede and series and series["listo"])
         st.button("Seleccionar área en el mapa", type="primary", key="ir_mapa", icon=":material/arrow_forward:",
-                  icon_position="right", width="stretch", disabled=estado != "listo", on_click=_ir_mapa,
-                  args=(clave_param,))
-        estilo.espera(texto, estado)
+                  icon_position="right", width="stretch", disabled=not listo, on_click=_ir_mapa, args=(clave_param,))
         estilo.como_funciona()
         estilo.toggle_lite("lite_inicio", "Modo Lite",
                            "Para equipos con poca memoria gráfica: sin desenfoque ni animaciones y con un 3D más "
@@ -569,6 +607,27 @@ def dialogo_subida():
         st.rerun()
 
 
+def _km_txt(valor):
+    """Cifra corta en km o km²: "2", "2,5", "0,8", "1.234"."""
+    if valor < 10:
+        return f"{valor:.1f}".rstrip("0").rstrip(".").replace(".", ",")
+    return _num(valor)
+
+
+def _control_buffer():
+    """Buffer en una pildora pequena: al pulsarla se activa o desactiva y se cambia el ancho (de 0,5 en 0,5 km)."""
+    activo = bool(ss.get("buf_on", True))
+    km = float(ss.get("buf_km") or 2.0)
+    with st.container(key="y2k_buffer"):
+        with st.popover(f"Buffer · {_km_txt(km)} km" if activo else "Sin buffer", icon=":material/radar:",
+                        key="pop_buffer", help="Franja alrededor del área para incluir las estaciones cercanas"):
+            buffer_on = st.toggle("Incluir estaciones cercanas", value=True, key="buf_on", persist_state="session",
+                                  help="Agrega una franja alrededor del área para tener en cuenta las estaciones cercanas.")
+            buffer_km = st.number_input("Ancho del buffer (km)", min_value=0.5, max_value=15.0, value=2.0, step=0.5,
+                                        format="%.1f", key="buf_km", disabled=not buffer_on, persist_state="session")
+    return buffer_on, buffer_km
+
+
 def pantalla_mapa():
     consulta = ss.consulta
     param = _param_de(consulta["etiqueta"])
@@ -584,12 +643,7 @@ def pantalla_mapa():
     # la capsula de herramientas, las pildoras de abajo y la ficha de la estacion elegida
     with hueco_panel:
         with st.container(key="y2k_panel_cab"):
-            estilo.asa_hoja()
-            with st.container(key="y2k_panel_fila", horizontal=True, gap=None, vertical_alignment="center"):
-                st.button(f"{param['descripcion']} · {_periodo(fecha_ini, fecha_fin)}", key="chip_param",
-                          icon=":material/arrow_back:", width="stretch", on_click=_volver_parametros,
-                          help="Volver a Parámetros para cambiar el parámetro o las fechas")
-                estilo.controles_panel()
+            estilo.cabecera_panel()
         cuerpo = st.container(key="y2k_cuerpo")
     with hueco_abrir:
         estilo.boton_abrir_panel()
@@ -597,13 +651,14 @@ def pantalla_mapa():
     # ---------------- area y buffer ----------------
     with cuerpo:
         area_km2 = _area_km2(cuenca) if cuenca is not None else None
-        estilo.seccion("Área de estudio", f"≈ {_num(area_km2)} km²" if area_km2 else "")
+        estilo.seccion("Área de estudio", capsula=f"≈ {_km_txt(area_km2)} km²" if area_km2 else None,
+                       valor="" if cuenca is not None else "Sin definir")
         estilo.acciones_area(cuenca is not None, vista)
-        buffer_on = st.toggle("Incluir estaciones cercanas (buffer)", value=True, key="buf_on", persist_state="session",
-                              help="Agrega una franja alrededor del área para tener en cuenta las estaciones cercanas.")
-        buffer_km = st.slider("Ancho del buffer", 0.5, 15.0, 2.0, 0.5, key="buf_km", format="%.1f km",
-                              disabled=not buffer_on, persist_state="session")
-        estilo.seccion("Calidad de los datos")
+        buffer_on, buffer_km = _control_buffer()
+        # la variable consultada, en corto (sin fechas): al pulsarla se vuelve a Parametros
+        estilo.seccion("Calidad de los datos", chip=(
+            param["variable_nombre"], f"{param['descripcion']} · {_periodo(fecha_ini, fecha_fin)}. "
+                                      "Pulsa para cambiar la variable o el periodo"))
         caja_calidad = st.container()
         estilo.pie()
 
@@ -618,11 +673,10 @@ def pantalla_mapa():
         union = cuenca.union_all()
         zona["zona"] = ["cuenca" if union.covers(g) else "buffer" for g in zona.geometry]
         if not zona.empty:
-            with caja_calidad, st.spinner("Comparando la altitud de las estaciones con el relieve…"):
-                _revisar_altitudes(zona)
+            # sin textos de carga: mientras se calcula, el escaner recorre el area en el mapa
+            _revisar_altitudes(zona)
             try:
-                with caja_calidad, st.spinner("Consultando en el IDEAM qué datos tiene cada estación…"):
-                    calidad = ideam_parameters.get_metadata_availability(zona, param, fecha_ini, fecha_fin)
+                calidad = ideam_parameters.get_metadata_availability(zona, param, fecha_ini, fecha_fin)
                 for columna in ["Cantidad Probable", "Esperados", "Porcentaje (%)", "Clase calidad",
                                 "Serie DHIME", "Inicio serie", "Fin serie"]:
                     zona[columna] = calidad[columna].values
@@ -664,7 +718,7 @@ def pantalla_mapa():
     with escenario:
         if vista == "3D":
             if zona is None or zona.empty:
-                estilo.sobre_mapa("Marca tu área en la vista 2D para verla en relieve." if cuenca is None else
+                estilo.sobre_mapa("Delimita el área en la vista 2D para verla en relieve." if cuenca is None else
                                   "No hay estaciones en esta zona. Activa o amplía el buffer.", "y2k-vacio")
             else:
                 altura = None
@@ -784,7 +838,8 @@ def pantalla_mapa():
         if error_ideam:
             st.error(error_ideam, icon=":material/cloud_off:")
         elif cuenca is None:
-            st.html('<p class="y2k-hint">Marca el área para ver qué estaciones hay y cuántos datos tiene cada una.</p>')
+            st.html('<p class="y2k-hint">Delimita el área de estudio para evaluar la disponibilidad de datos de cada '
+                    'estación.</p>')
         elif zona is not None and zona.empty:
             st.warning("No hay estaciones del IDEAM en esta zona. Activa o amplía el buffer.", icon=":material/location_off:")
         elif excede:
@@ -792,8 +847,8 @@ def pantalla_mapa():
                        "por estación y Excel admite alrededor de un millón por hoja. Acorta el periodo en Parámetros.",
                        icon=":material/table_rows:")
         elif evaluada and descargables.empty:
-            st.warning("Ninguna estación de esta zona tiene datos de este parámetro en el periodo. Cambia las fechas o el "
-                       "parámetro (botón de arriba) o amplía el buffer.", icon=":material/search_off:")
+            st.warning("Ninguna estación de la zona tiene datos de esta variable en el periodo. Cambia la variable o el "
+                       "periodo, o amplía el buffer.", icon=":material/search_off:")
         elif evaluada:
             panel_estadisticas.tablero(zona, descargables, seleccion, param, cifras, dudosas, rango)
 
@@ -808,19 +863,21 @@ def pantalla_mapa():
     # ---------------- pildoras de abajo: 2D/3D y "Preparar descarga" ----------------
     listo = evaluada and n_sel > 0 and not excede
     if listo:
-        razon = f"{n_sel} {'estaciones' if n_sel != 1 else 'estación'} · {panel_estadisticas.duracion_aprox(cifras['segundos'])}"
+        razon = (f"{n_sel} {'estaciones' if n_sel != 1 else 'estación'} · "
+                 f"{panel_estadisticas.duracion_aprox(cifras['segundos'])}")
     elif cuenca is None:
-        razon = "Primero marca el área en el mapa"
+        razon = "Delimita el área de estudio"
     elif error_ideam:
         razon = "No se pudo consultar el IDEAM"
     elif excede:
         razon = "El periodo es demasiado largo para Excel"
     elif evaluada and descargables is not None and not descargables.empty:
-        razon = "Marca al menos una estación en la lista"
+        razon = "Selecciona al menos una estación"
     else:
         razon = "No hay estaciones con datos en esta zona"
     with hueco_dock:
         with st.container(key="y2k_dock_izq", horizontal=True, gap=None, vertical_alignment="center"):
+            estilo.boton_consulta()   # celular: abre y cierra la tarjeta de la consulta
             st.segmented_control("Vista del mapa", ["2D", "3D"], key="vista", required=True,
                                  label_visibility="collapsed", persist_state="session")
             if vista == "3D" and zona is not None and not zona.empty:
@@ -848,8 +905,9 @@ def pantalla_mapa():
         if ss.estacion_sel and zona is not None and not zona.empty:
             fila = zona[[ideam_downloader.codigo_de_estacion(r, i) == ss.estacion_sel for i, r in zona.iterrows()]]
             if not fila.empty:
-                panel_estadisticas.tarjeta_seleccionada(fila.iloc[0], rango, vista,
-                                                        descargable=ss.estacion_sel in codigos_desc)
+                with st.container(key="y2k_ficha_cuerpo"):   # se desplaza el cuerpo, no el vidrio
+                    panel_estadisticas.tarjeta_seleccionada(fila.iloc[0], rango, vista,
+                                                            descargable=ss.estacion_sel in codigos_desc)
 
     # Botones ocultos: los pulsan los menus y los avisos de fallo del navegador (siempre por eleccion del usuario)
     with hueco_ocultos:
@@ -858,6 +916,7 @@ def pantalla_mapa():
         st.button("Ver en 2D", key="y2k_pasar2d", on_click=_pasar_a_2d)
         st.button("Borrar el área", key="y2k_borrar", on_click=_borrar_cuenca)
         st.button("Subir un archivo", key="y2k_subir", on_click=_abrir_subida)
+        st.button("Cambiar la variable", key="chip_param", on_click=_volver_parametros)
 
     # Lo condicional va al final, para no mover de lugar (y rehacer) lo de arriba
     if usar_intro and not ss.lite:
@@ -880,11 +939,13 @@ def _recibo(d):
     p = d["param"]
     unidad = f" ({p['unidad']})" if p.get("unidad") else ""
     estilo.recibo([
-        ("Parámetro", p["descripcion"] + unidad, f"Frecuencia {_frecuencia_txt(p['frecuencia'])}"),
+        ("Variable", p["descripcion"] + unidad, f"Frecuencia {_frecuencia_txt(p['frecuencia'])}"),
         ("Periodo", f"{d['ini']:%d/%m/%Y} – {d['fin']:%d/%m/%Y}", ""),
         ("Estaciones", f"{n}", f"{en_area} en el área" + (f" · {n - en_area} en el buffer" if n - en_area else "")),
-        ("Archivo", "Un Excel por estación",
-         ("En carpetas por cobertura · " if d.get("carpetas") else "") + "con resumen_descarga.csv y CITACION.txt"),
+        ("Archivo", [("Un Excel por estación", "excel", "")]
+         + ([("Carpetas por cobertura", "carpeta", "Alta, media, baja y crítica")] if d.get("carpetas") else [])
+         + [("resumen_descarga.csv", "tabla", "Cobertura y resultado por estación"),
+            ("CITACION.txt", "cita", "Cita de la fuente")], ""),
         ("Fuente", "IDEAM · DHIME", ""),
     ])
 
@@ -915,7 +976,8 @@ def pantalla_descarga():
     resultado = ss.resultado
     # Tarjeta de vidrio: a la izquierda el avance y lo que se hace con la descarga; a la derecha el recibo y las
     # condiciones de uso (en el celular, una debajo de la otra)
-    with hueco_exportar:
+    # la tarjeta de vidrio no se desplaza: lo hace su cuerpo (el brillo y el borde quedan fijos)
+    with hueco_exportar, st.container(key="y2k_exportar_cuerpo"):
         if estado == "pendiente":
             titulo, tono = "Descargando datos del IDEAM", "vivo"
         elif estado == "lista":

@@ -9,19 +9,22 @@ import streamlit.components.v1 as components
 # El mapa 2D ocupa siempre la ventana (escenario) y no se vuelve a cargar al
 # cambiar de pantalla:
 #   1. Parametros: el mapa se ve detras, velado y sin clics; encima, una
-#      tarjeta de vidrio con la frecuencia, el parametro, las fechas y el boton
-#      "Seleccionar area en el mapa" (se habilita cuando todo cargo).
-#   2. Mapa: el mapa a pantalla completa con un panel lateral (area, buffer y
-#      calidad de los datos), una capsula de herramientas (dibujo, capas y
-#      zoom), las pildoras de abajo (2D/3D y "Preparar descarga") y la ficha de
-#      la estacion elegida.
+#      tarjeta de vidrio con la serie (estandar o especial), la variable, las
+#      fechas y el boton "Seleccionar area en el mapa" (se enciende cuando todo
+#      cargo; no hay textos de carga, solo el punto de la etiqueta).
+#   2. Mapa: el mapa a pantalla completa con el panel de la consulta (area,
+#      buffer y calidad de los datos; en el celular, una tarjeta que se abre con
+#      el boton "Consulta"), una capsula de herramientas (dibujo, capas y zoom),
+#      las pildoras de abajo (2D/3D y "Preparar descarga") y la ficha de la
+#      estacion elegida.
 #   3. Exportacion: el mapa velado otra vez y una tarjeta con el avance real,
 #      el recibo de la descarga, el nombre del ZIP y las condiciones de uso.
 # Arriba a la derecha, en todas: un unico menu de Ajustes (tema, alto
 # contraste, modo Lite y manual).
 # El vidrio deja ver el mapa (desenfoque y saturacion del fondo), tiene brillo
-# especular que sigue al puntero, canto de luz y sombra de profundidad. Dos
-# materiales:
+# especular que sigue al puntero, canto de luz y sombra de profundidad. Ninguna
+# superficie de vidrio se desplaza: si el contenido no cabe, se desplaza un
+# cuerpo interior (asi el brillo y el canto quedan fijos). Dos materiales:
 #   - claro: controles pequenos (solo texto principal e iconos), mas transparente
 #   - regular: superficies con texto (mas opaco, para leer sobre cualquier mapa)
 # Ejes independientes: tema (claro/oscuro; sin elegir, el del sistema), alto
@@ -67,8 +70,8 @@ PALETAS = {
 TEMAS = {"sistema": "Sistema", "claro": "Claro", "oscuro": "Oscuro"}
 CONTRASTES = {"sistema": "Sistema", "alto": "Alto"}
 
-# Celular en vertical: el panel pasa a ser una hoja inferior. En horizontal (pantalla baja) se usa el panel
-# lateral, mas compacto: una hoja inferior dejaria el mapa en una franja.
+# Celular en vertical: el panel pasa a ser una tarjeta flotante que se abre con el boton "Consulta". En horizontal
+# (pantalla baja) se usa el panel lateral, mas compacto: la tarjeta dejaria el mapa en una franja.
 MOVIL = "(max-width: 760px)"
 BAJO = "(max-height: 560px) and (min-width: 761px)"
 
@@ -196,10 +199,15 @@ CSS = """
   --y2k-libre-izq:0px; --y2k-dock-h:64px; --y2k-hoja-h:62px;
   --y2k-ov-top:12px; --y2k-ov-izq:12px; --y2k-ov-der:68px; --y2k-ov-abajo:72px;
   --y2k-ley-abajo:72px; --y2k-atrib-abajo:72px;
+  /* esquina de abajo a la derecha reservada al boton de Streamlit Community Cloud ("Manage app" o su logo), que va
+     fuera de la app y no se puede mover: la pone aplicar(sello=True) */
+  --y2k-sello:0px;
   --y2k-lite:0; --y2k-dur:.32s; --y2k-curva:cubic-bezier(.2,.8,.2,1);
   --y2k-centro:calc(var(--y2k-libre-izq) + (100vw - var(--y2k-libre-izq)) / 2);
   color-scheme:light dark;
 }
+/* sin "jalar para recargar" del navegador del celular (recargaba la pagina sin querer) */
+html,body{overscroll-behavior:none}
 html, body, .stApp, [class*="st-"], button, input, textarea, select{font-family:"Figtree",system-ui,-apple-system,"Segoe UI",sans-serif}
 /* los iconos de Streamlit son una fuente: sin esto salen como texto ("dark_mode") */
 [data-testid="stIconMaterial"], [data-testid="stExpanderIcon"]{font-family:"Material Symbols Rounded" !important}
@@ -234,16 +242,15 @@ a{color:var(--y2k-accent-texto)}
 .y2k-vh{position:absolute !important;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 
 /* ================= MATERIAL: VIDRIO LIQUIDO ================= */
-:is(__VIDRIO_CLARO__){background:var(--lg-brillo),var(--lg-claro);-webkit-backdrop-filter:var(--lg-filtro-claro);
-  backdrop-filter:var(--lg-filtro-claro)}
-:is(__VIDRIO_REGULAR__){background:var(--lg-brillo),var(--lg-regular);-webkit-backdrop-filter:var(--lg-filtro-regular);
-  backdrop-filter:var(--lg-filtro-regular)}
+/* brillo especular: una luz suave que sigue al puntero (la mueve el guion de la interfaz). Va en el fondo del
+   propio vidrio, que no se desplaza: la luz siempre queda bajo el puntero */
+:is(__VIDRIO_CLARO__){background:radial-gradient(240px 150px at var(--mx,22%) var(--my,-40%),var(--lg-especular),transparent 70%),
+  var(--lg-brillo),var(--lg-claro);-webkit-backdrop-filter:var(--lg-filtro-claro);backdrop-filter:var(--lg-filtro-claro)}
+:is(__VIDRIO_REGULAR__){background:radial-gradient(240px 150px at var(--mx,22%) var(--my,-40%),var(--lg-especular),transparent 70%),
+  var(--lg-brillo),var(--lg-regular);-webkit-backdrop-filter:var(--lg-filtro-regular);backdrop-filter:var(--lg-filtro-regular)}
 :is(__VIDRIO__){isolation:isolate;border-radius:var(--y2k-r);color:var(--y2k-ink);
   box-shadow:inset 0 1px 0 var(--lg-luz),inset 0 -1px 0 var(--lg-borde),0 0 0 .5px var(--lg-filo),var(--lg-sombra);
   transition:box-shadow var(--y2k-dur) ease}
-/* brillo especular: una luz suave que sigue al puntero (la mueve el guion de la interfaz) */
-:is(__VIDRIO__)::before{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;z-index:-1;
-  background:radial-gradient(240px 150px at var(--mx,22%) var(--my,-40%),var(--lg-especular),transparent 70%)}
 /* canto de luz: degradado diagonal solo en el contorno (mascara), como el borde de un vidrio */
 :is(__VIDRIO__)::after{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;padding:1px;
   background:linear-gradient(135deg,var(--lg-luz),transparent 30%,transparent 64%,var(--lg-borde));
@@ -307,6 +314,10 @@ a{color:var(--y2k-accent-texto)}
   width:auto !important;border-radius:999px;padding:4px !important;margin:0 !important;display:flex !important;flex-direction:row !important;
   align-items:center;gap:2px !important;flex-wrap:nowrap !important}
 .st-key-y2k_ajustes > div{width:auto !important;flex:none !important}
+/* capsulas flotantes: Streamlit pone overflow:auto a sus contenedores horizontales y, con el contenido justo del alto
+   de la capsula, un pixel de mas (fuente, zoom) abria una barra de desplazamiento al pasar el puntero */
+:is(.st-key-y2k_ajustes,.st-key-y2k_dock,.st-key-y2k_dock_izq,.st-key-y2k_dock_der),
+:is(.st-key-y2k_ajustes,.st-key-y2k_dock_izq) > div,.st-key-y2k_ajustes .stPopover{overflow:visible !important}
 .st-key-y2k_ajustes .stPopover button{width:36px;min-width:36px;padding:0 !important;justify-content:center}
 .st-key-y2k_ajustes .stPopover button [data-testid="stMarkdownContainer"]{position:absolute !important;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
 .st-key-y2k_ajustes .stPopover button [data-testid="stIconMaterial"]{font-size:21px !important}
@@ -327,14 +338,19 @@ a{color:var(--y2k-accent-texto)}
 
 /* ================= PANTALLA 1: PARAMETROS ================= */
 .st-key-y2k_inicio{position:fixed !important;z-index:40;left:50%;top:50%;transform:translate(-50%,-50%);
-  width:min(580px,calc(100vw - 32px)) !important;max-height:calc(100dvh - 2 * (var(--y2k-g) + var(--y2k-capsula) + 8px));overflow-y:auto;
-  overscroll-behavior:contain;padding:28px 30px 22px !important;gap:14px !important;border-radius:30px;
-  scrollbar-width:thin;scrollbar-color:var(--y2k-line-2) transparent;animation:y2k-entra-centro .5s var(--y2k-curva) both}
+  width:min(580px,calc(100vw - 32px)) !important;max-height:calc(100dvh - 2 * (var(--y2k-g) + var(--y2k-capsula) + 8px));overflow:hidden;
+  padding:0 !important;gap:0 !important;border-radius:30px;display:flex !important;flex-direction:column;
+  animation:y2k-entra-centro .5s var(--y2k-curva) both}
+/* tarjetas centradas: el vidrio queda quieto y se desplaza su cuerpo; la barra, delgada y dentro de la curva */
+:is(.st-key-y2k_inicio,.st-key-y2k_exportar,.st-key-y2k_ficha) > [data-testid="stLayoutWrapper"]{flex:1 1 auto;min-height:0;display:flex;
+  flex-direction:column;width:100% !important}
+.st-key-y2k_inicio_cuerpo,.st-key-y2k_exportar_cuerpo,.st-key-y2k_ficha_cuerpo{flex:1 1 auto;min-height:0;overflow-y:auto;overscroll-behavior:contain;
+  scrollbar-width:thin;scrollbar-color:var(--y2k-line-2) transparent;scrollbar-gutter:auto}
+.st-key-y2k_inicio_cuerpo{margin:16px 4px 16px 0 !important;padding:12px 26px 6px 30px !important;gap:14px !important}
 @keyframes y2k-entra-centro{from{opacity:0;transform:translate(-50%,calc(-50% + 14px)) scale(.985)}}
 .y2k-cab-inicio .eyebrow{font-size:12px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--y2k-accent-texto);margin:0}
 .y2k-cab-inicio h1{font-size:clamp(25px,3.1vw,32px) !important;line-height:1.12 !important;font-weight:700 !important;letter-spacing:-.022em;
   margin:6px 0 0 !important;padding:0 !important;color:var(--y2k-ink)}
-.y2k-cab-inicio .lead{font-size:14.5px;line-height:1.5;color:var(--y2k-ink-2);margin:10px 0 0}
 .y2k-etq{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;color:var(--y2k-ink);margin:0 0 -8px;min-height:18px}
 .y2k-etq .opc{font-weight:500;color:var(--y2k-ink-3)}
 .st-key-y2k_fechas [data-testid="stHorizontalBlock"]{flex-wrap:nowrap !important}
@@ -354,24 +370,26 @@ a{color:var(--y2k-accent-texto)}
   border-color:var(--y2k-campo-borde) !important;border-radius:var(--y2k-r-ctl) !important}
 .st-key-y2k_inicio [data-baseweb="select"] > div{min-height:46px}
 .st-key-y2k_inicio [data-baseweb="select"]:has(input:disabled) > div{opacity:.55;cursor:not-allowed}
+/* serie de tiempo: dos opciones del mismo ancho */
+.st-key-serie [data-testid="stButtonGroup"] > div{width:100%;flex-wrap:nowrap}
+.st-key-serie button[role="radio"]{flex:1 1 0 !important;min-height:40px}
+.st-key-serie button[aria-checked="true"]{background:var(--y2k-lente) !important;box-shadow:var(--y2k-lente-sombra) !important;
+  border-color:transparent !important}
+.st-key-serie button[aria-checked="true"] p{font-weight:700 !important}
 /* boton principal: alto y ancho; espera (gris) hasta que el mapa y los datos esten listos */
 .st-key-ir_mapa button{min-height:52px !important;font-size:15.5px !important;border-radius:999px !important}
 .st-key-ir_mapa button p{font-size:15.5px !important}
 html:not([data-y2k-mapa-listo]) .st-key-ir_mapa button,.st-key-ir_mapa button[aria-disabled="true"]{opacity:.5;filter:saturate(.3);
   box-shadow:none !important;cursor:progress}
-.y2k-espera{display:flex;align-items:center;justify-content:center;gap:8px;font-size:12.5px;color:var(--y2k-ink-3);margin:-4px 0 0;min-height:18px;text-align:center}
-.y2k-espera::before{content:"";width:12px;height:12px;border-radius:50%;flex:none;border:2px solid var(--y2k-line-2);border-top-color:var(--y2k-accent);
-  animation:y2k-gira .9s linear infinite}
-.y2k-espera[data-estado="listo"]::before{border:0;width:auto;height:auto;content:"✓";color:var(--y2k-ok);font-weight:700;animation:none}
-.y2k-espera[data-estado="error"]::before,.y2k-espera[data-estado="pendiente"]::before{display:none}
-.y2k-espera[data-estado="error"]{color:var(--y2k-alerta)}
-@keyframes y2k-gira{to{transform:rotate(360deg)}}
+/* pasos de la consulta: el actual resaltado, los demas en linea fina */
 .y2k-como{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:2px 0 0;padding:0;list-style:none;counter-reset:paso}
-.y2k-como li{display:flex;flex-direction:column;gap:4px;padding:11px 12px;border-radius:16px;background:var(--y2k-campo);margin:0;
-  box-shadow:inset 0 0 0 1px var(--y2k-campo-borde);font-size:12.5px;line-height:1.4;color:var(--y2k-ink-3)}
+.y2k-como li{display:flex;flex-direction:column;gap:4px;padding:10px 12px 11px;border-radius:16px;margin:0;font-size:12.5px;line-height:1.4;
+  color:var(--y2k-ink-3);box-shadow:inset 0 0 0 1px var(--y2k-line)}
+.y2k-como li[aria-current]{background:var(--y2k-campo);box-shadow:inset 0 0 0 1px var(--y2k-campo-borde)}
 .y2k-como li b{font-size:13px;color:var(--y2k-ink);display:flex;align-items:center;gap:7px;line-height:1.2}
 .y2k-como li b::before{counter-increment:paso;content:counter(paso);width:20px;height:20px;border-radius:50%;flex:none;display:grid;place-items:center;
-  font-size:11px;background:var(--y2k-accent);color:var(--y2k-sobre-acento)}
+  font-size:11px;color:var(--y2k-ink-2);box-shadow:inset 0 0 0 1.5px var(--y2k-line-2)}
+.y2k-como li[aria-current] b::before{background:var(--y2k-accent);color:var(--y2k-sobre-acento);box-shadow:none}
 .y2k-pie-inicio{display:flex;flex-direction:column;gap:6px;padding-top:12px;border-top:1px solid var(--y2k-line);font-size:12px;line-height:1.5;color:var(--y2k-ink-3)}
 .y2k-pie-inicio p{margin:0;font-size:12px;color:var(--y2k-ink-3)}
 .st-key-y2k_inicio [data-testid="stExpander"] details,.st-key-y2k_exportar [data-testid="stExpander"] details{border-radius:16px !important;border:0 !important;
@@ -392,33 +410,44 @@ html[data-y2k-panel="cerrado"]{--y2k-libre-izq:0px}
 .st-key-y2k_panel > [data-testid="stElementContainer"]{flex:none}
 .st-key-y2k_panel > [data-testid="stLayoutWrapper"]{flex:1 1 auto;min-height:0;display:flex;flex-direction:column}
 .st-key-y2k_panel > [data-testid="stLayoutWrapper"]:has(> .st-key-y2k_panel_cab){flex:none}
-.st-key-y2k_panel_cab{padding:12px 12px 6px !important;gap:4px !important}
-.st-key-y2k_panel_fila{gap:6px !important;align-items:center !important;flex-wrap:nowrap !important}
-.st-key-y2k_panel_fila > div:first-child{flex:1 1 auto !important;min-width:0;width:auto !important}
-.st-key-y2k_panel_fila > div:not(:first-child){flex:none !important;width:auto !important}
-.st-key-y2k_cuerpo{flex:1 1 auto;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding:2px 18px 18px !important;
+.st-key-y2k_panel_cab{padding:12px 12px 2px 20px !important;gap:0 !important}
+.y2k-panel-cab{display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:36px}
+.y2k-panel-cab .t,[data-testid="stMarkdownContainer"] .y2k-panel-cab p.t{margin:0;font-size:17px !important;font-weight:700;letter-spacing:-.01em;
+  color:var(--y2k-ink) !important;line-height:1.2 !important}
+.y2k-hoja-cerrar{display:none !important}
+.st-key-y2k_cuerpo{flex:1 1 auto;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding:0 18px 18px !important;
   gap:12px !important;scrollbar-width:thin;scrollbar-color:var(--y2k-line-2) transparent}
-.y2k-asa,.y2k-hoja-max{display:none !important}
-/* chip de la consulta: vuelve a Parametros */
-.st-key-chip_param button{width:100%;justify-content:flex-start !important;border-radius:999px !important;min-height:42px !important;
-  padding:0 14px 0 10px !important;background:var(--y2k-campo) !important;border:0 !important;box-shadow:0 0 0 1px var(--y2k-campo-borde) inset !important;
-  color:var(--y2k-ink) !important;gap:8px}
-.st-key-chip_param button:hover{box-shadow:0 0 0 1.5px var(--y2k-accent) inset !important}
-.st-key-chip_param button > div{min-width:0;overflow:hidden}
-.st-key-chip_param button p{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:600 !important;font-size:13.5px !important;color:var(--y2k-ink) !important}
-.st-key-chip_param button [data-testid="stIconMaterial"]{color:var(--y2k-accent-texto);font-size:19px !important}
-/* secciones del panel */
-.y2k-sec{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin:12px 0 -2px}
-.y2k-sec .t{font-size:11.5px;text-transform:uppercase;letter-spacing:.08em;font-weight:700;color:var(--y2k-ink-3);margin:0}
-.y2k-sec .valor{font-size:13.5px;font-weight:700;color:var(--y2k-ink);font-variant-numeric:tabular-nums;white-space:nowrap}
+/* secciones del panel: titulo y, a la derecha, su dato (cifra en capsula o la variable consultada) */
+.y2k-sec{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:10px 0 -2px;min-height:30px}
+.y2k-sec .t{font-size:11.5px;text-transform:uppercase;letter-spacing:.08em;font-weight:700;color:var(--y2k-ink-3);margin:0;flex:none}
+.y2k-sec .valor{font-size:13px;font-weight:600;color:var(--y2k-ink-3);white-space:nowrap}
+/* area marcada: su cifra en una capsula propia */
+.y2k-km{display:inline-flex;align-items:center;gap:6px;height:28px;padding:0 11px 0 9px;border-radius:999px;white-space:nowrap;
+  font:700 13px/1 "Figtree",sans-serif;font-variant-numeric:tabular-nums;color:var(--y2k-accent-texto);
+  background:color-mix(in srgb,var(--y2k-accent) 14%,var(--lg-denso));box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--y2k-accent) 34%,transparent)}
+.y2k-km svg{width:15px;height:15px;flex:none}
+/* la variable consultada: al pulsarla se vuelve a Parametros */
+.y2k-chip{all:unset;box-sizing:border-box;display:inline-flex;align-items:center;gap:6px;min-width:0;max-width:60%;height:30px;padding:0 12px 0 8px;
+  border-radius:999px;cursor:pointer;font:600 13px/1 "Figtree",sans-serif;color:var(--y2k-ink);background:var(--y2k-campo);
+  box-shadow:inset 0 0 0 1px var(--y2k-campo-borde);transition:box-shadow var(--y2k-dur),transform .12s}
+.y2k-chip span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.y2k-chip svg{width:16px;height:16px;flex:none;color:var(--y2k-accent-texto)}
+.y2k-chip:hover{box-shadow:inset 0 0 0 1.5px var(--y2k-accent)}
+.y2k-chip:active{transform:scale(.96)}
+/* buffer: una pildora pequena; al pulsarla se cambia el ancho */
+.st-key-y2k_buffer{margin-top:-2px}
+.st-key-y2k_buffer [data-testid="stPopoverButton"],.st-key-y2k_buffer .stPopover button{min-height:32px !important;height:32px;padding:0 10px 0 8px !important;
+  border-radius:999px !important;background:var(--y2k-campo) !important;border:0 !important;box-shadow:inset 0 0 0 1px var(--y2k-campo-borde) !important;
+  color:var(--y2k-ink) !important;gap:6px}
+.st-key-y2k_buffer .stPopover button p{font-size:13px !important;font-weight:600 !important;color:var(--y2k-ink) !important}
+.st-key-y2k_buffer .stPopover button [data-testid="stIconMaterial"]{font-size:17px !important;color:var(--y2k-accent-texto)}
+.st-key-y2k_buffer .stPopover button:hover{box-shadow:inset 0 0 0 1.5px var(--y2k-accent) !important}
 .y2k-acciones{display:flex;flex-wrap:wrap;gap:6px}
 .y2k-acciones .y2k-boton{flex:1 1 auto;justify-content:center}
-/* con un area marcada: cuatro acciones compactas en una fila (icono arriba, texto abajo) */
-.y2k-acciones.fichas{display:grid;grid-template-columns:repeat(4,minmax(0,1fr))}
+/* con un area marcada: tres acciones compactas en una fila (icono arriba, texto abajo) */
+.y2k-acciones.fichas{display:grid;grid-template-columns:repeat(3,minmax(0,1fr))}
 .y2k-acciones.fichas .y2k-boton{flex-direction:column;height:auto;padding:9px 4px 8px;gap:5px;border-radius:14px;font-size:12.5px;font-weight:600}
 .y2k-acciones.fichas .y2k-boton svg{width:18px;height:18px}
-.y2k-vinculo{all:unset;cursor:pointer;color:var(--y2k-accent-texto);font-weight:600;font-size:12.5px;text-decoration:underline;text-underline-offset:2px}
-.y2k-vinculo[aria-disabled="true"]{color:var(--y2k-ink-3);cursor:not-allowed;text-decoration:none}
 .y2k-boton{all:unset;box-sizing:border-box;display:inline-flex;align-items:center;gap:8px;height:40px;padding:0 14px;border-radius:999px;cursor:pointer;
   font:700 13.5px/1 "Figtree",sans-serif;white-space:nowrap;transition:transform .12s,filter var(--y2k-dur),box-shadow var(--y2k-dur)}
 .y2k-boton svg{width:17px;height:17px;flex:none}
@@ -432,17 +461,18 @@ html[data-y2k-panel="cerrado"]{--y2k-libre-izq:0px}
 /* tablero de calidad */
 .y2k-kpis{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
 .y2k-kpi{background:var(--y2k-campo);box-shadow:0 0 0 1px var(--y2k-campo-borde) inset;border-radius:14px;padding:9px 10px 8px;min-width:0}
-.y2k-kpi .v{font-size:20px;font-weight:700;color:var(--y2k-ink);line-height:1.1;font-variant-numeric:tabular-nums;overflow-wrap:anywhere;letter-spacing:-.01em}
+.y2k-kpi .v{font-size:19px;font-weight:700;color:var(--y2k-ink);line-height:1.1;font-variant-numeric:tabular-nums;white-space:nowrap;letter-spacing:-.02em}
 .y2k-kpi .l{font-size:11.5px;font-weight:700;color:var(--y2k-ink-2);line-height:1.25;margin-top:4px}
 .y2k-kpi .s{font-size:11.5px;color:var(--y2k-ink-3);line-height:1.3}
 .y2k-lista-cab{display:flex;align-items:baseline;justify-content:space-between;gap:8px;font-size:12.5px;color:var(--y2k-ink-3);margin:2px 0 -6px}
 .y2k-lista-cab b{color:var(--y2k-ink);font-variant-numeric:tabular-nums}
 .st-key-y2k_panel [data-testid="stDataFrame"]{border-radius:12px;overflow:hidden}
+/* avisos discretos: una linea con su icono; el detalle, al abrirla */
 .st-key-alerta_altura [data-testid="stExpander"] details,.st-key-alerta_ficha [data-testid="stExpander"] details{
-  background:var(--y2k-alerta-bg) !important;box-shadow:0 0 0 1px var(--y2k-alerta-borde) inset !important;border-radius:12px !important}
-.st-key-alerta_altura [data-testid="stExpander"] summary{min-height:0;padding-top:6px;padding-bottom:6px}
+  background:transparent !important;box-shadow:0 0 0 1px color-mix(in srgb,var(--y2k-alerta-borde) 45%,transparent) inset !important;border-radius:12px !important}
+.st-key-alerta_altura [data-testid="stExpander"] summary,.st-key-alerta_ficha [data-testid="stExpander"] summary{min-height:0;padding-top:5px;padding-bottom:5px}
 .st-key-alerta_altura [data-testid="stIconMaterial"],.st-key-alerta_ficha [data-testid="stIconMaterial"]{color:var(--y2k-alerta) !important}
-.st-key-alerta_altura summary p,.st-key-alerta_ficha summary p{font-size:12.5px !important;color:var(--y2k-ink) !important}
+.st-key-alerta_altura summary p,.st-key-alerta_ficha summary p{font-size:12.5px !important;font-weight:500 !important;color:var(--y2k-ink-2) !important}
 /* boton para volver a mostrar el panel (escritorio) */
 .st-key-y2k_abrir{position:fixed !important;top:var(--y2k-g);left:var(--y2k-g);z-index:50;height:var(--y2k-capsula);width:auto !important;
   border-radius:999px;padding:4px !important;margin:0 !important}
@@ -497,6 +527,13 @@ html:not([data-y2k-panel="cerrado"]) .st-key-y2k_abrir{display:none !important}
 .st-key-y2k_dock > div{pointer-events:auto;width:auto !important;flex:none !important;min-width:0}
 .st-key-y2k_dock_izq,.st-key-y2k_dock_der{border-radius:999px;padding:4px !important;display:flex !important;flex-direction:row !important;
   align-items:center;gap:4px !important;flex-wrap:nowrap !important;margin:0 !important;width:auto !important}
+/* "Preparar descarga" sube por encima del boton de Streamlit Community Cloud (abajo a la derecha) */
+.st-key-y2k_dock_der{margin-bottom:var(--y2k-sello) !important}
+/* boton "Consulta": solo en el celular */
+.st-key-y2k_dock_izq [data-testid="stElementContainer"]:has(.y2k-consulta){display:none}
+.y2k-consulta[aria-expanded="true"]{background:var(--y2k-lente);box-shadow:var(--y2k-lente-sombra)}
+/* capa invisible sobre el mapa con la consulta abierta (celular): tocar el mapa la cierra */
+.y2k-cierre-hoja{display:none}
 .st-key-y2k_dock_izq > div,.st-key-y2k_dock_der > div{width:auto !important;flex:none !important}
 .st-key-y2k_dock_izq .stPopover button{padding:0 12px !important}
 .st-key-y2k_dock_izq .stPopover button p{font-size:13.5px !important}
@@ -508,8 +545,9 @@ html:not([data-y2k-panel="cerrado"]) .st-key-y2k_abrir{display:none !important}
 .st-key-y2k_dock_der .stButton > button[kind="primary"]{box-shadow:inset 0 1px 0 rgba(255,255,255,.35),0 10px 22px -10px var(--y2k-accent) !important}
 /* ficha de la estacion seleccionada (arriba a la derecha, junto a la columna de Ajustes) */
 .st-key-y2k_ficha{position:fixed !important;z-index:42;top:var(--y2k-g);right:calc(var(--y2k-g) * 2 + var(--y2k-capsula));
-  width:320px !important;max-height:calc(100dvh - var(--y2k-dock-h) - var(--y2k-g) * 3);overflow-y:auto;overscroll-behavior:contain;
-  padding:14px 16px !important;gap:8px !important;animation:y2k-menu .25s var(--y2k-curva) both}
+  width:320px !important;max-height:calc(100dvh - var(--y2k-dock-h) - var(--y2k-g) * 3);overflow:hidden;display:flex !important;
+  flex-direction:column;padding:0 !important;gap:0 !important;animation:y2k-menu .25s var(--y2k-curva) both}
+.st-key-y2k_ficha_cuerpo{padding:14px 16px !important;gap:8px !important}
 .st-key-y2k_ficha:not(:has(.y2k-ficha-cab)){display:none !important}
 .y2k-ficha-cab{display:flex;flex-direction:column;gap:2px}
 .y2k-ficha-cab small{font-size:11.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--y2k-ink-3)}
@@ -543,7 +581,7 @@ html:not([data-y2k-panel="cerrado"]) .st-key-y2k_abrir{display:none !important}
   box-shadow:inset 0 1px 0 var(--lg-luz),0 0 0 .5px var(--lg-filo),var(--lg-sombra) !important}
 
 /* detalles desplegables propios: resumen breve siempre visible y el detalle al pulsar */
-details.y2k-det{font-size:12.5px;line-height:1.45;color:var(--y2k-ink-3);margin:0}
+details.y2k-det{font-size:12px;line-height:1.45;color:var(--y2k-ink-3);margin:0}
 details.y2k-det summary{cursor:pointer;list-style:none;display:flex;flex-wrap:wrap;gap:2px 8px;align-items:baseline;border-radius:6px}
 details.y2k-det summary::-webkit-details-marker{display:none}
 details.y2k-det summary .ver{color:var(--y2k-accent-texto);font-weight:600;text-decoration:underline;text-underline-offset:2px;white-space:nowrap}
@@ -605,9 +643,10 @@ details.y2k-det b{color:var(--y2k-ink)}
 
 /* ================= PANTALLA 3: EXPORTACION ================= */
 .st-key-y2k_exportar{position:fixed !important;z-index:40;left:50%;top:50%;transform:translate(-50%,-50%);
-  width:min(960px,calc(100vw - 32px)) !important;max-height:calc(100dvh - 2 * (var(--y2k-g) + var(--y2k-capsula) + 8px));overflow-y:auto;
-  overscroll-behavior:contain;padding:26px 30px 24px !important;gap:16px !important;border-radius:30px;
-  scrollbar-width:thin;scrollbar-color:var(--y2k-line-2) transparent;animation:y2k-entra-centro .5s var(--y2k-curva) both}
+  width:min(960px,calc(100vw - 32px)) !important;max-height:calc(100dvh - 2 * (var(--y2k-g) + var(--y2k-capsula) + 8px));overflow:hidden;
+  padding:0 !important;gap:0 !important;border-radius:30px;display:flex !important;flex-direction:column;
+  animation:y2k-entra-centro .5s var(--y2k-curva) both}
+.st-key-y2k_exportar_cuerpo{margin:16px 4px 16px 0 !important;padding:10px 26px 8px 30px !important;gap:16px !important}
 .y2k-cab-export .eyebrow{font-size:12px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--y2k-accent-texto);margin:0;
   display:flex;align-items:center;gap:8px}
 .y2k-cab-export h1{font-size:clamp(23px,2.8vw,29px) !important;line-height:1.15 !important;font-weight:700 !important;letter-spacing:-.02em;
@@ -638,6 +677,12 @@ details.y2k-det b{color:var(--y2k-ink)}
 .y2k-recibo dt{font-size:11.5px;text-transform:uppercase;letter-spacing:.07em;font-weight:700;color:var(--y2k-ink-3);padding-top:2px;margin:0}
 .y2k-recibo dd{margin:0;font-size:14px;color:var(--y2k-ink);font-weight:600;line-height:1.35;min-width:0;overflow-wrap:anywhere}
 .y2k-recibo dd small{display:block;font-weight:500;color:var(--y2k-ink-3);font-size:12.5px}
+/* contenido del ZIP: una lista ordenada, un archivo por linea */
+.y2k-archivo{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:7px}
+.y2k-archivo li{display:grid;grid-template-columns:18px 1fr;column-gap:8px;align-items:start;margin:0}
+.y2k-archivo svg{width:17px;height:17px;color:var(--y2k-accent-texto);margin-top:1px}
+.y2k-archivo b{font-weight:600;font-size:13.5px;color:var(--y2k-ink);overflow-wrap:anywhere}
+.y2k-archivo small{grid-column:2;display:block;font-weight:500;font-size:12px;color:var(--y2k-ink-3);line-height:1.35}
 /* resumen general de lo descargado */
 .y2k-final{display:flex;flex-direction:column;gap:8px}
 .y2k-final p{margin:0;font-size:14px;color:var(--y2k-ink-2)}
@@ -665,46 +710,61 @@ CSS_MEDIO = """
 :root{--y2k-panel-w:330px}
 """
 
-# Celular en vertical: el panel es una hoja inferior, encima de las pildoras
+# Celular en vertical: tarjetas flotantes con margen. En el mapa, la consulta es una tarjeta que se abre y se cierra
+# con el boton "Consulta" de la barra de abajo (sin arrastres: el gesto se confundia con "jalar para recargar")
 CSS_MOVIL = """
 html{--y2k-libre-izq:0px !important;--y2k-g:10px}
 .st-key-y2k_abrir,.y2k-panel-cerrar{display:none !important}
-/* Parametros y Exportacion: la tarjeta sube desde abajo, como una hoja */
-.st-key-y2k_inicio,.st-key-y2k_exportar{top:auto !important;bottom:0;left:0;right:0;transform:none !important;width:auto !important;
-  max-height:calc(100dvh - var(--y2k-capsula) - var(--y2k-g) * 2 - 6px);border-radius:26px 26px 0 0;
-  padding:22px 18px calc(18px + env(safe-area-inset-bottom)) !important;animation:y2k-entra-abajo .45s var(--y2k-curva) both}
-.y2k-como{grid-template-columns:1fr}
-.y2k-como li{flex-direction:row;align-items:baseline;flex-wrap:wrap;gap:2px 8px;padding:9px 12px}
-.st-key-y2k_exportar > [data-testid="stLayoutWrapper"] > [data-testid="stHorizontalBlock"],
-.st-key-y2k_exportar > [data-testid="stHorizontalBlock"]{row-gap:14px !important}
-/* Mapa: pildoras en una barra inferior y la hoja encima */
-.st-key-y2k_dock{left:0 !important;right:0;bottom:0;padding:8px 10px calc(8px + env(safe-area-inset-bottom)) !important;align-items:center;
-  background:var(--lg-brillo),var(--lg-regular);-webkit-backdrop-filter:var(--lg-filtro-regular);backdrop-filter:var(--lg-filtro-regular);
-  box-shadow:inset 0 1px 0 var(--lg-luz),0 -1px 0 var(--lg-filo);pointer-events:auto}
-.st-key-y2k_dock_izq{background:var(--y2k-pista) !important;-webkit-backdrop-filter:none !important;backdrop-filter:none !important;box-shadow:none !important}
-.st-key-y2k_dock_der{background:transparent !important;-webkit-backdrop-filter:none !important;backdrop-filter:none !important;box-shadow:none !important;padding:0 !important}
-.st-key-y2k_dock_der::before,.st-key-y2k_dock_der::after,.st-key-y2k_dock_izq::before,.st-key-y2k_dock_izq::after{display:none}
+/* Parametros y Exportacion: tarjeta flotante abajo, con margen a los lados y libre la esquina del boton de Streamlit */
+.st-key-y2k_inicio,.st-key-y2k_exportar{top:auto !important;bottom:calc(var(--y2k-g) + var(--y2k-sello) + env(safe-area-inset-bottom));
+  left:var(--y2k-g);right:var(--y2k-g);transform:none !important;width:auto !important;border-radius:26px;
+  max-height:calc(100dvh - var(--y2k-capsula) - var(--y2k-g) * 3 - var(--y2k-sello) - env(safe-area-inset-bottom));
+  animation:y2k-entra-abajo .45s var(--y2k-curva) both}
+.st-key-y2k_inicio_cuerpo,.st-key-y2k_exportar_cuerpo{margin:14px 3px 14px 0 !important;padding:8px 15px 6px 18px !important}
+.y2k-como{gap:6px}
+.y2k-como li{padding:8px 8px 9px;font-size:11.5px}
+.y2k-como li span{display:none}
+.y2k-como li b{font-size:12px;flex-direction:column;align-items:flex-start;gap:5px}
+.st-key-y2k_exportar_cuerpo > [data-testid="stLayoutWrapper"] > [data-testid="stHorizontalBlock"],
+.st-key-y2k_exportar_cuerpo > [data-testid="stHorizontalBlock"]{row-gap:14px !important}
+/* Mapa: barra flotante abajo (Consulta, 2D/3D y "Preparar descarga"), encima de la esquina del boton de Streamlit */
+.st-key-y2k_dock{left:var(--y2k-g) !important;right:var(--y2k-g);bottom:calc(var(--y2k-g) + var(--y2k-sello) + env(safe-area-inset-bottom));
+  padding:4px !important;align-items:center;border-radius:999px;flex-wrap:nowrap !important;gap:4px !important;
+  background:radial-gradient(240px 150px at var(--mx,22%) var(--my,-40%),var(--lg-especular),transparent 70%),var(--lg-brillo),var(--lg-regular);
+  -webkit-backdrop-filter:var(--lg-filtro-regular);backdrop-filter:var(--lg-filtro-regular);
+  box-shadow:inset 0 1px 0 var(--lg-luz),0 0 0 .5px var(--lg-filo),var(--lg-sombra);pointer-events:auto}
+.st-key-y2k_dock_izq{background:transparent !important;-webkit-backdrop-filter:none !important;backdrop-filter:none !important;box-shadow:none !important;
+  padding:0 !important;gap:2px !important}
+.st-key-y2k_dock_der{background:transparent !important;-webkit-backdrop-filter:none !important;backdrop-filter:none !important;box-shadow:none !important;
+  padding:0 !important;margin-bottom:0 !important}
+.st-key-y2k_dock_der::after,.st-key-y2k_dock_izq::after{display:none}
+.st-key-y2k_dock_izq [data-testid="stElementContainer"]:has(.y2k-consulta){display:block}
+.st-key-y2k_dock_izq [data-testid="stButtonGroup"]{background:var(--y2k-pista);border-radius:999px;padding:2px}
+.st-key-y2k_dock_izq button[role="radio"]{min-width:40px;padding:0 10px !important;min-height:34px !important}
 .st-key-y2k_repetir_intro{display:none !important}
 .st-key-y2k_dock_izq .stPopover button [data-testid="stMarkdownContainer"]{position:absolute !important;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
-.st-key-preparar button{padding:0 16px !important}
-html:not([data-y2k-hoja]),html[data-y2k-hoja="min"]{--y2k-hoja-h:64px}
-html[data-y2k-hoja="media"]{--y2k-hoja-h:min(54dvh,calc(100dvh - var(--y2k-dock-h) - 120px))}
-html[data-y2k-hoja="max"]{--y2k-hoja-h:calc(100dvh - var(--y2k-dock-h) - 62px)}
-.st-key-y2k_panel,html[data-y2k-panel="cerrado"] .st-key-y2k_panel{top:auto !important;left:0 !important;right:0;bottom:calc(var(--y2k-dock-h) - 1px) !important;
-  width:auto !important;height:var(--y2k-hoja-h) !important;border-radius:24px 24px 0 0 !important;transform:none !important;opacity:1 !important;
-  visibility:visible !important;transition:height var(--y2k-dur) var(--y2k-curva) !important;animation:none}
-.st-key-y2k_panel.arrastrando{transition:none !important}
-html:not([data-y2k-hoja]) .st-key-y2k_panel > [data-testid="stLayoutWrapper"]:not(:has(> .st-key-y2k_panel_cab)),
-html[data-y2k-hoja="min"] .st-key-y2k_panel > [data-testid="stLayoutWrapper"]:not(:has(> .st-key-y2k_panel_cab)){display:none !important}
-.st-key-y2k_panel_cab{padding:0 10px 8px !important}
-.y2k-asa{display:grid !important;all:unset;box-sizing:border-box;height:18px;place-items:center;cursor:grab;touch-action:none}
-.y2k-asa::before{content:"";width:40px;height:5px;border-radius:3px;background:var(--y2k-line-2)}
-.y2k-asa:focus-visible{outline:2px solid var(--y2k-foco);outline-offset:-2px;border-radius:8px}
-.y2k-hoja-max{display:inline-flex !important}
-html[data-y2k-hoja="max"] .y2k-hoja-max svg{transform:rotate(180deg)}
-.st-key-y2k_cuerpo{padding:2px 16px 16px !important}
+.st-key-preparar button{padding:0 12px !important;min-height:40px !important;gap:6px}
+.st-key-preparar button p{font-size:14px !important}
+.y2k-consulta.con-texto{padding:0 11px 0 9px;height:40px}
+/* la consulta: tarjeta flotante sobre la barra, de hasta unas tres cuartas partes de la pantalla */
+.st-key-y2k_panel,html[data-y2k-panel="cerrado"] .st-key-y2k_panel{top:auto !important;left:var(--y2k-g) !important;right:var(--y2k-g);
+  bottom:calc(var(--y2k-dock-h) + 8px) !important;width:auto !important;height:auto !important;
+  max-height:min(75dvh,calc(100dvh - var(--y2k-dock-h) - var(--y2k-capsula) - var(--y2k-g) * 2 - 14px));border-radius:24px !important;
+  transform:none;opacity:1;visibility:visible;transform-origin:50% 100%;animation:none;
+  transition:transform var(--y2k-dur) var(--y2k-curva),opacity .2s ease,visibility 0s}
+html:not([data-y2k-hoja="abierta"]) .st-key-y2k_panel{transform:translateY(14px) scale(.98) !important;opacity:0 !important;visibility:hidden !important;
+  pointer-events:none;transition:transform var(--y2k-dur) var(--y2k-curva),opacity .2s ease,visibility 0s var(--y2k-dur) !important}
+.st-key-y2k_panel_cab{padding:10px 8px 0 18px !important}
+.y2k-hoja-cerrar{display:inline-flex !important}
+.st-key-y2k_cuerpo{padding:0 16px 16px !important}
+/* con la consulta abierta se aparta lo demas (herramientas, leyenda, escala y creditos del mapa, ficha, camara 3D) */
+html[data-y2k-hoja="abierta"] :is(.st-key-y2k_herr,.st-key-y2k_ficha,.y2k-leyenda,.y2k-atrib3d,.y2k-nota-mov,.y2k-aviso3d){
+  opacity:0 !important;visibility:hidden !important;pointer-events:none !important;transition:opacity .15s,visibility 0s .15s}
+html[data-y2k-hoja="abierta"][data-y2k-p="mapa"] .y2k-cierre-hoja{display:block;position:fixed;inset:0;z-index:39;background:transparent;
+  -webkit-tap-highlight-color:transparent}
 .st-key-y2k_ficha{top:var(--y2k-g) !important;left:var(--y2k-g);right:calc(var(--y2k-g) * 2 + var(--y2k-capsula)) !important;width:auto !important;
-  max-height:38dvh;padding:12px 14px !important}
+  max-height:38dvh}
+.st-key-y2k_ficha_cuerpo{padding:12px 14px !important}
 .y2k-menu{min-width:min(240px,calc(100vw - 90px))}
 .y2k-atrib3d{font-size:10px;max-width:62vw}
 .y2k-leyenda{max-width:calc(100vw - 80px)}
@@ -712,14 +772,15 @@ html[data-y2k-hoja="max"] .y2k-hoja-max svg{transform:rotate(180deg)}
 """
 # Muy estrecho: las pildoras se compactan
 CSS_ESTRECHO = """
-.st-key-y2k_dock_izq button[role="radio"]{min-width:40px;padding:0 10px !important}
-.st-key-preparar button{padding:0 12px !important;font-size:14px !important}
-.st-key-preparar button p{font-size:14px !important}
+.st-key-y2k_dock_izq button[role="radio"]{min-width:34px;padding:0 8px !important}
+.y2k-consulta.con-texto{padding:0 10px 0 8px}
+.st-key-preparar button{padding:0 11px !important;font-size:13.5px !important}
+.st-key-preparar button p{font-size:13.5px !important}
 """
 # Pantallas bajas (celular en horizontal): todo mas compacto
 CSS_BAJO = """
 :root{--y2k-capsula:40px;--y2k-g:8px;--y2k-panel-w:300px}
-.st-key-y2k_inicio,.st-key-y2k_exportar{padding:16px 20px 14px !important;gap:10px !important}
+.st-key-y2k_inicio_cuerpo,.st-key-y2k_exportar_cuerpo{margin:10px 4px 10px 0 !important;padding:6px 16px 4px 20px !important;gap:10px !important}
 .y2k-como{display:none}
 .y2k-herr button.h,.y2k-camara button{width:32px;height:32px}
 .st-key-preparar button{min-height:38px !important}
@@ -729,28 +790,31 @@ CSS_BAJO = """
 CSS_ALTO = """
 :is(__VIDRIO__){box-shadow:0 0 0 2px var(--lg-borde) !important;background:var(--lg-regular) !important}
 :is(__VIDRIO__)::before,:is(__VIDRIO__)::after{display:none}
-.st-key-y2k_dock_izq button[aria-checked="true"],[data-testid="stPopoverBody"] button[aria-checked="true"],
-.y2k-herr button.h[aria-expanded="true"]{background:var(--y2k-ink) !important;color:var(--y2k-bg) !important;box-shadow:none !important}
-.st-key-y2k_dock_izq button[aria-checked="true"] p,[data-testid="stPopoverBody"] button[aria-checked="true"] p{color:var(--y2k-bg) !important}
-.y2k-kpi,.y2k-como li,.y2k-recibo,.y2k-boton.sec,.y2k-dialogo button,.y2k-menu,
+.st-key-y2k_dock_izq button[aria-checked="true"],[data-testid="stPopoverBody"] button[aria-checked="true"],.st-key-serie button[aria-checked="true"],
+.y2k-herr button.h[aria-expanded="true"],.y2k-consulta[aria-expanded="true"]{background:var(--y2k-ink) !important;color:var(--y2k-bg) !important;box-shadow:none !important}
+.st-key-y2k_dock_izq button[aria-checked="true"] p,[data-testid="stPopoverBody"] button[aria-checked="true"] p,
+.st-key-serie button[aria-checked="true"] p{color:var(--y2k-bg) !important}
+.y2k-kpi,.y2k-como li,.y2k-recibo,.y2k-boton.sec,.y2k-dialogo button,.y2k-menu,.y2k-chip,.y2k-km,
 :is(.st-key-y2k_panel,.st-key-y2k_ficha,.st-key-y2k_inicio,.st-key-y2k_exportar) [data-testid="stExpander"] details,
-.st-key-chip_param button{box-shadow:0 0 0 2px var(--y2k-line-2) inset !important}
+.st-key-y2k_buffer .stPopover button{box-shadow:0 0 0 2px var(--y2k-line-2) inset !important}
+.y2k-km{background:transparent;color:var(--y2k-ink)}
 .y2k-menu{background:var(--lg-denso) !important}
 .stButton > button,.stDownloadButton > button{border:2px solid var(--y2k-line-2) !important}
 .stButton > button[kind="primary"],.stDownloadButton > button[kind="primary"],.y2k-boton.prim{box-shadow:none !important}
 :is(button,a,input,select,textarea,summary,[role="radio"],[role="tab"],[tabindex]):focus-visible{outline:3px solid var(--y2k-foco) !important;outline-offset:3px !important}
 .y2k-hint,[data-testid="stMarkdownContainer"] p.y2k-hint,[data-testid="stCaptionContainer"] p{color:var(--y2k-ink-2) !important}
-a,.y2k-vinculo,details.y2k-det summary .ver{text-decoration:underline !important}
+a,details.y2k-det summary .ver{text-decoration:underline !important}
 .st-key-y2k_escenario::after{-webkit-backdrop-filter:none;backdrop-filter:none}
 .y2k-barra{box-shadow:0 0 0 2px var(--y2k-line-2) inset}
 .y2k-barra i{background:var(--y2k-accent);box-shadow:none}
 .y2k-aviso3d{border-width:2px !important;box-shadow:none !important}
+.st-key-y2k_dock{box-shadow:0 0 0 2px var(--lg-borde) !important}
 """
 
 # Lite: los mismos controles y datos sin desenfoque, brillos ni transiciones (variante de baja transparencia)
 CSS_LITE = """
-:root{--y2k-lite:1;--y2k-dur:0s;--lg-claro:var(--lg-denso);--lg-regular:var(--lg-denso);--lg-filtro-claro:none;--lg-filtro-regular:none;--lg-brillo:none}
-:is(__VIDRIO__)::before{display:none}
+:root{--y2k-lite:1;--y2k-dur:0s;--lg-claro:var(--lg-denso);--lg-regular:var(--lg-denso);--lg-filtro-claro:none;--lg-filtro-regular:none;--lg-brillo:none;
+  --lg-especular:transparent}
 :is(__VIDRIO__){box-shadow:inset 0 1px 0 var(--lg-luz),0 0 0 1px var(--lg-filo),0 10px 24px -14px rgba(0,0,0,.5) !important}
 [data-testid="stPopoverBody"]{-webkit-backdrop-filter:none;backdrop-filter:none}
 .st-key-y2k_escenario::after{-webkit-backdrop-filter:none;backdrop-filter:none}
@@ -763,7 +827,7 @@ CSS_MOVIMIENTO = """
   :root{--y2k-dur:0s}
   *,*::before,*::after{transition-duration:0s !important;scroll-behavior:auto !important}
   .st-key-y2k_inicio,.st-key-y2k_exportar,.st-key-y2k_panel,.st-key-y2k_dock,.st-key-y2k_ficha,.st-key-y2k_herr,.y2k-menu,.y2k-punto,
-  .y2k-barra i::after,.y2k-espera::before,.y2k-cab-export .vivo{animation:none !important}
+  .y2k-barra i::after,.y2k-cab-export .vivo{animation:none !important}
 }
 """
 
@@ -773,14 +837,14 @@ CSS_FORZADOS = """
 @media (forced-colors: active){
   :is(__VIDRIO__),.y2k-menu{border:1px solid CanvasText !important;forced-color-adjust:auto}
   :is(__VIDRIO__)::before,:is(__VIDRIO__)::after{display:none}
-  .y2k-ico,.y2k-herr button.h,.y2k-camara button,.y2k-dialogo button,.y2k-asa,.y2k-hoja-max,.y2k-boton,.y2k-kpi,.y2k-menu button,.y2k-como li{
+  .y2k-ico,.y2k-herr button.h,.y2k-camara button,.y2k-dialogo button,.y2k-chip,.y2k-km,.y2k-boton,.y2k-kpi,.y2k-menu button,.y2k-como li{
     border:1px solid ButtonText !important}
   .stButton > button,.stDownloadButton > button,.stPopover button,[data-testid="stExpander"] details,[data-testid="stFileUploaderDropzone"]{
     border:1px solid ButtonText !important}
   .st-key-y2k_dock_izq button[aria-checked="true"],[data-testid="stPopoverBody"] button[aria-checked="true"],
   .y2k-menu button[aria-checked="true"]{border:2px solid Highlight !important;outline:2px solid Highlight}
   .st-key-y2k_dock_izq button[role="radio"]{border:1px solid ButtonText !important}
-  .y2k-asa::before{background:ButtonText}
+  .y2k-consulta[aria-expanded="true"]{outline:2px solid Highlight}
   .y2k-leyenda .pin,.y2k-leyenda .rampa,.y2k-leyenda .linea,.y2k-reparto i,.y2k-reparto-ley i{forced-color-adjust:none}
   .y2k-punto{forced-color-adjust:none;border:1px solid CanvasText}
   /* interruptores y casillas de Streamlit: su forma es solo fondo, que el modo de colores forzados quita */
@@ -802,9 +866,11 @@ def _vidrio(css):
             .replace("__P_EXPORT__", P_EXPORT))
 
 
-def aplicar(tema="sistema", contraste="sistema", lite=False):
-    """Estilos de toda la pagina (st.html con solo <style> no dibuja nada)."""
-    css = (CSS + "@media (min-width: 761px) and (max-width: 1100px){" + CSS_MEDIO + "}"
+def aplicar(tema="sistema", contraste="sistema", lite=False, sello=False):
+    """Estilos de toda la pagina (st.html con solo <style> no dibuja nada). `sello`: la app corre en Streamlit
+    Community Cloud, que pone su boton abajo a la derecha (fuera de la app): esa esquina queda libre."""
+    css = (CSS + (":root{--y2k-sello:46px}@media " + MOVIL + "{:root{--y2k-sello:42px}}" if sello else "")
+           + "@media (min-width: 761px) and (max-width: 1100px){" + CSS_MEDIO + "}"
            + "@media " + MOVIL + "{" + CSS_MOVIL + "}" + "@media (max-width: 380px){" + CSS_ESTRECHO + "}"
            + "@media " + BAJO + "{" + CSS_BAJO + "}"
            + _tokens_css(tema, contraste) + (CSS_LITE if lite else "") + CSS_MOVIMIENTO + CSS_FORZADOS)
@@ -837,7 +903,6 @@ def _svg(cuerpo, vista="0 0 24 24"):
 ICONOS = {
     "panel": _svg('<rect x="3" y="4" width="18" height="16" rx="3"/><path d="M9 4v16"/><path d="M15 10l-2 2 2 2"/>'),
     "panel_abrir": _svg('<rect x="3" y="4" width="18" height="16" rx="3"/><path d="M9 4v16"/><path d="M13 10l2 2-2 2"/>'),
-    "subir_hoja": _svg('<path d="M6 15l6-6 6 6"/>'),
     "manual": _svg('<path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>'),
     "dibujar": _svg('<rect x="4" y="6" width="16" height="12" rx="1.5" stroke-dasharray="3 2.4"/><circle cx="4" cy="6" r="1.6" fill="currentColor"/>'
                     '<circle cx="20" cy="18" r="1.6" fill="currentColor"/>'),
@@ -859,6 +924,13 @@ ICONOS = {
     "norte": _svg('<circle cx="12" cy="12" r="9"/><path d="M12 6l3 7h-6z" fill="currentColor" stroke="none"/><path d="M12 13v5"/>'),
     "rayo": _svg('<path d="M13 2 4 14h7l-1 8 9-12h-7z"/>'),
     "mapa2d": _svg('<path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2z"/><path d="M9 4v14M15 6v14"/>'),
+    "consulta": _svg('<path d="M4 6h16M4 12h16M4 18h10"/>'),
+    "cerrar": _svg('<path d="M6 6l12 12M18 6 6 18"/>'),
+    "volver": _svg('<path d="M15 6l-6 6 6 6"/>'),
+    "excel": _svg('<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><path d="M9 12l4 5M13 12l-4 5"/>'),
+    "carpeta": _svg('<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>'),
+    "tabla": _svg('<rect x="4" y="4" width="16" height="16" rx="2"/><path d="M4 10h16M4 15h16M10 4v16"/>'),
+    "cita": _svg('<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><path d="M9 13h6M9 17h4"/>'),
 }
 
 
@@ -907,7 +979,7 @@ def ajustes(bloqueado=False):
     with st.container(key="y2k_ajustes", horizontal=True, gap=None, wrap=False, vertical_alignment="center"):
         if ss.get("lite"):
             md(f'<span class="y2k-lite-chip" title="Modo Lite activado">{ICONOS["rayo"]}Lite</span>')
-        with st.popover("Ajustes", icon=":material/tune:", disabled=bloqueado,
+        with st.popover("Ajustes", icon=":material/contrast:", disabled=bloqueado,
                         help="Durante la descarga los ajustes quedan bloqueados" if bloqueado else None):
             md('<p class="y2k-menu-tit">Apariencia</p>')
             ss.pref_tono = "Oscuro" if tono(ss.get("tema", "sistema")) == "oscuro" else "Claro"
@@ -975,7 +1047,7 @@ def guiones_globales(pantalla):
 
 # ---------------------------------------------------------------------------
 # Interfaz del lado del navegador (se instala una vez en la pagina principal):
-#   - panel y hoja inferior sin recargar (atributos data-* en <html>; la eleccion en localStorage)
+#   - panel (escritorio) y tarjeta de la consulta (celular) sin recargar: atributos data-* en <html>
 #   - menus de la capsula de herramientas (dibujo y capas) que manejan el mapa de Leaflet
 #   - reparto del espacio: mueve las esquinas de Leaflet y las piezas sobre el mapa para que nada quede tapado
 #   - vidrio de los controles de Leaflet (dentro de su iframe) y textos de Leaflet.draw en espanol
@@ -1003,34 +1075,41 @@ _UI = r"""
   var pantalla = function () { var m = d.querySelector(".y2k-pantalla"); return m ? m.getAttribute("data-p") : ""; };
   var G = 10;
 
-  // ---------- panel (escritorio) y hoja (celular) ----------
+  // ---------- panel (escritorio) y tarjeta de la consulta (celular) ----------
   raiz.setAttribute("data-y2k-panel", leer("panel") === "cerrado" ? "cerrado" : "abierto");
   function estadoPanel() { return raiz.getAttribute("data-y2k-panel") || "abierto"; }
   function ponerPanel(v) { raiz.setAttribute("data-y2k-panel", v); guardar("panel", v); sincronizar(); distribuir(); setTimeout(distribuir, 380); }
-  var ESTADOS = ["min", "media", "max"];
-  function estadoHoja() { return raiz.getAttribute("data-y2k-hoja") || "min"; }
-  function ponerHoja(v) { raiz.setAttribute("data-y2k-hoja", v); sincronizar(); distribuir(); setTimeout(distribuir, 380); }
+  // en el celular la consulta arranca cerrada: se abre y se cierra con el boton "Consulta" (o tocando el mapa)
+  function hojaAbierta() { return raiz.getAttribute("data-y2k-hoja") === "abierta"; }
+  function ponerHoja(abierta) {
+    raiz.setAttribute("data-y2k-hoja", abierta ? "abierta" : "cerrada");
+    marcarIframe(); sincronizar(); distribuir(); setTimeout(distribuir, 380);
+  }
   function abrirPanel() {
-    if (esMovil()) { if (estadoHoja() === "min") ponerHoja("media"); }
+    if (esMovil()) { if (!hojaAbierta()) ponerHoja(true); }
     else if (estadoPanel() !== "abierto") ponerPanel("abierto");
+  }
+  // la escala y los creditos de Leaflet viven en el iframe del mapa: se apartan con la consulta abierta
+  function marcarIframe() {
+    var doc = docMapa();
+    if (doc) doc.documentElement.classList.toggle("y2k-hoja-abierta", esMovil() && hojaAbierta() && pantalla() === "mapa");
   }
 
   function sincronizar() {
     var abierto = estadoPanel() === "abierto", p = pantalla();
-    if (p && raiz.getAttribute("data-y2k-p") !== p) raiz.setAttribute("data-y2k-p", p);
+    if (p && raiz.getAttribute("data-y2k-p") !== p) {
+      raiz.setAttribute("data-y2k-p", p);
+      if (p !== "mapa" && hojaAbierta()) raiz.setAttribute("data-y2k-hoja", "cerrada");   // al volver al mapa, cerrada
+    }
     d.querySelectorAll("[data-y2k-panel-btn]").forEach(function (b) {
-      var txt = abierto ? "Ocultar el panel" : "Mostrar el panel";
+      var txt = abierto ? "Ocultar la consulta" : "Mostrar la consulta";
       b.setAttribute("aria-expanded", abierto ? "true" : "false"); b.setAttribute("aria-label", txt); b.title = txt;
     });
-    var h = estadoHoja();
-    d.querySelectorAll("[data-y2k-asa]").forEach(function (b) {
-      b.setAttribute("aria-expanded", h === "min" ? "false" : "true");
-      b.setAttribute("aria-label", h === "min" ? "Mostrar el panel" : "Reducir el panel");
-    });
-    d.querySelectorAll("[data-y2k-hoja-max]").forEach(function (b) {
-      var txt = h === "max" ? "Reducir el panel" : "Ampliar el panel";
-      b.setAttribute("aria-label", txt); b.title = txt;
-    });
+    var h = hojaAbierta() ? "true" : "false";
+    d.querySelectorAll("[data-y2k-consulta]").forEach(function (b) { if (b.getAttribute("aria-expanded") !== h) b.setAttribute("aria-expanded", h); });
+    if (!d.querySelector(".y2k-cierre-hoja")) {
+      var velo = d.createElement("div"); velo.className = "y2k-cierre-hoja"; velo.setAttribute("aria-hidden", "true"); d.body.appendChild(velo);
+    }
     // en Parametros y Exportacion el mapa queda detras: sin foco ni clics
     var esc = d.querySelector(".st-key-y2k_escenario");
     if (esc) { var fuera = p === "parametros" || p === "exportar"; if (esc.inert !== fuera) esc.inert = fuera; }
@@ -1074,13 +1153,6 @@ _UI = r"""
       var v = b.disabled ? null : (listo ? "false" : "true");
       if (v && b.getAttribute("aria-disabled") !== v) b.setAttribute("aria-disabled", v);
     });
-    d.querySelectorAll("[data-y2k-espera]").forEach(function (e) {
-      var serv = e.getAttribute("data-servidor") === "listo";
-      var texto = serv && !listo ? "Cargando el mapa…" : e.getAttribute("data-texto");
-      var est = serv && !listo ? "cargando" : e.getAttribute("data-servidor");
-      if (e.textContent !== texto) e.textContent = texto;
-      if (e.getAttribute("data-estado") !== est) e.setAttribute("data-estado", est);
-    });
   }
   function revisarMapaListo() {
     if (mapaListo()) return;
@@ -1112,13 +1184,15 @@ _UI = r"""
     }
   }
 
-  var SELECTORES = "[data-y2k-panel-btn],[data-y2k-asa],[data-y2k-hoja-max],[data-y2k-cam],[data-y2k-dibujar],[data-y2k-area],[data-y2k-subir]," +
-    "[data-y2k-editar],[data-y2k-borrar],[data-y2k-capa],[data-y2k-zoom],[data-y2k-menu],[data-y2k-2d],[data-y2k-ver]";
+  var SELECTORES = "[data-y2k-panel-btn],[data-y2k-consulta],[data-y2k-hoja-cerrar],[data-y2k-cam],[data-y2k-dibujar],[data-y2k-area]," +
+    "[data-y2k-subir],[data-y2k-editar],[data-y2k-borrar],[data-y2k-capa],[data-y2k-zoom],[data-y2k-menu],[data-y2k-2d],[data-y2k-ver],[data-y2k-pulsar]";
   function alClic(ev) {
     var t = ev.target && ev.target.closest ? ev.target : null;
     // el boton principal de Parametros no responde hasta que el mapa esta listo
     var cta = t && t.closest(".st-key-ir_mapa button");
     if (cta && !mapaListo()) { ev.preventDefault(); ev.stopPropagation(); return; }
+    // con la consulta abierta (celular), tocar el mapa la cierra
+    if (t && t.closest(".y2k-cierre-hoja")) { ev.preventDefault(); ponerHoja(false); return; }
     var b = t ? t.closest(SELECTORES) : null;
     if (!t || !t.closest(".y2k-grupo")) cerrarMenus(null);
     if (!b) return;
@@ -1126,8 +1200,9 @@ _UI = r"""
     if (b.closest(".y2k-menu")) cerrarMenus(null);
     if (b.hasAttribute("data-y2k-menu")) { alternarMenu(b, ev.detail === 0); return; }
     if (b.hasAttribute("data-y2k-panel-btn")) ponerPanel(estadoPanel() === "abierto" ? "cerrado" : "abierto");
-    else if (b.hasAttribute("data-y2k-asa")) { if (b.__y2kArrastre) { b.__y2kArrastre = false; return; } ponerHoja(estadoHoja() === "min" ? "media" : "min"); }
-    else if (b.hasAttribute("data-y2k-hoja-max")) ponerHoja(estadoHoja() === "max" ? "media" : "max");
+    else if (b.hasAttribute("data-y2k-consulta")) ponerHoja(!hojaAbierta());
+    else if (b.hasAttribute("data-y2k-hoja-cerrar")) { ponerHoja(false); var c = d.querySelector("[data-y2k-consulta]"); if (c) try { c.focus({preventScroll: true}); } catch (e) {} }
+    else if (b.hasAttribute("data-y2k-pulsar")) pulsarOculto(b.getAttribute("data-y2k-pulsar"));
     else if (b.hasAttribute("data-y2k-cam")) camara(b.getAttribute("data-y2k-cam"));
     else if (b.hasAttribute("data-y2k-dibujar")) dibujarRectangulo();
     else if (b.hasAttribute("data-y2k-area")) usarAreaVisible(b);
@@ -1141,42 +1216,8 @@ _UI = r"""
   }
   d.addEventListener("click", alClic, true);
 
-  // Arrastre de la hoja (celular): solo desde el asa, asi no se confunde con mover el mapa
-  var arr = null;
-  function panelEl() { return d.querySelector(".st-key-y2k_panel"); }
-  function alBajar(ev) {
-    var asa = ev.target && ev.target.closest ? ev.target.closest("[data-y2k-asa]") : null, h = panelEl();
-    if (!asa || !h || !esMovil()) return;
-    arr = {asa: asa, y0: ev.clientY, alto0: h.getBoundingClientRect().height, movio: false, id: ev.pointerId};
-    try { asa.setPointerCapture(ev.pointerId); } catch (e) {}
-  }
-  function alMover(ev) {
-    if (arr && ev.pointerId === arr.id) {
-      var dy = arr.y0 - ev.clientY, h = panelEl();
-      if (!h) return;
-      if (Math.abs(dy) > 6) arr.movio = true;
-      if (!arr.movio) return;
-      h.classList.add("arrastrando");
-      h.style.setProperty("height", Math.max(48, Math.min(w.innerHeight - 140, arr.alto0 + dy)) + "px", "important");
-      return;
-    }
-    especular(ev);
-  }
-  function alSoltar(ev) {
-    if (!arr || ev.pointerId !== arr.id) return;
-    var h = panelEl(), a = arr; arr = null;
-    if (!h) return;
-    h.classList.remove("arrastrando");
-    if (!a.movio) return;
-    a.asa.__y2kArrastre = true;
-    var alto = h.getBoundingClientRect().height, vh = w.innerHeight;
-    h.style.removeProperty("height");
-    ponerHoja(alto < vh * 0.2 ? "min" : alto < vh * 0.6 ? "media" : "max");
-  }
-  d.addEventListener("pointerdown", alBajar, true);
+  function alMover(ev) { especular(ev); }
   d.addEventListener("pointermove", alMover, true);
-  d.addEventListener("pointerup", alSoltar, true);
-  d.addEventListener("pointercancel", alSoltar, true);
   function alTecla(ev) {
     // menus: Escape cierra y devuelve el foco; flechas recorren las opciones
     var menu = ev.target && ev.target.closest ? ev.target.closest(".y2k-menu") : null;
@@ -1194,11 +1235,12 @@ _UI = r"""
       if (items[j]) items[j].focus();
       ev.preventDefault(); return;
     }
-    var asa = ev.target && ev.target.closest ? ev.target.closest("[data-y2k-asa]") : null;
-    if (!asa) return;
-    var k = ESTADOS.indexOf(estadoHoja());
-    if (ev.key === "ArrowUp") { ponerHoja(ESTADOS[Math.min(2, k + 1)]); ev.preventDefault(); }
-    else if (ev.key === "ArrowDown") { ponerHoja(ESTADOS[Math.max(0, k - 1)]); ev.preventDefault(); }
+    // Escape cierra la consulta del celular y devuelve el foco a su boton
+    if (ev.key === "Escape" && esMovil() && hojaAbierta() && pantalla() === "mapa" && !d.querySelector('[role="dialog"]')) {
+      ponerHoja(false);
+      var c = d.querySelector("[data-y2k-consulta]"); if (c) try { c.focus({preventScroll: true}); } catch (e) {}
+      ev.preventDefault();
+    }
   }
   d.addEventListener("keydown", alTecla, true);
 
@@ -1250,7 +1292,7 @@ _UI = r"""
     var izq = G, der = col.length ? W - Math.min.apply(null, col.map(function (r) { return r.left; })) + G : G;
     var arriba = abrir ? abrir.bottom + G : G, abajo = G;
     if (!movil && estadoPanel() === "abierto" && panel) izq = panel.right + G;
-    if (dock) raiz.style.setProperty("--y2k-dock-h", Math.round(movil ? dock.height : H - dock.top + G) + "px");
+    if (dock) raiz.style.setProperty("--y2k-dock-h", Math.round(movil ? H - dock.top : H - dock.top + G) + "px");
     if (movil) {
       abajo = H - Math.min(panel ? panel.top : H, dock ? dock.top : H) + G;
       if (ficha) arriba = Math.max(arriba, ficha.bottom + G);
@@ -1309,6 +1351,8 @@ _UI = r"""
     // zoom, capas y dibujo se manejan desde la capsula de herramientas de la pagina: sus controles de Leaflet no se ven
     // (la barra de dibujo sigue ahi, invisible, para que sus acciones "Guardar"/"Cancelar" salgan junto a la capsula)
     ".leaflet-control-zoom,.leaflet-control-layers{display:none !important}" +
+    // con la consulta abierta en el celular, la escala y los creditos se apartan (vuelven al cerrarla)
+    "html.y2k-hoja-abierta .leaflet-bottom{visibility:hidden !important}" +
     ".leaflet-draw.leaflet-control{visibility:hidden;pointer-events:none}" +
     ".leaflet-draw-actions{visibility:visible;pointer-events:auto;position:fixed !important;top:var(--acc-top,0) !important;right:var(--acc-der,0) !important;" +
     "left:auto !important;white-space:nowrap;border:0 !important;border-radius:999px !important;overflow:hidden;padding:4px !important;margin:0 !important;" + VIDRIO_CLARO_IF + "}" +
@@ -1370,6 +1414,7 @@ _UI = r"""
       if (win.map && win.map.invalidateSize) try { win.map.invalidateSize(); } catch (e) {}
     }
     var cl = doc.documentElement.classList;
+    cl.toggle("y2k-hoja-abierta", esMovil() && hojaAbierta() && pantalla() === "mapa");
     cl.toggle("y2k-lite", esLite()); cl.toggle("y2k-oscuro", css("--y2k-tono") === "oscuro"); cl.toggle("y2k-alto", css("--y2k-alto") === "1");
     var map = win.map, L = win.L;
     if (!map || !L) return;
@@ -1419,14 +1464,14 @@ _UI = r"""
   function dibujarRectangulo() {
     var doc = docMapa(), a = doc && doc.querySelector(".leaflet-draw-draw-rectangle");
     if (!a) return;
-    if (esMovil()) ponerHoja("min");
+    if (esMovil()) ponerHoja(false);
     a.click();
     try { marco2d().focus(); } catch (e) {}
   }
   function editarArea() {
     var doc = docMapa(), a = doc && doc.querySelector(".leaflet-draw-edit-edit");
     if (!a) return;
-    if (esMovil()) ponerHoja("min");
+    if (esMovil()) ponerHoja(false);
     a.click();
     try { marco2d().focus(); } catch (e) {}
   }
@@ -1482,7 +1527,7 @@ _UI = r"""
     var a = map.containerPointToLatLng([x0 + mx, y0 + my]), c = map.containerPointToLatLng([x1 - mx, y1 - my]);
     var rect = L.rectangle(L.latLngBounds(a, c), {color: "#1C6FD8", weight: 3, fillColor: "#1C6FD8", fillOpacity: 0.12});
     map.fire("draw:created", {layer: rect, layerType: "rectangle"});
-    if (esMovil()) ponerHoja("min");
+    if (esMovil()) ponerHoja(false);
   }
 
   // ---------- deck.gl (3D) ----------
@@ -1667,9 +1712,8 @@ _UI = r"""
     v: V, camara: camara, buscarDeck: buscarDeck, esLite: esLite, distribuir: distribuir,
     parar: function () {
       vivo = false; ciclos.forEach(clearInterval); obs.disconnect();
-      d.removeEventListener("click", alClic, true); d.removeEventListener("pointerdown", alBajar, true);
-      d.removeEventListener("pointermove", alMover, true); d.removeEventListener("pointerup", alSoltar, true);
-      d.removeEventListener("pointercancel", alSoltar, true); d.removeEventListener("keydown", alTecla, true);
+      d.removeEventListener("click", alClic, true); d.removeEventListener("pointermove", alMover, true);
+      d.removeEventListener("keydown", alTecla, true);
     }
   };
 })();
@@ -1678,7 +1722,7 @@ _UI = r"""
 
 def instalar_ui():
     """Inyecta el guion de la interfaz en la pagina principal (sobrevive a las recargas de Streamlit)."""
-    codigo = (_UI.replace("__V__", "30").replace("__ICONO_ALERTA__", json.dumps(ICONOS["alerta"]))
+    codigo = (_UI.replace("__V__", "31").replace("__ICONO_ALERTA__", json.dumps(ICONOS["alerta"]))
               .replace("__MOVIL__", json.dumps(MOVIL)).replace("__VIDRIO__", json.dumps(VIDRIO)))
     cuerpo = ("(function(){var w=window.parent;var s=w.document.createElement('script');"
               f"s.textContent={json.dumps(codigo)};w.document.head.appendChild(s);s.remove();}})();")
@@ -1689,35 +1733,27 @@ def instalar_ui():
 # Piezas de la pantalla 1 (Parametros)
 # ---------------------------------------------------------------------------
 def cabecera_inicio():
-    md('<header class="y2k-cab-inicio"><p class="eyebrow">Series del IDEAM · DHIME</p>'
-       '<h1>Descarga los datos de las estaciones de tu cuenca</h1>'
-       '<p class="lead">Elige qué quieres medir y el periodo. Después marcas el área en el mapa y revisas qué '
-       'estaciones tienen datos.</p></header>')
+    md('<header class="y2k-cab-inicio"><p class="eyebrow">IDEAM</p>'
+       '<h1>Consulta y descarga de datos hidrometeorológicos</h1></header>')
 
 
 def etiqueta(texto, punto=None, opcional=False):
     """Etiqueta visible de un campo (la del widget queda oculta pero accesible). `punto`: estado de la lista de
-    parametros del IDEAM ("cargando", "listo" o "error"): un punto pequeno que se enciende al cargar."""
-    titulos = {"cargando": "Cargando la lista de parámetros del IDEAM", "listo": "Lista de parámetros del IDEAM cargada",
-               "error": "No se pudo cargar la lista de parámetros del IDEAM"}
-    pt = (f'<span class="y2k-punto" data-estado="{punto}" title="{titulos[punto]}" role="img" aria-label="{titulos[punto]}">'
-          '</span>') if punto else ""
+    variables del IDEAM ("cargando", "listo" o "error"): un punto pequeno que se enciende cuando esta lista. Es la
+    unica senal de la carga (sin textos)."""
+    titulos = {"cargando": "Lista de variables del IDEAM: pendiente", "listo": "Lista de variables del IDEAM: disponible",
+               "error": "Lista de variables del IDEAM: no disponible"}
+    pt = (f'<span class="y2k-punto" data-estado="{punto}" role="img" aria-label="{titulos[punto]}"></span>') if punto else ""
     md(f'<p class="y2k-etq"><span aria-hidden="true">{texto}</span>'
        f'{"<span class=opc aria-hidden=true>· opcional</span>" if opcional else ""}{pt}</p>')
 
 
-def espera(texto, estado):
-    """Linea de estado bajo el boton principal. `estado`: "listo", "cargando" o "error". Si el servidor ya esta listo
-    pero el mapa aun no cargo, el navegador cambia el texto por "Cargando el mapa…"."""
-    md(f'<p class="y2k-espera" role="status" aria-live="polite" data-y2k-espera data-servidor="{estado}" '
-       f'data-estado="{estado}" data-texto="{escape(texto)}">{escape(texto)}</p>')
-
-
 def como_funciona():
-    md('<ol class="y2k-como" aria-label="Cómo funciona">'
-       '<li><b>Marca el área</b>Dibuja un rectángulo o sube el contorno (SHP, GeoJSON, KML, GPKG).</li>'
-       '<li><b>Revisa las estaciones</b>Mira cuántos datos tiene cada una y quita las que no necesites.</li>'
-       '<li><b>Descarga</b>Un ZIP con un Excel por estación y la cita de la fuente.</li></ol>')
+    """Pasos de la consulta (el actual resaltado). En el celular solo los titulos."""
+    md('<ol class="y2k-como" aria-label="Pasos de la consulta">'
+       '<li aria-current="step"><b>Consulta</b><span>Serie, variable y periodo.</span></li>'
+       '<li><b>Área y estaciones</b><span>Delimitación de la zona y revisión de la cobertura de cada estación.</span></li>'
+       '<li><b>Descarga</b><span>Un Excel por estación, con resumen y cita de la fuente.</span></li></ol>')
 
 
 def pie_inicio(texto_legal):
@@ -1731,28 +1767,41 @@ def pie_inicio(texto_legal):
 # ---------------------------------------------------------------------------
 # Piezas de la pantalla 2 (Mapa)
 # ---------------------------------------------------------------------------
-def controles_panel():
-    """Botones de la cabecera del panel: plegar (escritorio) y ampliar la hoja (celular)."""
-    md('<div style="display:flex;gap:2px">'
-       f'<button type="button" class="y2k-ico y2k-panel-cerrar" data-y2k-panel-btn aria-expanded="true" aria-label="Ocultar el panel" '
-       f'title="Ocultar el panel">{ICONOS["panel"]}</button>'
-       f'<button type="button" class="y2k-ico y2k-hoja-max" data-y2k-hoja-max aria-label="Ampliar el panel">{ICONOS["subir_hoja"]}</button>'
-       '</div>')
+def cabecera_panel():
+    """Titulo del panel de la consulta y su boton: plegar (escritorio) o cerrar la tarjeta (celular)."""
+    md('<div class="y2k-panel-cab" id="y2k-panel"><p class="t" role="heading" aria-level="1">Consulta</p><div>'
+       f'<button type="button" class="y2k-ico y2k-panel-cerrar" data-y2k-panel-btn aria-expanded="true" aria-label="Ocultar la consulta" '
+       f'title="Ocultar la consulta">{ICONOS["panel"]}</button>'
+       f'<button type="button" class="y2k-ico y2k-hoja-cerrar" data-y2k-hoja-cerrar aria-label="Cerrar la consulta" '
+       f'title="Cerrar">{ICONOS["cerrar"]}</button></div></div>')
 
 
-def asa_hoja():
-    md('<button type="button" class="y2k-asa" data-y2k-asa aria-expanded="false" aria-label="Mostrar el panel"></button>')
+def boton_consulta():
+    """Boton "Consulta" de la barra de abajo (solo en el celular): abre y cierra la tarjeta de la consulta."""
+    md(f'<button type="button" class="y2k-ico con-texto y2k-consulta" data-y2k-consulta aria-expanded="false" '
+       f'aria-controls="y2k-panel">{ICONOS["consulta"]}Consulta</button>')
 
 
 def boton_abrir_panel():
     """Boton para volver a mostrar el panel cuando esta plegado (escritorio; va en el contenedor y2k_abrir)."""
-    md(f'<button type="button" class="y2k-ico con-texto" data-y2k-panel-btn aria-expanded="false" aria-label="Mostrar el panel">'
-       f'{ICONOS["panel_abrir"]}Panel</button>')
+    md(f'<button type="button" class="y2k-ico con-texto" data-y2k-panel-btn aria-expanded="false" aria-label="Mostrar la consulta">'
+       f'{ICONOS["panel_abrir"]}Consulta</button>')
 
 
-def seccion(titulo, valor=""):
-    md(f'<div class="y2k-sec"><p class="t" role="heading" aria-level="2">{titulo}</p>'
-       f'{f"<span class=valor>{valor}</span>" if valor else ""}</div>')
+def seccion(titulo, valor="", capsula=None, chip=None):
+    """Titulo de una seccion del panel y, a la derecha, un dato: `valor` (texto tenue), `capsula` (cifra destacada,
+    como el area en km²) o `chip` = (texto, ayuda): la variable consultada, que al pulsarla vuelve a Parametros."""
+    extra = ""
+    if capsula:
+        extra = f'<span class="y2k-km">{ICONOS["area"]}{escape(capsula)}</span>'
+    elif chip:
+        texto, ayuda = chip
+        extra = (f'<button type="button" class="y2k-chip" data-y2k-pulsar="chip_param" title="{escape(ayuda)}" '
+                 f'aria-label="Variable: {escape(texto)}. Cambiar la variable o el periodo">{ICONOS["volver"]}'
+                 f'<span>{escape(texto)}</span></button>')
+    elif valor:
+        extra = f'<span class="valor">{escape(valor)}</span>'
+    md(f'<div class="y2k-sec"><p class="t" role="heading" aria-level="2">{titulo}</p>{extra}</div>')
 
 
 def acciones_area(hay_cuenca, vista="2D"):
@@ -1762,17 +1811,10 @@ def acciones_area(hay_cuenca, vista="2D"):
            f'<div class="y2k-acciones"><button type="button" class="y2k-boton sec" data-y2k-2d>{ICONOS["mapa2d"]}Ver en 2D</button></div>')
         return
     if not hay_cuenca:
-        md('<p class="y2k-hint">Dibuja un rectángulo sobre tu zona o sube el contorno de la cuenca.</p>'
-           '<div class="y2k-acciones">'
-           f'<button type="button" class="y2k-boton prim" data-y2k-dibujar>{ICONOS["dibujar"]}Dibujar un rectángulo</button>'
-           f'<button type="button" class="y2k-boton sec" data-y2k-subir>{ICONOS["archivo"]}Subir archivo</button></div>'
-           '<p class="y2k-hint">¿Sin ratón? Acércate con el teclado (flechas y +) y '
-           '<button type="button" class="y2k-vinculo" data-y2k-area aria-disabled="true">usa el área visible</button>.</p>')
-        return
+        return   # dibujar o subir el area se hace desde la capsula de herramientas (lapiz), sin repetirlo aqui
     md('<div class="y2k-acciones fichas">'
        f'<button type="button" class="y2k-boton sec" data-y2k-dibujar title="Dibujar otro rectángulo">{ICONOS["dibujar"]}Redibujar</button>'
        f'<button type="button" class="y2k-boton sec" data-y2k-editar title="Ajustar las esquinas">{ICONOS["ajustar"]}Ajustar</button>'
-       f'<button type="button" class="y2k-boton sec" data-y2k-subir title="Subir un archivo">{ICONOS["archivo"]}Subir</button>'
        f'<button type="button" class="y2k-boton sec peligro" data-y2k-borrar title="Borrar el área">{ICONOS["borrar"]}Borrar</button>'
        '</div>')
 
@@ -1898,8 +1940,15 @@ def progreso(fraccion, principal, meta, estado="vivo"):
 
 
 def recibo(filas):
-    """Recibo de la descarga: [(etiqueta, valor, detalle)]."""
-    html = "".join(f'<dt>{escape(e)}</dt><dd>{escape(v)}{f"<small>{escape(s)}</small>" if s else ""}</dd>' for e, v, s in filas)
+    """Recibo de la descarga: [(etiqueta, valor, detalle)]. Si `valor` es una lista de (nombre, icono, detalle), se
+    muestra como una lista ordenada (por ejemplo, los archivos que trae el ZIP)."""
+    def dd(v, s):
+        if isinstance(v, list):
+            items = "".join(f'<li>{ICONOS.get(i, "")}<b>{escape(n)}</b>{f"<small>{escape(x)}</small>" if x else ""}</li>'
+                            for n, i, x in v)
+            return f'<ul class="y2k-archivo">{items}</ul>'
+        return escape(v) + (f"<small>{escape(s)}</small>" if s else "")
+    html = "".join(f'<dt>{escape(e)}</dt><dd>{dd(v, s)}</dd>' for e, v, s in filas)
     md(f'<dl class="y2k-recibo" aria-label="Recibo de la descarga">{html}</dl>')
 
 
@@ -1917,7 +1966,6 @@ def resumen_final(texto, reparto):
 
 def legal_exportar(texto_legal):
     md('<div class="y2k-legal-bloque">'
-       '<p><b>Los datos recientes pueden ser preliminares.</b> Cada Excel indica el nivel de aprobación de cada dato.</p>'
        '<p>Datos del IDEAM: uso personal y no comercial; cita la fuente (el ZIP incluye CITACION.txt).</p>'
        f'<details class="y2k-det"><summary><span class="ver">Ver condiciones completas</span></summary>'
        f'<div><p>{texto_legal}</p></div></details></div>')

@@ -256,6 +256,18 @@ a{color:var(--y2k-accent-texto)}
 .y2k-hint,[data-testid="stMarkdownContainer"] p.y2k-hint{font-size:12.5px !important;line-height:1.45 !important;color:var(--y2k-ink-3) !important;margin:0 !important}
 .y2k-vh{position:absolute !important;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 
+/* barras de desplazamiento como las del celular: en reposo transparentes; se ven mientras se desplaza o con el puntero
+   sobre la barra (el guion marca [data-y2k-desplaza]). Solo con raton; en alto contraste se ven siempre */
+@media (hover: hover) and (pointer: fine){
+  :is(.st-key-y2k_cuerpo,.st-key-y2k_inicio_cuerpo,.st-key-y2k_exportar_cuerpo,.st-key-y2k_ficha_cuerpo,[data-testid="stPopoverBody"],
+      .y2k-menu,.dvn-scroller,[data-testid="stDialog"] [role="dialog"],[data-testid="stExpanderDetails"]){
+    scrollbar-width:thin !important;scrollbar-color:transparent transparent !important;transition:scrollbar-color .35s ease}
+  /* mismo :is (su peso es el de su selector mas pesado) mas el atributo, para ganarle a la regla de reposo */
+  :is(.st-key-y2k_cuerpo,.st-key-y2k_inicio_cuerpo,.st-key-y2k_exportar_cuerpo,.st-key-y2k_ficha_cuerpo,[data-testid="stPopoverBody"],
+      .y2k-menu,.dvn-scroller,[data-testid="stDialog"] [role="dialog"],[data-testid="stExpanderDetails"])[data-y2k-desplaza]{
+    scrollbar-color:var(--y2k-line-2) transparent !important;transition:none}
+}
+
 /* ================= MATERIAL: VIDRIO LIQUIDO ================= */
 /* brillo especular: una luz suave que sigue al puntero (la mueve el guion de la interfaz). Va en el fondo del
    propio vidrio, que no se desplaza: la luz siempre queda bajo el puntero */
@@ -344,8 +356,11 @@ a{color:var(--y2k-accent-texto)}
   font-size:21px !important;width:21px;height:21px;line-height:21px !important;justify-content:center;overflow:visible}
 .st-key-y2k_ajustes [data-testid="stPopoverButton"] > div > div[aria-hidden="true"]{display:none !important}
 /* Streamlit deja un margen derecho negativo al contenido para acercar la flecha del menu; sin flecha corria el icono
-   2,5 px a la derecha */
+   2,5 px a la derecha. Ademas el icono (solo) se centra por posicion en el boton, sin depender de esos envoltorios */
 :is(.st-key-y2k_ajustes,.st-key-y2k_filtro) [data-testid="stPopoverButton"] > div{margin:0 !important}
+:is(.st-key-y2k_ajustes,.st-key-y2k_filtro:not(:has(.y2k-filtro-on))) .stPopover button{position:relative !important}
+:is(.st-key-y2k_ajustes,.st-key-y2k_filtro:not(:has(.y2k-filtro-on))) .stPopover button [data-testid="stIconMaterial"]{
+  position:absolute !important;left:50% !important;top:50% !important;transform:translate(-50%,-50%);margin:0 !important}
 .y2k-lite-chip{display:inline-flex;align-items:center;height:28px;padding:0 10px 0 8px;border-radius:999px;font:700 12px/1 "Figtree",sans-serif;
   letter-spacing:.04em;color:var(--y2k-sobre-acento);background:var(--y2k-accent);gap:4px}
 .y2k-lite-chip svg{width:13px;height:13px}
@@ -629,6 +644,15 @@ html:not([data-y2k-panel="cerrado"]) .st-key-y2k_abrir{display:none !important}
 .st-key-preparar button{min-height:var(--y2k-capsula) !important;height:var(--y2k-capsula);padding:0 20px !important;font-size:15px !important;gap:8px;
   max-width:100%}
 .st-key-preparar button p{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+/* la pildora de la derecha cede espacio si la barra no alcanza (antes se salia por la derecha en celulares angostos):
+   toda la cadena de envoltorios de Streamlit puede encogerse y el texto, en ultimo caso, termina en "..." */
+.st-key-y2k_dock > [data-testid="stLayoutWrapper"]:has(.st-key-y2k_dock_der){flex:0 1 auto !important;min-width:0 !important}
+:is(.st-key-y2k_dock_der,.st-key-preparar,.st-key-preparar .stButton,.st-key-preparar .stButton > div){min-width:0 !important;max-width:100%;
+  flex-shrink:1 !important}
+.st-key-preparar button,.st-key-preparar button *{min-width:0 !important}
+/* si no cabe, el texto se recorta por la derecha con "..." (centrado sin mas, se cortaba por los dos lados) */
+.st-key-preparar button > div{overflow:hidden;justify-content:safe center !important}
+.st-key-preparar button [data-testid="stMarkdownContainer"]{overflow:hidden}
 .st-key-preparar button p{font-size:15px !important;font-weight:700 !important}
 .st-key-preparar button:disabled{opacity:.55 !important;filter:saturate(.35)}
 .st-key-y2k_dock_der .stButton button[kind="primary"]{box-shadow:var(--y2k-boton-canto),0 10px 22px -10px var(--y2k-accent) !important}
@@ -738,12 +762,25 @@ details.y2k-det b{color:var(--y2k-ink)}
   line-height:1.4;color:var(--y2k-ink);max-width:min(440px,calc(100vw - var(--y2k-libre-izq) - 140px));text-align:center}
 @media (prefers-reduced-motion: reduce){.y2k-nota-mov{display:block;animation:y2k-ocultar 0s linear 14s forwards}}
 @keyframes y2k-ocultar{to{visibility:hidden}}
-/* aviso de navegador que altera los pixeles (terreno.AVISO_NAVEGADOR): arriba, sobre la zona libre */
-.y2k-aviso3d{left:var(--y2k-centro) !important;top:var(--y2k-ov-top) !important;bottom:auto !important;transform:translateX(-50%);z-index:26 !important;
-  background:var(--y2k-alerta-bg) !important;color:var(--y2k-ink) !important;border:1px solid var(--y2k-alerta-borde) !important;border-radius:14px !important;
-  padding:8px 8px 8px 12px !important;font-size:12.5px !important;-webkit-backdrop-filter:var(--lg-filtro-claro);backdrop-filter:var(--lg-filtro-claro);
-  box-shadow:var(--lg-sombra)}
-.y2k-aviso3d button{color:var(--y2k-ink) !important}
+/* aviso de navegador que altera los pixeles (terreno.AVISO_NAVEGADOR): una pildora minima arriba, en la zona libre;
+   al tocarla se despliega la explicacion. Es un elemento aside y no un div: el visor estira sus div a pantalla completa.
+   (Ojo: en el CSS no puede haber nada con forma de etiqueta HTML; Streamlit sanea el bloque style y lo descarta entero) */
+.y2k-aviso3d{position:absolute;left:var(--y2k-centro);top:var(--y2k-ov-top);transform:translateX(-50%);z-index:26;
+  width:max-content;max-width:min(340px,calc(100vw - var(--y2k-g) * 4 - var(--y2k-capsula) * 2));
+  display:flex;align-items:flex-start;gap:0;padding:0 0 0 10px;border-radius:17px;font:600 12px/1.3 "Figtree",sans-serif;
+  background:var(--y2k-alerta-bg);color:var(--y2k-ink);border:1px solid var(--y2k-alerta-borde);
+  -webkit-backdrop-filter:var(--lg-filtro-claro);backdrop-filter:var(--lg-filtro-claro);box-shadow:0 6px 16px -8px rgba(0,0,0,.45)}
+.y2k-aviso3d details{min-width:0}
+.y2k-aviso3d summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:5px;min-height:32px;white-space:nowrap}
+.y2k-aviso3d summary::-webkit-details-marker{display:none}
+.y2k-aviso3d summary svg{width:15px;height:15px;flex:none;color:var(--y2k-alerta)}
+.y2k-aviso3d summary span{overflow:hidden;text-overflow:ellipsis}
+.y2k-aviso3d details[open] summary span{white-space:normal}
+.y2k-aviso3d p{margin:0 0 9px;font-weight:500;font-size:12px;line-height:1.4;color:var(--y2k-ink-2);white-space:normal}
+.y2k-aviso3d button{all:unset;box-sizing:border-box;cursor:pointer;width:30px;height:32px;display:grid;place-items:center;border-radius:50%;
+  flex:none;color:var(--y2k-ink);font:600 16px/1 "Figtree",sans-serif}
+.y2k-aviso3d button:hover{background:var(--y2k-hover)}
+.y2k-aviso3d :is(button,summary):focus-visible{outline:2px solid var(--y2k-foco);outline-offset:-2px;border-radius:12px}
 /* avisos de fallo (los pone el guion de la interfaz) */
 .y2k-dialogo{position:fixed;z-index:70;left:var(--y2k-centro);top:45%;transform:translate(-50%,-50%);
   width:min(420px,calc(100vw - 28px));display:flex;flex-direction:column;gap:8px;padding:18px 20px;font-size:14px;line-height:1.45}
@@ -859,7 +896,7 @@ html{--y2k-libre-izq:0px !important;--y2k-g:10px}
 .st-key-y2k_dock_izq button[role="radio"]{min-width:40px;padding:0 10px !important;min-height:34px !important}
 .st-key-y2k_repetir_intro{display:none !important}
 .st-key-y2k_dock_izq .stPopover button [data-testid="stMarkdownContainer"]{position:absolute !important;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
-.st-key-preparar button{padding:0 12px !important;min-height:40px !important;gap:6px}
+.st-key-preparar button{padding:0 12px !important;min-height:40px !important;height:40px;gap:6px}
 .st-key-preparar button p{font-size:14px !important}
 .y2k-consulta.con-texto{padding:0 11px 0 9px;height:40px}
 /* la consulta: tarjeta flotante sobre la barra, de hasta unas tres cuartas partes de la pantalla */
@@ -904,8 +941,13 @@ CSS_SELLO_MOVIL = """
 CSS_ESTRECHO = """
 .st-key-y2k_dock_izq button[role="radio"]{min-width:34px;padding:0 8px !important}
 .y2k-consulta.con-texto{padding:0 10px 0 8px}
-.st-key-preparar button{padding:0 11px !important;font-size:13.5px !important}
+.st-key-preparar button{padding:0 10px !important;font-size:13.5px !important}
 .st-key-preparar button p{font-size:13.5px !important}
+"""
+# Barra angosta: "Preparar descarga" sin la flecha (asi cabe sin cortar el texto)
+CSS_ANGOSTO = """
+.st-key-preparar button [data-testid="stIconMaterial"],.st-key-preparar button span:has(> [data-testid="stIconMaterial"]){display:none !important}
+.st-key-preparar button{padding:0 12px !important}
 """
 # Pantallas bajas (celular en horizontal): todo mas compacto
 CSS_BAJO = """
@@ -919,6 +961,9 @@ CSS_BAJO = """
 # Alto contraste: superficies opacas, bordes nitidos, sin brillos ni desenfoque, foco grueso
 CSS_ALTO = """
 :is(__VIDRIO__){box-shadow:0 0 0 2px var(--lg-borde) !important;background:var(--lg-regular) !important}
+/* barras de desplazamiento siempre visibles */
+:is(.st-key-y2k_cuerpo,.st-key-y2k_inicio_cuerpo,.st-key-y2k_exportar_cuerpo,.st-key-y2k_ficha_cuerpo,[data-testid="stPopoverBody"],
+.y2k-menu,.dvn-scroller,[data-testid="stDialog"] [role="dialog"],[data-testid="stExpanderDetails"]){scrollbar-color:var(--y2k-ink-3) transparent !important}
 :is(__VIDRIO__)::before,:is(__VIDRIO__)::after{display:none}
 .st-key-y2k_dock_izq button[aria-checked="true"],[data-testid="stPopoverBody"] button[aria-checked="true"],.st-key-serie button[aria-checked="true"],
 .y2k-herr button.h[aria-expanded="true"],.y2k-consulta[aria-expanded="true"]{background:var(--y2k-ink) !important;color:var(--y2k-bg) !important;box-shadow:none !important}
@@ -967,6 +1012,8 @@ CSS_MOVIMIENTO = """
 # y senales que el navegador quita junto con los fondos y las sombras.
 CSS_FORZADOS = """
 @media (forced-colors: active){
+  :is(.st-key-y2k_cuerpo,.st-key-y2k_inicio_cuerpo,.st-key-y2k_exportar_cuerpo,.st-key-y2k_ficha_cuerpo,[data-testid="stPopoverBody"],
+  .y2k-menu,.dvn-scroller,[data-testid="stDialog"] [role="dialog"],[data-testid="stExpanderDetails"]){scrollbar-color:auto !important}
   :is(__VIDRIO__),.y2k-menu{border:1px solid CanvasText !important;forced-color-adjust:auto}
   :is(__VIDRIO__)::before,:is(__VIDRIO__)::after{display:none}
   .y2k-ico,.y2k-herr button.h,.y2k-dialogo button,.y2k-chip,.y2k-km,.y2k-boton,.y2k-kpi,.y2k-menu button,.y2k-como li{
@@ -1003,10 +1050,12 @@ def aplicar(tema="sistema", contraste="sistema", lite=False, sello=False):
     Community Cloud, que pone su boton abajo a la derecha (fuera de la app): esa esquina queda libre."""
     css = (CSS + (":root{--y2k-sello:46px}@media " + MOVIL + "{:root{--y2k-sello:42px}" + CSS_SELLO_MOVIL + "}" if sello else "")
            + "@media (min-width: 761px) and (max-width: 1100px){" + CSS_MEDIO + "}"
-           + "@media " + MOVIL + "{" + CSS_MOVIL + "}" + "@media (max-width: 380px){" + CSS_ESTRECHO + "}"
+           + "@media " + MOVIL + "{" + CSS_MOVIL + "}" + "@media (max-width: 400px){" + CSS_ANGOSTO + "}" + "@media (max-width: 380px){" + CSS_ESTRECHO + "}"
            + "@media " + BAJO + "{" + CSS_BAJO + "}"
            + _tokens_css(tema, contraste) + (CSS_LITE if lite else "") + CSS_MOVIMIENTO + CSS_FORZADOS)
-    st.html("<style>" + _vidrio(css) + "</style>")
+    # Streamlit sanea el bloque con DOMPurify, que lo descarta entero si su texto tiene algo con forma de etiqueta
+    # (por ejemplo un comentario que nombre un elemento entre angulos): se escapa todo "<" (en CSS es valido)
+    st.html("<style>" + _vidrio(css).replace("<", "\\3c ") + "</style>")
 
 
 def tono(tema):
@@ -1310,7 +1359,7 @@ _UI = r"""
   // ---------- un toque fuera de un desplegable lo cierra (menus, leyenda, ficha y menus de Streamlit) ----------
   function alPulsar(ev) {
     var t = ev && ev.target && ev.target.closest ? ev.target : null;
-    d.querySelectorAll("details.y2k-leyenda[open]").forEach(function (det) { if (!t || !det.contains(t)) det.open = false; });
+    d.querySelectorAll("details.y2k-leyenda[open], .y2k-aviso3d details[open]").forEach(function (det) { if (!t || !det.contains(t)) det.open = false; });
     if (fichaAbierta() && !(t && t.closest(".st-key-y2k_ficha"))) ponerFicha(false);
     if (!t || !t.closest(".y2k-grupo")) cerrarMenus(null);
   }
@@ -1425,7 +1474,28 @@ _UI = r"""
   }
   d.addEventListener("click", alClic, true);
 
-  function alMover(ev) { especular(ev); }
+  // ---------- barras de desplazamiento (escritorio): visibles mientras se desplaza o con el puntero sobre la barra ----------
+  var DESPLAZABLES = '.st-key-y2k_cuerpo,.st-key-y2k_inicio_cuerpo,.st-key-y2k_exportar_cuerpo,.st-key-y2k_ficha_cuerpo,' +
+    '[data-testid="stPopoverBody"],.y2k-menu,.dvn-scroller,[data-testid="stDialog"] [role="dialog"],[data-testid="stExpanderDetails"]';
+  function marcarDesplaza(e, ms) {
+    if (!e.hasAttribute("data-y2k-desplaza")) e.setAttribute("data-y2k-desplaza", "");
+    clearTimeout(e.__y2kDesplaza);
+    e.__y2kDesplaza = setTimeout(function () { e.removeAttribute("data-y2k-desplaza"); }, ms);
+  }
+  function alDesplazar(ev) {
+    var e = ev.target;
+    if (e && e.nodeType === 1 && e.matches && e.matches(DESPLAZABLES)) marcarDesplaza(e, 900);
+  }
+  d.addEventListener("scroll", alDesplazar, true);
+  function barraBajoPuntero(ev) {
+    if (ev.pointerType && ev.pointerType !== "mouse") return;
+    var e = ev.target && ev.target.closest ? ev.target.closest(DESPLAZABLES) : null;
+    if (!e || e.scrollHeight <= e.clientHeight + 1) return;
+    var r = e.getBoundingClientRect();
+    if (ev.clientX > r.right - 14) marcarDesplaza(e, 700);
+  }
+
+  function alMover(ev) { especular(ev); barraBajoPuntero(ev); }
   d.addEventListener("pointermove", alMover, true);
   function alTecla(ev) {
     // menus: Escape cierra y devuelve el foco; flechas recorren las opciones
@@ -1552,10 +1622,24 @@ _UI = r"""
       var v = {"--tl-top": arriba, "--tl-izq": izq, "--tr-top": herr ? herr.top : G, "--tr-der": G,
                "--bl-abajo": blAbajo, "--bl-izq": izq, "--br-abajo": brAbajo, "--br-der": G,
                "--acc-top": (herr ? herr.top : G) + 10, "--acc-der": der + 10};
-      var claveIf = JSON.stringify(v);
+      // escritorio: el credito de los mapas va abajo, a la derecha de la pildora 2D/3D, centrado con ella; llega hasta
+      // "Preparar descarga" si esta en la misma franja o, si no, hasta el boton de Streamlit
+      var cred = null, credEl = doc.querySelector(".leaflet-control-attribution");
+      if (!movil && pIzq && credEl) {
+        var aH = credEl.offsetHeight || 18, centro = (pIzq.top + pIzq.bottom) / 2, x0 = pIzq.right + G;
+        var limite = pDer && pDer.top < centro + aH / 2 && pDer.bottom > centro - aH / 2 ? pDer.left - G : W - G - (sello > 0 ? SELLO_ANCHO : 0);
+        cred = {izq: x0, abajo: H - centro - aH / 2 - 4, ancho: Math.max(120, limite - x0)};
+      }
+      var claveIf = JSON.stringify([v, cred]);
       if (doc.__y2kClave !== claveIf) {
         doc.__y2kClave = claveIf;
-        for (var k in v) doc.documentElement.style.setProperty(k, Math.max(0, Math.round(v[k] - 10)) + "px");
+        var es = doc.documentElement.style;
+        for (var k in v) es.setProperty(k, Math.max(0, Math.round(v[k] - 10)) + "px");
+        doc.documentElement.classList.toggle("y2k-credito-abajo", !!cred);
+        if (cred) {
+          es.setProperty("--cred-izq", Math.round(cred.izq) + "px"); es.setProperty("--cred-abajo", Math.max(0, Math.round(cred.abajo)) + "px");
+          es.setProperty("--cred-ancho", Math.round(cred.ancho) + "px");
+        }
       }
     }
   }
@@ -1571,6 +1655,9 @@ _UI = r"""
     ".leaflet-top.leaflet-left{top:var(--tl-top,0);left:var(--tl-izq,0)}.leaflet-top.leaflet-right{top:var(--tr-top,0);right:var(--tr-der,0)}" +
     ".leaflet-bottom.leaflet-left{bottom:var(--bl-abajo,0);left:var(--bl-izq,0)}.leaflet-bottom.leaflet-right{bottom:var(--br-abajo,0);right:var(--br-der,0)}" +
     ".leaflet-top,.leaflet-bottom{transition:top .32s cubic-bezier(.2,.8,.2,1),left .32s cubic-bezier(.2,.8,.2,1),right .32s,bottom .32s}" +
+    // escritorio: credito abajo, a la derecha de la pildora 2D/3D (lo calcula distribuir)
+    "html.y2k-credito-abajo .leaflet-bottom.leaflet-right{left:var(--cred-izq,auto);right:auto;bottom:var(--cred-abajo,0)}" +
+    "html.y2k-credito-abajo .leaflet-control-attribution{float:left !important;max-width:var(--cred-ancho,60vw) !important}" +
     // zoom, capas y dibujo se manejan desde la capsula de herramientas de la pagina: sus controles de Leaflet no se ven
     // (la barra de dibujo sigue ahi, invisible, para que sus acciones "Guardar"/"Cancelar" salgan junto a la capsula)
     ".leaflet-control-zoom,.leaflet-control-layers{display:none !important}" +
@@ -1984,6 +2071,7 @@ _UI = r"""
       vivo = false; ciclos.forEach(clearInterval); obs.disconnect();
       d.removeEventListener("click", alClic, true); d.removeEventListener("pointermove", alMover, true);
       d.removeEventListener("keydown", alTecla, true); d.removeEventListener("pointerdown", alPulsar, true);
+      d.removeEventListener("scroll", alDesplazar, true);
     }
   };
 })();
@@ -1992,7 +2080,7 @@ _UI = r"""
 
 def instalar_ui():
     """Inyecta el guion de la interfaz en la pagina principal (sobrevive a las recargas de Streamlit)."""
-    codigo = (_UI.replace("__V__", "32").replace("__ICONO_ALERTA__", json.dumps(ICONOS["alerta"]))
+    codigo = (_UI.replace("__V__", "33").replace("__ICONO_ALERTA__", json.dumps(ICONOS["alerta"]))
               .replace("__MOVIL__", json.dumps(MOVIL)).replace("__VIDRIO__", json.dumps(VIDRIO)))
     cuerpo = ("(function(){var w=window.parent;var s=w.document.createElement('script');"
               f"s.textContent={json.dumps(codigo)};w.document.head.appendChild(s);s.remove();}})();")

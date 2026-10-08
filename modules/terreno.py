@@ -756,28 +756,38 @@ AVISO_NAVEGADOR = """
   // Si el usuario ya lo cerro, no vuelve a salir en esta sesion
   try { if (w.sessionStorage.getItem("y2k_aviso3d_cerrado")) return; } catch (e) {}
   if (w.__y2kAviso3dCerrado) return;
+  // Pildora minima arriba al centro (la coloca y la tine el CSS de la pagina, .y2k-aviso3d); al tocarla se despliega la
+  // explicacion. Es un <aside>: el CSS estira a pantalla completa los <div> que cuelgan del visor (asi el aviso viejo
+  // terminaba tapando todo y, en el celular, su x quedaba debajo de Ajustes)
+  const ICONO = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" ' +
+    'stroke-linejoin="round" aria-hidden="true"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/>' +
+    '<path d="M12 9v4M12 17h.01"/></svg>';
   for (let i = 0; i < 50; i++) {
     const mapa = d.querySelector('[data-testid="stDeckGlJsonChart"]');
     if (mapa) {
       if (mapa.querySelector(".y2k-aviso3d")) return;
-      const aviso = d.createElement("div");
+      const aviso = d.createElement("aside");
       aviso.className = "y2k-aviso3d";
-      aviso.style.cssText = "position:absolute;left:10px;bottom:10px;z-index:5;max-width:min(420px,calc(100% - 20px));" +
-        "display:flex;align-items:flex-start;gap:8px;padding:5px 6px 5px 10px;border-radius:8px;" +
-        "background:rgba(255,243,236,.92);color:#16213A;border:1px solid #EC835A;" +
-        "font:12px/1.35 Figtree,system-ui,sans-serif";
-      const texto = d.createElement("span");
-      texto.textContent = "⚠ Tu navegador altera las imágenes por privacidad y el relieve puede verse con picos falsos. " +
-        "Prueba en una ventana normal o en otro navegador.";
+      aviso.setAttribute("role", "status");
+      const det = d.createElement("details");
+      const res = d.createElement("summary");
+      res.innerHTML = ICONO;
+      const txt = d.createElement("span");
+      txt.textContent = "Tu navegador altera el relieve";
+      res.appendChild(txt);
+      const p = d.createElement("p");
+      p.textContent = "Por privacidad, cambia un poco los píxeles de las imágenes y el relieve puede verse con picos falsos. " +
+        "Los datos no cambian. Prueba en una ventana normal o en otro navegador; en Brave, desactiva los escudos para este sitio.";
+      det.append(res, p);
       const cerrar = d.createElement("button");
       cerrar.type = "button"; cerrar.textContent = "×"; cerrar.setAttribute("aria-label", "Cerrar aviso");
-      cerrar.style.cssText = "all:unset;cursor:pointer;font:600 16px/1 Figtree,system-ui,sans-serif;padding:0 6px;color:#16213A";
+      cerrar.title = "Cerrar aviso";
       cerrar.onclick = () => {
         w.__y2kAviso3dCerrado = true;
         try { w.sessionStorage.setItem("y2k_aviso3d_cerrado", "1"); } catch (e) {}
         aviso.remove();
       };
-      aviso.append(texto, cerrar);
+      aviso.append(det, cerrar);
       mapa.style.position = "relative";
       mapa.appendChild(aviso);
       return;

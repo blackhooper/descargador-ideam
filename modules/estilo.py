@@ -44,14 +44,15 @@ FUENTE = {
 # https://developers.arcgis.com/documentation/mapping-apis-and-services/deployment/basemap-attribution/
 ATRIB_ESRI_SATELITE = "Powered by Esri · Maxar, Earthstar Geographics"
 ATRIB_ESRI_RELIEVE = "Powered by Esri · HERE, Garmin, FAO, NOAA, USGS, OpenStreetMap"
+ATRIB_ESRI_NOMBRES = "Nombres: Esri, HERE, Garmin, OpenStreetMap"
 ATRIB_NASA = "NASA EOSDIS GIBS"
 ATRIB_RELIEVE_3D = ("Relieve 3D: modelo de elevación Terrarium (Mapzen, AWS Open Data), construido con datos SRTM y "
                     "GMTED2010, cortesía del U.S. Geological Survey, entre otras fuentes")
 ATRIB_RELIEVE_3D_CORTO = "Relieve: Terrarium (Mapzen · AWS · SRTM/USGS) · Imagen: Esri"
 CREDITOS_MAPAS = (
     "<b>Datos:</b> IDEAM · DHIME. "
-    "<b>Mapas base:</b> Satélite y Relieve, Esri (Maxar, Earthstar Geographics, HERE, Garmin, FAO, NOAA, USGS y la "
-    "comunidad de usuarios de GIS); Calles, © colaboradores de OpenStreetMap; Satélite de noche, NASA EOSDIS GIBS "
+    "<b>Mapas base:</b> Satélite, Satélite con nombres y Relieve, Esri (Maxar, Earthstar Geographics, HERE, Garmin, "
+    "FAO, NOAA, USGS, OpenStreetMap y la comunidad de usuarios de GIS); Calles, © colaboradores de OpenStreetMap; Satélite de noche, NASA EOSDIS GIBS "
     "(“We acknowledge the use of imagery provided by services from NASA's Global Imagery Browse Services (GIBS), "
     "part of NASA's Earth Science Data and Information System (ESDIS)”). "
     f"<b>Relieve 3D:</b> {ATRIB_RELIEVE_3D.split(': ', 1)[1]}. "
@@ -105,7 +106,8 @@ TOKENS = {
         "lg-filtro-claro": "blur(14px) saturate(210%) brightness(1.06)",
         "lg-filtro-regular": "blur(24px) saturate(185%) brightness(1.05)",
         "y2k-velo": "radial-gradient(120% 95% at 50% 45%,rgba(233,238,245,.30),rgba(214,224,238,.62))",
-        "y2k-mapa-fondo": "#C9D6E4", "y2k-cielo": "linear-gradient(180deg,#8FBBE6 0%,#C9DFF3 55%,#E8F0F8 100%)",
+        "y2k-mapa-fondo": "#C9D6E4", "y2k-cielo": "linear-gradient(180deg,#A9C9EA 0%,#DCE7F2 38%,#DCE7F2 100%)",
+        "y2k-niebla": "#DCE7F2",
         # boton principal: vidrio liquido azul (tinte, brillo superior, caustica abajo y canto de luz)
         "y2k-boton-tinte": "rgba(6,58,172,.92)",
         "y2k-boton-brillo": "linear-gradient(180deg,rgba(255,255,255,.38) 0%,rgba(255,255,255,.07) 40%,rgba(255,255,255,0) 50%,rgba(255,255,255,.05) 100%)",
@@ -131,7 +133,8 @@ TOKENS = {
         "lg-filtro-claro": "blur(16px) saturate(180%) brightness(.6)",
         "lg-filtro-regular": "blur(26px) saturate(160%) brightness(.55)",
         "y2k-velo": "radial-gradient(120% 95% at 50% 45%,rgba(8,11,17,.38),rgba(6,9,14,.74))",
-        "y2k-mapa-fondo": "#11161F", "y2k-cielo": "linear-gradient(180deg,#0A1224 0%,#16264A 60%,#233A63 100%)",
+        "y2k-mapa-fondo": "#11161F", "y2k-cielo": "linear-gradient(180deg,#0B1428 0%,#1C2D4F 38%,#1C2D4F 100%)",
+        "y2k-niebla": "#1C2D4F",
         "y2k-boton-tinte": "rgba(125,182,255,.88)",
         "y2k-boton-brillo": "linear-gradient(180deg,rgba(255,255,255,.50) 0%,rgba(255,255,255,.14) 44%,rgba(255,255,255,0) 54%,rgba(255,255,255,.06) 100%)",
         "y2k-boton-caustica": "radial-gradient(120% 70% at 50% 128%,rgba(255,255,255,.40),transparent 62%)",
@@ -199,7 +202,7 @@ def _tokens_css(tema, contraste):
 
 # Superficies de vidrio: contenedores de Streamlit (por su clave) y piezas HTML propias
 VIDRIO_CLARO = (".st-key-y2k_ajustes,.st-key-y2k_herr,.st-key-y2k_abrir,.st-key-y2k_filtro,.st-key-y2k_dock_izq,"
-                ".st-key-y2k_dock_der,.lg-claro")
+                ".lg-claro")
 VIDRIO_REGULAR = ".st-key-y2k_panel,.st-key-y2k_ficha,.st-key-y2k_inicio,.st-key-y2k_exportar,.lg-regular"
 VIDRIO = VIDRIO_CLARO + "," + VIDRIO_REGULAR
 
@@ -305,6 +308,11 @@ a{color:var(--y2k-accent-texto)}
 .st-key-y2k_visor3d iframe[title*="st_folium"]{height:100% !important;width:100% !important;display:block;border:0}
 /* cielo detras del relieve 3D (el 3D no tiene mapa plano de fondo) */
 [data-testid="stDeckGlJsonChart"]{background:var(--y2k-cielo);overflow:hidden}
+/* neblina hacia el horizonte: el relieve solo se dibuja alrededor de la zona y su borde lejano se funde en ella */
+.y2k-neblina{position:absolute;inset:0;pointer-events:none;opacity:0;transition:opacity .25s linear;
+  background:linear-gradient(180deg,var(--y2k-niebla) 0%,color-mix(in srgb,var(--y2k-niebla) 90%,transparent) 12%,
+    color-mix(in srgb,var(--y2k-niebla) 50%,transparent) 27%,transparent 46%)}
+@media (prefers-reduced-motion: reduce){.y2k-neblina{transition:none}}
 /* velo sobre el mapa en Parametros y Exportacion: se ve detras, desenfocado, y no recibe clics */
 .st-key-y2k_escenario::after{content:"";position:absolute;inset:0;z-index:30;pointer-events:none;opacity:0;visibility:hidden;
   background:var(--y2k-velo);-webkit-backdrop-filter:blur(5px) saturate(125%);backdrop-filter:blur(5px) saturate(125%);
@@ -318,7 +326,7 @@ a{color:var(--y2k-accent-texto)}
 .y2k-sobre{position:absolute;pointer-events:auto;z-index:25}
 /* intro satelital (static/intro_satelital): cubre toda la ventana, encima de los controles */
 .y2k-sat{border-radius:0 !important}
-.y2k-sat > button{right:20px !important;bottom:20px !important;border-radius:999px !important;padding:10px 16px !important;
+.y2k-sat > button{right:20px !important;bottom:calc(20px + var(--y2k-sello) + env(safe-area-inset-bottom)) !important;border-radius:999px !important;padding:10px 16px !important;
   font-size:13px !important;-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px)}
 
 /* ================= AJUSTES (arriba a la derecha, en todas las pantallas) ================= */
@@ -335,6 +343,9 @@ a{color:var(--y2k-accent-texto)}
 .st-key-y2k_ajustes .stPopover button [data-testid="stIconMaterial"],.st-key-y2k_filtro .stPopover button [data-testid="stIconMaterial"]{
   font-size:21px !important;width:21px;height:21px;line-height:21px !important;justify-content:center;overflow:visible}
 .st-key-y2k_ajustes [data-testid="stPopoverButton"] > div > div[aria-hidden="true"]{display:none !important}
+/* Streamlit deja un margen derecho negativo al contenido para acercar la flecha del menu; sin flecha corria el icono
+   2,5 px a la derecha */
+:is(.st-key-y2k_ajustes,.st-key-y2k_filtro) [data-testid="stPopoverButton"] > div{margin:0 !important}
 .y2k-lite-chip{display:inline-flex;align-items:center;height:28px;padding:0 10px 0 8px;border-radius:999px;font:700 12px/1 "Figtree",sans-serif;
   letter-spacing:.04em;color:var(--y2k-sobre-acento);background:var(--y2k-accent);gap:4px}
 .y2k-lite-chip svg{width:13px;height:13px}
@@ -440,6 +451,9 @@ html[data-y2k-panel="abierto"],html:not([data-y2k-panel]){--y2k-libre-izq:calc(v
 @keyframes y2k-entra-izq{from{opacity:0;transform:translateX(-18px)}}
 html[data-y2k-panel="cerrado"] .st-key-y2k_panel{transform:translate(-12px,-8px) scale(.94);opacity:0;visibility:hidden;
   transition:transform var(--y2k-dur) var(--y2k-curva),opacity .2s ease,visibility 0s var(--y2k-dur)}
+/* cerrada no recibe toques: algunos elementos de Streamlit (textos con ayuda) se fuerzan visibles y, aunque
+   transparentes, tapaban la leyenda y el mapa */
+html[data-y2k-panel="cerrado"]:not([data-y2k-hoja="abierta"]) :is(.st-key-y2k_panel,.st-key-y2k_panel *){pointer-events:none !important}
 html[data-y2k-panel="cerrado"]{--y2k-libre-izq:0px}
 .st-key-y2k_panel > div{width:100% !important}
 .st-key-y2k_panel > [data-testid="stElementContainer"]{flex:none}
@@ -569,6 +583,26 @@ html:not([data-y2k-panel="cerrado"]) .st-key-y2k_abrir{display:none !important}
 .y2k-menu button[role="menuitemradio"]::after{content:"";margin-left:auto;width:16px;height:16px;flex:none}
 .y2k-menu button[role="menuitemradio"][aria-checked="true"]::after{content:"✓";color:var(--y2k-accent-texto);font-weight:700;text-align:center}
 .y2k-menu button.peligro svg{color:var(--y2k-peligro)}
+.y2k-menu.y2k-cam-menu{min-width:0;width:248px;padding:8px 8px 10px}
+.y2k-pad{display:flex;align-items:center;justify-content:center;gap:16px;padding:6px 0 2px}
+.y2k-cruz{display:grid;grid-template-columns:repeat(3,38px);grid-template-rows:repeat(3,38px);gap:2px;padding:6px;border-radius:50%;
+  background:var(--y2k-pista);box-shadow:inset 0 0 0 1px var(--y2k-line)}
+.y2k-menu .y2k-cruz button,.y2k-menu .y2k-zoom-cam button{width:38px;height:38px;padding:0;justify-content:center;border-radius:50%}
+.y2k-menu .y2k-cruz button svg,.y2k-menu .y2k-zoom-cam button svg{color:var(--y2k-ink)}
+.y2k-cruz [data-y2k-cam="subir"]{grid-area:1 / 2}.y2k-cruz [data-y2k-cam="izq"]{grid-area:2 / 1}
+.y2k-cruz [data-y2k-cam="norte"]{grid-area:2 / 2;background:var(--y2k-lente);box-shadow:var(--y2k-lente-sombra)}
+.y2k-cruz [data-y2k-cam="der"]{grid-area:2 / 3}.y2k-cruz [data-y2k-cam="bajar"]{grid-area:3 / 2}
+.y2k-menu .y2k-cruz [data-y2k-cam="norte"] svg{width:26px;height:26px;transition:transform .15s linear}
+.y2k-zoom-cam{display:flex;flex-direction:column;gap:2px;padding:4px;border-radius:999px;background:var(--y2k-pista);box-shadow:inset 0 0 0 1px var(--y2k-line)}
+.y2k-cam-lectura,.y2k-menu p.y2k-cam-lectura{margin:6px 0 2px !important;text-align:center;font:600 12px/1.3 "Figtree",sans-serif !important;
+  color:var(--y2k-ink-3) !important;font-variant-numeric:tabular-nums}
+.y2k-guia{display:grid;gap:7px;padding:4px 6px 0;margin:0}
+.y2k-guia > div{display:flex;align-items:center;gap:10px;font-size:12px;line-height:1.3;color:var(--y2k-ink-2)}
+.y2k-guia svg{width:24px;height:24px;flex:none;color:var(--y2k-ink-2)}
+.y2k-guia svg .on{fill:var(--y2k-accent-texto);stroke:none}
+.y2k-guia b{display:block;color:var(--y2k-ink);font-weight:700}
+@media (hover: none){.y2k-guia .raton{display:none}}
+@media (hover: hover){.y2k-guia .tactil{display:none}}
 /* pildoras de abajo: 2D/3D (y textura del 3D) a la izquierda, "Preparar descarga" a la derecha */
 .st-key-y2k_dock{position:fixed !important;z-index:45;bottom:var(--y2k-g);left:max(var(--y2k-g),var(--y2k-libre-izq));right:var(--y2k-g);
   width:auto !important;display:flex !important;flex-direction:row !important;justify-content:space-between;align-items:flex-end;gap:10px !important;
@@ -578,8 +612,10 @@ html:not([data-y2k-panel="cerrado"]) .st-key-y2k_abrir{display:none !important}
 .st-key-y2k_dock > div{pointer-events:auto;width:auto !important;flex:none !important;min-width:0}
 .st-key-y2k_dock_izq,.st-key-y2k_dock_der{border-radius:999px;padding:4px !important;display:flex !important;flex-direction:row !important;
   align-items:center;gap:4px !important;flex-wrap:nowrap !important;margin:0 !important;width:auto !important}
-/* "Preparar descarga" sube por encima del boton de Streamlit Community Cloud (abajo a la derecha) */
-.st-key-y2k_dock_der{margin-bottom:var(--y2k-sello) !important}
+/* "Preparar descarga" es la capsula: el boton de vidrio azul, sin otro contenedor alrededor y del mismo alto que la
+   de 2D/3D. Sube por encima del boton de Streamlit Community Cloud (abajo a la derecha) */
+.st-key-y2k_dock_der{padding:0 !important;background:none !important;box-shadow:none !important;-webkit-backdrop-filter:none !important;
+  backdrop-filter:none !important;margin-bottom:var(--y2k-sello) !important;min-width:0}
 /* boton "Consulta": solo en el celular */
 .st-key-y2k_dock_izq [data-testid="stElementContainer"]:has(.y2k-consulta){display:none}
 .y2k-consulta[aria-expanded="true"]{background:var(--y2k-lente);box-shadow:var(--y2k-lente-sombra)}
@@ -590,7 +626,9 @@ html:not([data-y2k-panel="cerrado"]) .st-key-y2k_abrir{display:none !important}
 .st-key-y2k_dock_izq .stPopover button p{font-size:13.5px !important}
 .st-key-y2k_repetir_intro button{width:36px;min-width:36px;padding:0 !important}
 .st-key-y2k_repetir_intro button [data-testid="stMarkdownContainer"]{position:absolute !important;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
-.st-key-preparar button{min-height:44px !important;padding:0 20px !important;font-size:15px !important;gap:8px}
+.st-key-preparar button{min-height:var(--y2k-capsula) !important;height:var(--y2k-capsula);padding:0 20px !important;font-size:15px !important;gap:8px;
+  max-width:100%}
+.st-key-preparar button p{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .st-key-preparar button p{font-size:15px !important;font-weight:700 !important}
 .st-key-preparar button:disabled{opacity:.55 !important;filter:saturate(.35)}
 .st-key-y2k_dock_der .stButton button[kind="primary"]{box-shadow:var(--y2k-boton-canto),0 10px 22px -10px var(--y2k-accent) !important}
@@ -600,10 +638,26 @@ html:not([data-y2k-panel="cerrado"]) .st-key-y2k_abrir{display:none !important}
   flex-direction:column;padding:0 !important;gap:0 !important;animation:y2k-menu .25s var(--y2k-curva) backwards}
 .st-key-y2k_ficha_cuerpo{padding:14px 16px !important;gap:8px !important;--y2k-fundido:10px}
 .st-key-y2k_ficha:not(:has(.y2k-ficha-cab)){display:none !important}
-.y2k-ficha-cab{display:flex;flex-direction:column;gap:2px}
-.y2k-ficha-cab small{font-size:11.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--y2k-ink-3)}
-.y2k-ficha-cab b{font-size:15.5px;line-height:1.25;color:var(--y2k-ink)}
-.y2k-ficha-cab span{font-size:12.5px;color:var(--y2k-ink-3);font-variant-numeric:tabular-nums}
+/* cerrada (al elegir una estacion): solo la pildora con el nombre; se despliega al pulsarla y se cierra al tocar afuera */
+html:not([data-y2k-ficha="abierta"]) .st-key-y2k_ficha{width:auto !important;max-width:min(340px,calc(100vw - var(--y2k-g) * 4 - var(--y2k-capsula)));
+  border-radius:999px}
+html:not([data-y2k-ficha="abierta"]) .st-key-y2k_ficha_cuerpo{display:none !important}
+html[data-y2k-ficha="abierta"] .st-key-y2k_ficha{border-radius:var(--y2k-r)}
+.st-key-y2k_ficha_cuerpo{padding-top:4px !important}
+.y2k-ficha-pil{display:flex;align-items:center;gap:2px;padding:4px;min-width:0}
+.y2k-ficha-pil button{all:unset;box-sizing:border-box;cursor:pointer;display:flex;align-items:center;color:var(--y2k-ink);border-radius:999px}
+.y2k-ficha-pil button:hover{background:var(--y2k-hover)}
+.y2k-ficha-pil button:focus-visible{outline:2px solid var(--y2k-foco);outline-offset:-2px}
+.y2k-ficha-pil .abrir{gap:8px;height:36px;padding:0 10px 0 8px;min-width:0;flex:1 1 auto;font:700 13.5px/1.2 "Figtree",sans-serif}
+.y2k-ficha-pil .abrir > svg{width:18px;height:18px;flex:none;color:var(--y2k-accent-texto)}
+.y2k-ficha-pil .abrir .nom{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.y2k-ficha-pil .abrir .flecha{width:14px;height:14px;flex:none;color:var(--y2k-ink-3);transition:transform var(--y2k-dur)}
+.y2k-ficha-pil .abrir[aria-expanded="true"] .flecha{transform:rotate(180deg)}
+.y2k-ficha-pil .x{width:32px;height:32px;justify-content:center;flex:none;color:var(--y2k-ink-2)}
+.y2k-ficha-pil .x svg{width:16px;height:16px}
+.y2k-ficha-cab{display:none}
+.y2k-ficha-dato,[data-testid="stMarkdownContainer"] p.y2k-ficha-dato{margin:0 !important;font-size:12.5px !important;color:var(--y2k-ink-3) !important;
+  font-variant-numeric:tabular-nums}
 
 /* controles de Streamlit dentro del vidrio regular */
 :is(.st-key-y2k_panel,.st-key-y2k_ficha,.st-key-y2k_inicio,.st-key-y2k_exportar) .stButton > button,
@@ -667,10 +721,15 @@ details.y2k-det b{color:var(--y2k-ink)}
 .y2k-leyenda .pin.duda{border-color:#D0602F;box-shadow:0 0 0 1px #fff}
 .y2k-leyenda .linea{width:18px;height:0;border-top:3px solid;flex:none}
 .y2k-leyenda .nota{grid-column:1 / -1;font-size:12px;color:var(--y2k-ink-3);margin-top:2px}
+.y2k-leyenda li.titulo{grid-column:1 / -1;font-size:12px;font-weight:700;color:var(--y2k-ink);line-height:1.3;margin:0 0 2px}
+.y2k-leyenda li.sep{grid-column:1 / -1;height:0;border-top:1px solid var(--y2k-line);margin:3px 0 1px}
+.y2k-leyenda summary .muestras{display:inline-flex;gap:3px}
+.y2k-leyenda summary .muestras i{width:9px;height:9px;border-radius:50%;box-shadow:0 0 0 1px rgba(0,0,0,.4)}
+.y2k-leyenda[open] summary .muestras{display:none}
 .y2k-leyenda .tit{margin:0;padding:2px 14px 4px;font-size:12.5px;font-weight:600;color:var(--y2k-ink-2)}
 .y2k-leyenda .rampa{height:10px;border-radius:5px;margin:2px 14px;box-shadow:0 0 0 1px var(--y2k-line) inset}
 .y2k-leyenda .marcas{display:flex;justify-content:space-between;font-size:12px;color:var(--y2k-ink-3);padding:0 14px 10px;font-variant-numeric:tabular-nums}
-.y2k-atrib3d{right:var(--y2k-ov-der);bottom:var(--y2k-atrib-abajo);font-size:10.5px;line-height:1.3;padding:4px 10px;border-radius:999px;color:var(--y2k-ink);
+.y2k-atrib3d{right:var(--y2k-atrib-der,var(--y2k-ov-der));bottom:var(--y2k-atrib-abajo);font-size:10.5px;line-height:1.3;padding:4px 10px;border-radius:999px;color:var(--y2k-ink);
   max-width:min(460px,50vw)}
 .y2k-vacio{left:var(--y2k-centro);top:45%;transform:translate(-50%,-50%);padding:14px 18px;border-radius:18px;font-size:14px;font-weight:600;
   text-align:center;color:var(--y2k-ink);max-width:min(420px,80vw)}
@@ -811,7 +870,11 @@ html{--y2k-libre-izq:0px !important;--y2k-g:10px}
   transition:transform var(--y2k-dur) var(--y2k-curva),opacity .2s ease,visibility 0s}
 html:not([data-y2k-hoja="abierta"]) .st-key-y2k_panel{transform:translateY(14px) scale(.98) !important;opacity:0 !important;visibility:hidden !important;
   pointer-events:none;transition:transform var(--y2k-dur) var(--y2k-curva),opacity .2s ease,visibility 0s var(--y2k-dur) !important}
+html:not([data-y2k-hoja="abierta"]) .st-key-y2k_panel *{pointer-events:none !important}
 .st-key-y2k_panel_cab{padding:10px 8px 0 18px !important}
+html[data-y2k-3d="1"] .st-key-y2k_panel{-webkit-backdrop-filter:none !important;backdrop-filter:none !important;
+  background:var(--lg-brillo),var(--lg-denso) !important;will-change:transform}
+html[data-y2k-3d="1"] .st-key-y2k_cuerpo{-webkit-mask-image:none !important;mask-image:none !important}
 .y2k-hoja-cerrar{display:inline-flex !important}
 .st-key-y2k_cuerpo{padding:0 16px 16px !important}
 /* con la consulta abierta se aparta lo demas (herramientas, leyenda, escala y creditos del mapa, ficha, camara 3D) */
@@ -825,7 +888,8 @@ html[data-y2k-hoja="abierta"][data-y2k-p="mapa"] .y2k-cierre-hoja{display:block;
 .st-key-y2k_ficha{top:var(--y2k-g) !important;left:var(--y2k-g);right:calc(var(--y2k-g) * 2 + var(--y2k-capsula)) !important;width:auto !important;
   max-height:38dvh}
 .stApp:has(.st-key-y2k_filtro .stPopover) .st-key-y2k_ficha{top:calc(var(--y2k-g) * 2 + var(--y2k-capsula)) !important}
-.st-key-y2k_ficha_cuerpo{padding:12px 14px !important}
+html:not([data-y2k-ficha="abierta"]) .st-key-y2k_ficha{right:auto !important}
+.st-key-y2k_ficha_cuerpo{padding:4px 14px 12px !important}
 .y2k-menu{min-width:min(240px,calc(100vw - 90px))}
 .y2k-atrib3d{font-size:9.5px;max-width:62vw;padding:3px 9px}
 .y2k-leyenda{max-width:calc(100vw - 80px)}
@@ -1001,6 +1065,20 @@ ICONOS = {
     "excel": _svg('<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><path d="M9 12l4 5M13 12l-4 5"/>'),
     "carpeta": _svg('<path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>'),
     "tabla": _svg('<rect x="4" y="4" width="16" height="16" rx="2"/><path d="M4 10h16M4 15h16M10 4v16"/>'),
+    "aguja": _svg('<path d="M12 3.5 15 12H9z" fill="#E5484D" stroke="none"/><path d="M12 20.5 9 12h6z" fill="currentColor" '
+                  'opacity=".5" stroke="none"/><circle cx="12" cy="12" r="1.4" fill="currentColor" stroke="none"/>'),
+    "chevron": _svg('<path d="M6 9l6 6 6-6"/>'),
+    "estacion": _svg('<path d="M12 21s-6.5-5.6-6.5-11a6.5 6.5 0 0 1 13 0c0 5.4-6.5 11-6.5 11z"/><circle cx="12" cy="10" r="2.3"/>'),
+    "raton_izq": _svg('<rect x="6" y="2.5" width="12" height="19" rx="6"/><path d="M12 2.5v7M6 9.5h12"/>'
+                      '<path class="on" d="M11.2 3.4A5.2 5.2 0 0 0 6.9 8.7h4.3z"/>'),
+    "raton_der": _svg('<rect x="6" y="2.5" width="12" height="19" rx="6"/><path d="M12 2.5v7M6 9.5h12"/>'
+                      '<path class="on" d="M12.8 3.4a5.2 5.2 0 0 1 4.3 5.3h-4.3z"/>'),
+    "raton_rueda": _svg('<rect x="6" y="2.5" width="12" height="19" rx="6"/><path d="M6 9.5h4.5M13.5 9.5H18"/>'
+                        '<rect class="on" x="10.6" y="4.6" width="2.8" height="6" rx="1.4"/>'),
+    "un_dedo": _svg('<circle class="on" cx="12" cy="12" r="2.8"/><path d="M12 3v3.5M12 17.5V21M3 12h3.5M17.5 12H21"/>'
+                    '<path d="M10.2 4.8 12 3l1.8 1.8M10.2 19.2 12 21l1.8-1.8M4.8 10.2 3 12l1.8 1.8M19.2 10.2 21 12l-1.8 1.8"/>'),
+    "dos_dedos": _svg('<circle class="on" cx="8" cy="14" r="2.6"/><circle class="on" cx="16" cy="14" r="2.6"/>'
+                      '<path d="M4.5 8.5a9 9 0 0 1 15 0"/><path d="M19.5 4.8v3.7h-3.7"/>'),
     "cita": _svg('<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><path d="M9 13h6M9 17h4"/>'),
 }
 
@@ -1035,7 +1113,7 @@ def _cambiar_contraste():
 
 
 def toggle_lite(clave, etiqueta="Modo Lite", ayuda=None, disabled=False):
-    """Interruptor del modo Lite. Hay dos (Ajustes y la tarjeta de Parametros) y los dos leen y escriben ss.lite."""
+    """Interruptor del modo Lite (en Ajustes); lee y escribe ss.lite."""
     ss = st.session_state
     ss[clave] = bool(ss.get("lite", False))
     st.toggle(etiqueta, key=clave, on_change=_cambiar_lite, args=(clave,), disabled=disabled,
@@ -1144,7 +1222,7 @@ _UI = r"""
   var menosMovimiento = function () { return !!(w.matchMedia && w.matchMedia("(prefers-reduced-motion: reduce)").matches); };
   var esMovil = function () { return !!(w.matchMedia && w.matchMedia(MOVIL).matches); };
   var pantalla = function () { var m = d.querySelector(".y2k-pantalla"); return m ? m.getAttribute("data-p") : ""; };
-  var G = 10;
+  var G = 10, MAX_PITCH = 70;
 
   // ---------- panel (escritorio) y tarjeta de la consulta (celular) ----------
   raiz.setAttribute("data-y2k-panel", leer("panel") === "cerrado" ? "cerrado" : "abierto");
@@ -1171,11 +1249,22 @@ _UI = r"""
   }
 
   function sincronizar() {
-    var abierto = estadoPanel() === "abierto", p = pantalla();
-    if (p && raiz.getAttribute("data-y2k-p") !== p) {
+    var p = pantalla(), antes = raiz.getAttribute("data-y2k-p");
+    if (p && antes !== p) {
       raiz.setAttribute("data-y2k-p", p);
       if (p !== "mapa" && hojaAbierta()) raiz.setAttribute("data-y2k-hoja", "cerrada");   // al volver al mapa, cerrada
+      // escritorio: al llegar al mapa desde Parametros la consulta empieza cerrada; se abre con su boton
+      if (p === "mapa" && antes === "parametros" && !esMovil()) { raiz.setAttribute("data-y2k-panel", "cerrado"); guardar("panel", "cerrado"); }
     }
+    var abierto = estadoPanel() === "abierto";
+    // consulta cerrada: inerte (sin foco ni toques). Algunos elementos de Streamlit se fuerzan visibles y, aunque
+    // transparentes, recibian clics y el foco del teclado
+    var panelEl = d.querySelector(".st-key-y2k_panel");
+    if (panelEl) { var inerte = esMovil() ? !hojaAbierta() : !abierto; if (panelEl.inert !== inerte) panelEl.inert = inerte; }
+    // el CSS aligera la consulta del celular cuando debajo esta el 3D
+    var con3d = lienzo3d() ? "1" : "0";
+    if (raiz.getAttribute("data-y2k-3d") !== con3d) raiz.setAttribute("data-y2k-3d", con3d);
+    sincronizarFicha();
     d.querySelectorAll("[data-y2k-panel-btn]").forEach(function (b) {
       var txt = abierto ? "Ocultar la consulta" : "Mostrar la consulta";
       b.setAttribute("aria-expanded", abierto ? "true" : "false"); b.setAttribute("aria-label", txt); b.title = txt;
@@ -1191,17 +1280,46 @@ _UI = r"""
     // los iconos de Streamlit son texto ("bolt", "delete"...): que no se lean como parte del nombre del boton
     d.querySelectorAll('button [data-testid="stIconMaterial"]:not([aria-hidden]), summary [data-testid="stIconMaterial"]:not([aria-hidden])')
       .forEach(function (i) { i.setAttribute("aria-hidden", "true"); });
+    // la leyenda es un desplegable: empieza cerrada y se cierra al tocar fuera (alPulsar)
     d.querySelectorAll("details.y2k-leyenda").forEach(function (det) {
       if (det.__y2kLey) return;
       det.__y2kLey = true;
-      var pref = leer("leyenda"), abierta = pref ? pref === "abierta" : !esMovil() && w.innerHeight > 560;
-      if (det.open !== abierta) det.open = abierta;
-      det.addEventListener("toggle", function () { guardar("leyenda", det.open ? "abierta" : "cerrada"); setTimeout(distribuir, 30); });
+      det.addEventListener("toggle", function () { setTimeout(distribuir, 30); });
     });
     traducirCargador();
     estadoArea();
     estadoCapas();
     esperaMapa();
+  }
+
+  // ---------- ficha de la estacion elegida: pildora cerrada que se despliega ----------
+  var fichaCodigo = null;
+  function fichaAbierta() { return raiz.getAttribute("data-y2k-ficha") === "abierta"; }
+  function ponerFicha(abierta) {
+    raiz.setAttribute("data-y2k-ficha", abierta ? "abierta" : "cerrada");
+    sincronizarFicha(); distribuir(); setTimeout(distribuir, 60);
+  }
+  function sincronizarFicha() {
+    var pil = d.querySelector(".y2k-ficha-pil[data-codigo]"), cod = pil ? pil.getAttribute("data-codigo") : "";
+    // otra estacion (o ninguna): la ficha vuelve a cerrarse
+    if (cod !== fichaCodigo) { fichaCodigo = cod; if (fichaAbierta()) raiz.setAttribute("data-y2k-ficha", "cerrada"); }
+    var v = fichaAbierta() ? "true" : "false";
+    d.querySelectorAll("[data-y2k-ficha-btn]").forEach(function (b) { if (b.getAttribute("aria-expanded") !== v) b.setAttribute("aria-expanded", v); });
+  }
+
+  // ---------- un toque fuera de un desplegable lo cierra (menus, leyenda, ficha y menus de Streamlit) ----------
+  function alPulsar(ev) {
+    var t = ev && ev.target && ev.target.closest ? ev.target : null;
+    d.querySelectorAll("details.y2k-leyenda[open]").forEach(function (det) { if (!t || !det.contains(t)) det.open = false; });
+    if (fichaAbierta() && !(t && t.closest(".st-key-y2k_ficha"))) ponerFicha(false);
+    if (!t || !t.closest(".y2k-grupo")) cerrarMenus(null);
+  }
+  d.addEventListener("pointerdown", alPulsar, true);
+  // los toques en el mapa 2D caen en su iframe y no llegan a esta pagina: se reenvian. Los menus de Streamlit
+  // (Ajustes, buffer, filtro) se cierran con un clic fuera de ellos
+  function pulsadoEnMapa() {
+    alPulsar(null);
+    if (d.querySelector('[data-testid="stPopoverBody"]')) d.body.dispatchEvent(new w.MouseEvent("click", {bubbles: true}));
   }
 
   // Textos del cargador de archivos de Streamlit (vienen en ingles)
@@ -1269,12 +1387,15 @@ _UI = r"""
   }
 
   var SELECTORES = "[data-y2k-panel-btn],[data-y2k-consulta],[data-y2k-hoja-cerrar],[data-y2k-cam],[data-y2k-dibujar],[data-y2k-area]," +
-    "[data-y2k-subir],[data-y2k-editar],[data-y2k-borrar],[data-y2k-capa],[data-y2k-zoom],[data-y2k-menu],[data-y2k-2d],[data-y2k-ver],[data-y2k-pulsar]";
+    "[data-y2k-subir],[data-y2k-editar],[data-y2k-borrar],[data-y2k-capa],[data-y2k-zoom],[data-y2k-menu],[data-y2k-2d],[data-y2k-ver],[data-y2k-pulsar]," +
+    "[data-y2k-ficha-btn],[data-y2k-ficha-quitar]";
   function alClic(ev) {
     var t = ev.target && ev.target.closest ? ev.target : null;
     // el boton principal de Parametros no avanza hasta que todo esta listo: parpadea en rojo
     var cta = t && t.closest(".st-key-ir_mapa button");
     if (cta && !ctaListo()) { ev.preventDefault(); ev.stopPropagation(); parpadear(cta); return; }
+    // al pasar al mapa (escritorio) la consulta llega cerrada: se marca antes de que aparezca, sin parpadeo
+    if (cta && !esMovil()) { raiz.setAttribute("data-y2k-panel", "cerrado"); guardar("panel", "cerrado"); }
     // con la consulta abierta (celular), tocar el mapa la cierra; elegir 2D o 3D tambien (para ver el mapa)
     if (t && t.closest(".y2k-cierre-hoja")) { ev.preventDefault(); ponerHoja(false); return; }
     if (t && esMovil() && hojaAbierta() && t.closest(".st-key-vista")) ponerHoja(false);
@@ -1294,11 +1415,13 @@ _UI = r"""
     else if (b.hasAttribute("data-y2k-area")) usarAreaVisible(b);
     else if (b.hasAttribute("data-y2k-subir")) pulsarOculto("y2k_subir");
     else if (b.hasAttribute("data-y2k-editar")) editarArea();
-    else if (b.hasAttribute("data-y2k-borrar")) pulsarOculto("y2k_borrar");
+    else if (b.hasAttribute("data-y2k-borrar")) borrarArea();
     else if (b.hasAttribute("data-y2k-capa")) ponerCapa(b.getAttribute("data-y2k-capa"));
     else if (b.hasAttribute("data-y2k-zoom")) zoom(b.getAttribute("data-y2k-zoom"));
     else if (b.hasAttribute("data-y2k-2d")) pulsarOculto("y2k_pasar2d");
     else if (b.hasAttribute("data-y2k-ver")) abrirPanel();
+    else if (b.hasAttribute("data-y2k-ficha-btn")) ponerFicha(!fichaAbierta());
+    else if (b.hasAttribute("data-y2k-ficha-quitar")) { raiz.setAttribute("data-y2k-ficha", "cerrada"); pulsarOculto("quitar_sel"); }
   }
   d.addEventListener("click", alClic, true);
 
@@ -1368,6 +1491,8 @@ _UI = r"""
     return r.width && r.height ? r : null;
   }
   function cruza(a, x0, x1) { return !!a && a.left < x1 && a.right > x0; }
+  // boton de Streamlit Community Cloud en el escritorio ("Manage app"), abajo a la derecha
+  var SELLO_ANCHO = 140, SELLO_ALTO = 38;
   var ultimo = "";
   function distribuir() {
     var W = w.innerWidth, H = w.innerHeight, movil = esMovil();
@@ -1400,8 +1525,14 @@ _UI = r"""
     // la leyenda va encima de la escala de Leaflet (y de la pildora, si comparten columna)
     var leyAbajo = Math.max(abajo, ley ? sobreDock(izq, izq + ley.width) : abajo, bl.h ? blAbajo - 10 + bl.h + 4 : 0);
     var atrib = caja(".y2k-atrib3d"), atribAbajo = atrib ? sobreDock(W - der - atrib.width, W - der) : sobreDock(W - 200, W - G);
+    var atribDer = der, sello = num("--y2k-sello", 0);
+    if (atrib && sello > 0 && !movil) {
+      // en la franja del boton de Streamlit, a su izquierda, si no choca con la pildora 2D/3D
+      var x1 = W - SELLO_ANCHO - G, x0 = x1 - atrib.width;
+      if (!pIzq || pIzq.right + G <= x0) { atribDer = W - x1; atribAbajo = Math.max(4, Math.round((SELLO_ALTO - atrib.height) / 2)); }
+    }
     var ovAbajo = Math.max(abajo, sobreDock(izq, W - der));
-    var clave = [W, H, arriba, izq, der, ovAbajo, leyAbajo, atribAbajo].join("|");
+    var clave = [W, H, arriba, izq, der, ovAbajo, leyAbajo, atribAbajo, atribDer].join("|");
     if (clave !== ultimo) {
       ultimo = clave;
       var s = raiz.style;
@@ -1412,6 +1543,7 @@ _UI = r"""
       s.setProperty("--y2k-ley-abajo", Math.round(leyAbajo) + "px");
       s.setProperty("--y2k-ley-izq", Math.round(izq) + "px");
       s.setProperty("--y2k-atrib-abajo", Math.round(atribAbajo) + "px");
+      s.setProperty("--y2k-atrib-der", Math.round(atribDer) + "px");
     }
     // esquinas de Leaflet (dentro del iframe; sus controles ya traen 10 px de margen). La barra de dibujo (oculta)
     // queda donde esta la capsula de herramientas, y sus acciones ("Guardar", "Cancelar") aparecen a su izquierda
@@ -1508,6 +1640,7 @@ _UI = r"""
     // un iframe nuevo con la consulta abierta tambien aparta la escala (al cerrarla la quita ponerHoja, con demora)
     if (esMovil() && hojaAbierta() && pantalla() === "mapa") cl.add("y2k-hoja-abierta");
     cl.toggle("y2k-lite", esLite()); cl.toggle("y2k-oscuro", css("--y2k-tono") === "oscuro"); cl.toggle("y2k-alto", css("--y2k-alto") === "1");
+    if (!doc.__y2kToques) { doc.__y2kToques = true; doc.addEventListener("pointerdown", pulsadoEnMapa, true); }
     var map = win.map, L = win.L;
     if (!map || !L) return;
     var c = doc.querySelector(".leaflet-container");
@@ -1566,6 +1699,18 @@ _UI = r"""
     if (esMovil()) ponerHoja(false);
     a.click();
     try { marco2d().focus(); } catch (e) {}
+  }
+  // "Borrar": en el 2D se quita el rectangulo en el navegador y se avisa al componente como si se hubiera borrado
+  // con Leaflet.draw (Python recibe la lista vacia). Asi el mapa no se rehace y se queda el encuadre y el zoom.
+  // En el 3D (sin mapa de Leaflet) lo hace Python.
+  function borrarArea() {
+    var win = lienzo3d() ? null : winMapa(), map = win && win.map, L = win && win.L, it = win && win.drawnItems;
+    if (!map || !L || !it || !it.getLayers) { pulsarOculto("y2k_borrar"); return; }
+    try {
+      var quitadas = L.layerGroup(it.getLayers());
+      it.clearLayers();
+      map.fire("draw:deleted", {layers: quitadas});
+    } catch (e) { pulsarOculto("y2k_borrar"); }
   }
   function zoom(sentido) {
     var win = winMapa(), map = win && win.map;
@@ -1652,17 +1797,48 @@ _UI = r"""
     w.__y2kParaVuelta = w.performance.now();   // detiene la vuelta automatica de la camara
     var v = vistaActual(deck), n = Object.assign({}, v);
     var lim = function (x, a, b) { return Math.min(b, Math.max(a, x)); };
-    if (accion === "acercar") n.zoom = lim((v.zoom || 10) + 0.6, 1, 20);
-    else if (accion === "alejar") n.zoom = lim((v.zoom || 10) - 0.6, 1, 20);
+    var tope = v.maxPitch || MAX_PITCH, minimo = v.minZoom || 1;
+    if (accion === "acercar") n.zoom = lim((v.zoom || 10) + 0.6, minimo, 20);
+    else if (accion === "alejar") n.zoom = lim((v.zoom || 10) - 0.6, minimo, 20);
     else if (accion === "izq") n.bearing = (((v.bearing || 0) - 20) + 540) % 360 - 180;
     else if (accion === "der") n.bearing = (((v.bearing || 0) + 20) + 540) % 360 - 180;
-    else if (accion === "subir") n.pitch = lim((v.pitch || 0) + 10, 0, 85);
-    else if (accion === "bajar") n.pitch = lim((v.pitch || 0) - 10, 0, 85);
+    else if (accion === "subir") n.pitch = lim((v.pitch || 0) + 10, 0, tope);
+    else if (accion === "bajar") n.pitch = lim((v.pitch || 0) - 10, 0, tope);
     else if (accion === "norte") n.bearing = 0;
-    n.maxPitch = 85;
+    n.maxPitch = tope;
     mover(deck, n);
     var r = d.querySelector(".y2k-camara-estado");
     if (r) r.textContent = "Rumbo " + Math.round(((n.bearing || 0) + 360) % 360) + "°, inclinación " + Math.round(n.pitch || 0) + "°, zoom " + (n.zoom || 0).toFixed(1);
+    lecturaCamara(n);
+  }
+  // Menu de camara abierto: la brujula gira con el mapa y una linea dice rumbo e inclinacion
+  function lecturaCamara(v) {
+    var m = d.querySelector('[data-y2k-menu-de="camara"]:not([hidden])');
+    if (!m) return;
+    var rumbo = Math.round((((v.bearing || 0) % 360) + 360) % 360), incl = Math.round(v.pitch || 0);
+    var aguja = m.querySelector('[data-y2k-cam="norte"] svg'), txt = "Rumbo " + rumbo + "° · Inclinación " + incl + "°";
+    if (aguja) aguja.style.transform = "rotate(" + (-(v.bearing || 0)) + "deg)";
+    var p = m.querySelector(".y2k-cam-lectura");
+    if (p && p.textContent !== txt) p.textContent = txt;
+  }
+  // Neblina hacia el horizonte: crece con la inclinacion (mirando hacia abajo no hace falta). Y el clic derecho, que gira
+  // e inclina, no abre el menu del navegador
+  function neblina(v) {
+    var zona = d.querySelector('[data-testid="stDeckGlJsonChart"]'), l = lienzo3d();
+    if (!zona || !l) return;
+    if (!zona.__y2kMenuCtx) { zona.__y2kMenuCtx = true; zona.addEventListener("contextmenu", function (e) { e.preventDefault(); }); }
+    var n = zona.querySelector(".y2k-neblina");
+    if (!n) { n = d.createElement("div"); n.className = "y2k-neblina"; n.setAttribute("aria-hidden", "true"); l.insertAdjacentElement("afterend", n); }
+    var o = w.__y2kEnIntro ? 0 : Math.max(0, Math.min(1, ((v.pitch || 0) - 30) / 32));
+    o = Math.round(o * 20) / 20;
+    if (n.__o !== o) { n.__o = o; n.style.opacity = String(o); }
+  }
+  function vigia3d() {
+    if (!lienzo3d()) return;
+    var deck = buscarDeck();
+    if (!deck) return;
+    var v = vistaActual(deck);
+    neblina(v); lecturaCamara(v);
   }
 
   // ---------- avisos de fallo (sobre la zona libre del mapa) ----------
@@ -1784,7 +1960,7 @@ _UI = r"""
     var malos = r.filter(function (x) { return !x.ok; }), buenos = r.length - malos.length;
     if (malos.length < 8 || buenos > 0 || ahora - ultimoAviso2d < 45000) return;
     ultimoAviso2d = ahora;
-    var capa = malos[malos.length - 1].capa, nombre = map.__y2kBase || "Satélite";
+    var capa = malos[malos.length - 1].capa, nombre = map.__y2kBase || "Satélite con nombres";
     var redibujar = function () { map.__y2kTeselas.lista = []; try { capa.redraw(); } catch (e) {} };
     dialogo({
       id: "y2k_dlg_red2d", tipo: "Problema de red", titulo: "El mapa base no está cargando",
@@ -1798,6 +1974,8 @@ _UI = r"""
     if (!vivo) return;
     try { vigilarContexto(); vigilarRed3d(); reponerCamara(); vigilar2d(); revisarMapaListo(); revisar2d(); distribuir(); } catch (e) {}
   }, 500));
+  // 3D: neblina y lectura de la camara siguen a la vista (consulta barata; sin 3D no hace nada)
+  ciclos.push(setInterval(function () { if (vivo) try { vigia3d(); } catch (e) {} }, 150));
   sincronizar(); distribuir();
 
   w.__y2kUI = {
@@ -1805,7 +1983,7 @@ _UI = r"""
     parar: function () {
       vivo = false; ciclos.forEach(clearInterval); obs.disconnect();
       d.removeEventListener("click", alClic, true); d.removeEventListener("pointermove", alMover, true);
-      d.removeEventListener("keydown", alTecla, true);
+      d.removeEventListener("keydown", alTecla, true); d.removeEventListener("pointerdown", alPulsar, true);
     }
   };
 })();
@@ -1814,7 +1992,7 @@ _UI = r"""
 
 def instalar_ui():
     """Inyecta el guion de la interfaz en la pagina principal (sobrevive a las recargas de Streamlit)."""
-    codigo = (_UI.replace("__V__", "31").replace("__ICONO_ALERTA__", json.dumps(ICONOS["alerta"]))
+    codigo = (_UI.replace("__V__", "32").replace("__ICONO_ALERTA__", json.dumps(ICONOS["alerta"]))
               .replace("__MOVIL__", json.dumps(MOVIL)).replace("__VIDRIO__", json.dumps(VIDRIO)))
     cuerpo = ("(function(){var w=window.parent;var s=w.document.createElement('script');"
               f"s.textContent={json.dumps(codigo)};w.document.head.appendChild(s);s.remove();}})();")
@@ -1936,15 +2114,19 @@ def kpis(items):
     md(f'<div class="y2k-kpis">{html}</div>')
 
 
+# Mapas base del 2D en el orden del menu (el primero es el que arranca; los nombres son los de map_view.mapa_base)
+CAPAS_2D = ("Satélite con nombres", "Satélite", "Relieve", "Calles", "Satélite de noche")
+
+
 def herramientas_2d(hay_cuenca):
     """Capsula de herramientas del mapa 2D (va en el contenedor y2k_herr): menu de dibujo, menu de capas y zoom."""
     extra = (f'<hr><button type="button" role="menuitem" data-y2k-editar>{ICONOS["ajustar"]}<span>Ajustar las esquinas'
              '<small>Arrastra los vértices y pulsa «Guardar»</small></span></button>'
              f'<button type="button" role="menuitem" class="peligro" data-y2k-borrar>{ICONOS["borrar"]}<span>Borrar el área</span></button>'
              ) if hay_cuenca else ""
-    capas = "".join(f'<button type="button" role="menuitemradio" aria-checked="{"true" if n == "Satélite" else "false"}" '
+    capas = "".join(f'<button type="button" role="menuitemradio" aria-checked="{"true" if i == 0 else "false"}" '
                     f'data-y2k-capa="{n}"><span>{n}</span></button>'
-                    for n in ("Satélite", "Relieve", "Calles", "Satélite de noche"))
+                    for i, n in enumerate(CAPAS_2D))
     md('<div class="y2k-herr" role="toolbar" aria-orientation="vertical" aria-label="Herramientas del mapa">'
        '<div class="y2k-grupo">'
        f'<button type="button" class="h" data-y2k-menu="dibujo" aria-haspopup="menu" aria-expanded="false" '
@@ -1969,14 +2151,30 @@ def herramientas_2d(hay_cuenca):
        '</div>')
 
 
+def _guia_gestos():
+    """Representacion grafica de los gestos del 3D: raton en equipos con puntero fino, dedos en pantallas tactiles."""
+    filas = (("raton", "raton_izq", "Arrastrar", "Mover el mapa"),
+             ("raton", "raton_der", "Clic derecho y arrastrar", "Girar e inclinar"),
+             ("raton", "raton_rueda", "Rueda", "Acercar o alejar"),
+             ("tactil", "un_dedo", "Un dedo", "Mover el mapa"),
+             ("tactil", "dos_dedos", "Dos dedos", "Girar; deslizar arriba o abajo inclina; pellizcar acerca"))
+    return ('<div class="y2k-guia" role="note" aria-label="Gestos del mapa 3D">' + "".join(
+        f'<div class="{c}">{ICONOS[i]}<span><b>{g}</b>{t}</span></div>' for c, i, g, t in filas) + '</div>')
+
+
 def herramientas_3d(textura, escala):
-    """Capsula de herramientas del 3D (va en y2k_herr), como la del 2D: menu de camara (girar, inclinar, norte; es la
-    alternativa a los gestos), menu de capas (textura del relieve y, con Altura, su escala) y zoom. Las opciones de
-    capas pulsan botones ocultos (y2k_tex_<n>, y2k_esc_<n>)."""
-    camara = "".join(f'<button type="button" role="menuitem" data-y2k-cam="{c}">{ICONOS[i]}<span>{t}</span></button>'
-                     for c, i, t in (("izq", "girar_izq", "Girar a la izquierda"), ("der", "girar_der", "Girar a la derecha"),
-                                     ("subir", "inclinar_mas", "Inclinar más"), ("bajar", "inclinar_menos", "Inclinar menos"),
-                                     ("norte", "norte", "Orientar al norte")))
+    """Capsula de herramientas del 3D (va en y2k_herr), como la del 2D: menu de camara y menu de capas (textura del
+    relieve y, con Altura, su escala). La camara agrupa en un solo desplegable una cruceta (arriba y abajo inclinan, a
+    los lados gira, al centro una brujula que vuelve al norte), el zoom y la guia de gestos del raton o tactiles; es la
+    alternativa a los gestos. Las opciones de capas pulsan botones ocultos (y2k_tex_<n>, y2k_esc_<n>)."""
+    cruz = "".join(f'<button type="button" data-y2k-cam="{c}" aria-label="{t}" title="{t}">{ICONOS[i]}</button>'
+                   for c, i, t in (("subir", "inclinar_mas", "Inclinar más"), ("izq", "girar_izq", "Girar a la izquierda"),
+                                   ("norte", "aguja", "Orientar al norte"), ("der", "girar_der", "Girar a la derecha"),
+                                   ("bajar", "inclinar_menos", "Inclinar menos")))
+    zoom = "".join(f'<button type="button" data-y2k-cam="{c}" aria-label="{t}" title="{t}">{ICONOS[i]}</button>'
+                   for c, i, t in (("acercar", "mas", "Acercar"), ("alejar", "menos", "Alejar")))
+    camara = (f'<div class="y2k-pad"><div class="y2k-cruz">{cruz}</div><div class="y2k-zoom-cam">{zoom}</div></div>'
+              '<p class="y2k-cam-lectura" aria-hidden="true"></p><hr>' + _guia_gestos())
     texturas = "".join(f'<button type="button" role="menuitemradio" aria-checked="{"true" if t == textura else "false"}" '
                        f'data-y2k-pulsar="y2k_tex_{i}"><span>{t}</span></button>'
                        for i, t in enumerate(("Satélite", "Topográfico", "Altura")))
@@ -1986,18 +2184,15 @@ def herramientas_3d(textura, escala):
         for i, e in enumerate(("Rango de la zona", "Rango de Colombia")))) if textura == "Altura" else ""
     md('<div class="y2k-herr" role="toolbar" aria-orientation="vertical" aria-label="Herramientas del 3D">'
        '<div class="y2k-grupo">'
-       f'<button type="button" class="h" data-y2k-menu="camara" aria-haspopup="menu" aria-expanded="false" '
-       f'aria-label="Cámara" title="Cámara">{ICONOS["camara"]}</button>'
-       '<div class="y2k-menu" role="menu" data-y2k-menu-de="camara" aria-label="Cámara" hidden>'
+       f'<button type="button" class="h" data-y2k-menu="camara" aria-controls="y2k-menu-camara" aria-expanded="false" '
+       f'aria-label="Cámara: girar, inclinar y acercar" title="Cámara">{ICONOS["camara"]}</button>'
+       '<div class="y2k-menu y2k-cam-menu" role="group" id="y2k-menu-camara" data-y2k-menu-de="camara" aria-label="Cámara" hidden>'
        f'<p class="tit" aria-hidden="true">Cámara</p>{camara}</div></div>'
        '<div class="y2k-grupo">'
        f'<button type="button" class="h" data-y2k-menu="capas3d" aria-haspopup="menu" aria-expanded="false" '
        f'aria-label="Textura del relieve" title="Textura del relieve">{ICONOS["capas"]}</button>'
        '<div class="y2k-menu" role="menu" data-y2k-menu-de="capas3d" aria-label="Textura del relieve" hidden>'
        f'<p class="tit" aria-hidden="true">Textura del relieve</p>{texturas}{escalas}</div></div>'
-       '<hr>'
-       f'<button type="button" class="h" data-y2k-cam="acercar" aria-label="Acercar" title="Acercar">{ICONOS["mas"]}</button>'
-       f'<button type="button" class="h" data-y2k-cam="alejar" aria-label="Alejar" title="Alejar">{ICONOS["menos"]}</button>'
        '<span class="y2k-vh y2k-camara-estado" aria-live="polite"></span></div>')
 
 
@@ -2006,25 +2201,43 @@ def marca_filtro():
     md('<span class="y2k-oculto y2k-filtro-on" hidden></span>')
 
 
+TITULO_LEYENDA = "Disponibilidad estimada de datos en el periodo"
+
+
 def leyenda_estaciones(colores, en3d=False, hay_excluidas=False):
-    """Leyenda compacta de los pines sobre el mapa (color, forma y texto; nunca solo color)."""
-    filas = "".join(f'<li><span class="pin" style="background:{c}"></span>{n}</li>' for n, c in colores)
-    filas += '<li><span class="pin hueco"></span>Sin serie</li>'
+    """Leyenda compacta de los pines sobre el mapa (color, forma y texto; nunca solo color). Es un desplegable: empieza
+    cerrada (el resumen ya muestra los colores) y se cierra al tocar fuera de ella."""
+    filas = f'<li class="titulo">{TITULO_LEYENDA}</li>'
+    filas += "".join(f'<li><span class="pin" style="background:{c}"></span>{n}</li>' for n, c in colores)
+    filas += '<li><span class="pin hueco"></span>Sin serie</li><li class="sep" aria-hidden="true"></li>'
     if hay_excluidas:
         filas += '<li><span class="pin fuera"></span>Excluida</li>'
     filas += '<li><span class="pin duda" style="background:#9AA6BC"></span>Altitud dudosa</li>'
     filas += ('<li><span class="linea" style="border-color:#35F0FF"></span>Área</li>'
               '<li><span class="linea" style="border-color:#FF7A1A;border-top-style:dashed"></span>Buffer</li>'
-              '<li class="nota">Relieve exagerado ×2 · Ctrl + arrastrar gira e inclina</li>') if en3d else (
+              '<li class="nota">Relieve exagerado ×2</li>') if en3d else (
               '<li><span class="linea" style="border-color:#1C6FD8"></span>Área</li>'
               '<li><span class="linea" style="border-color:#FAB219;border-top-style:dashed"></span>Buffer</li>')
-    md(f'<details class="y2k-sobre lg-regular y2k-leyenda" open><summary>Leyenda</summary><ul>{filas}</ul></details>')
+    muestras = "".join(f'<i style="background:{c}"></i>' for _, c in colores)
+    md(f'<details class="y2k-sobre lg-regular y2k-leyenda"><summary>Leyenda<span class="muestras" aria-hidden="true">'
+       f'{muestras}</span></summary><ul>{filas}</ul></details>')
 
 
 def leyenda_altura(html):
     """Leyenda de la textura "Altura" del 3D (la escala la arma terreno.leyenda_altura)."""
-    md(f'<details class="y2k-sobre lg-regular y2k-leyenda" open><summary>Altitud</summary>{html}'
-       '<p class="tit">Relieve exagerado ×2 · Ctrl + arrastrar gira e inclina</p></details>')
+    md(f'<details class="y2k-sobre lg-regular y2k-leyenda"><summary>Altitud</summary>{html}'
+       '<p class="tit">Relieve exagerado ×2</p></details>')
+
+
+def ficha_pildora(nombre, codigo):
+    """Cabecera de la ficha de la estacion elegida: una pildora con el nombre que despliega la ficha (empieza cerrada:
+    abierta tapaba el mapa) y una x que quita la seleccion."""
+    md(f'<div class="y2k-ficha-pil" data-codigo="{escape(codigo)}">'
+       f'<button type="button" class="abrir" data-y2k-ficha-btn aria-expanded="false" '
+       f'title="Ver la ficha de la estación">{ICONOS["estacion"]}<span class="nom">{escape(nombre)}</span>'
+       f'<span class="y2k-vh">: ficha de la estación</span><span class="flecha">{ICONOS["chevron"]}</span></button>'
+       f'<button type="button" class="x" data-y2k-ficha-quitar aria-label="Quitar la selección" title="Quitar la selección">'
+       f'{ICONOS["cerrar"]}</button><span class="y2k-ficha-cab" hidden></span></div>')
 
 
 def sobre_mapa(html, clase, material="lg-regular"):

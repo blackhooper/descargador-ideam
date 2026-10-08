@@ -1,15 +1,20 @@
 import datetime
 import re
+from functools import partial
 from html import escape
-import altair as alt
 import pandas as pd
 import streamlit as st
 from modules import ideam_downloader
-from modules.calidad import CLASES_CALIDAD
-from modules.estilo import PALETAS, detalles, md
+from modules.calidad import CLASES_CALIDAD, clasificar_calidad
+from modules.estilo import detalles, kpis, md
 from modules.terreno import ALTITUD_DUDOSA_M
 
-NARANJA_ALERTA = "#EC835A"
+# ===========================================================================
+# TABLERO DE CALIDAD (panel de la pantalla del mapa) Y FICHA DE LA ESTACION
+# Tres cifras (estaciones listas, cobertura media y registros probables), un
+# aviso de altitud dudosa y la lista de estaciones con casillas para quitar o
+# volver a incluir cada una en la descarga.
+# ===========================================================================
 
 
 def _num(n):
@@ -27,14 +32,13 @@ def duracion_aprox(segundos):
     return f"≈ {horas} h {minutos} min" if minutos else f"≈ {horas} h"
 
 
-def _cifras(items):
-    """Tarjetas de cifras 2x2 en HTML: a diferencia de st.metric, la etiqueta no se corta con '...'."""
-    html = "".join(
-        f'<div class="y2k-cifra" title="{escape(ayuda)}"><div class="l">{escape(etiqueta)}</div>'
-        f'<div class="v">{escape(str(valor))}</div>{f"<div class=s>{escape(sub)}</div>" if sub else ""}</div>'
-        for etiqueta, valor, sub, ayuda in items
-    )
-    st.html(f'<div class="y2k-cifras">{html}</div>')
+def registros_txt(n):
+    """Cifra corta para muchos registros: 1,2 M · 48 k · 950."""
+    if n >= 1_000_000:
+        return f"{n / 1_000_000:.1f} M".replace(".", ",")
+    if n >= 100_000:
+        return f"{round(n / 1000)} k"
+    return _num(n)
 
 
 def _bloques_de(estaciones_df, fecha_ini, fecha_fin, dias_bloque):
@@ -51,27 +55,33 @@ def _bloques_de(estaciones_df, fecha_ini, fecha_fin, dias_bloque):
 
 
 def cifras_seleccion(seleccion, param, fecha_ini, fecha_fin):
-    """Consultas, tiempo estimado y registros probables de la seleccion (lo usan el resumen y la isla de accion)."""
+    """Consultas, tiempo estimado y registros probables de la seleccion."""
     bloques = _bloques_de(seleccion, fecha_ini, fecha_fin, param["dias_bloque"])
-    datos = int(seleccion["Cantidad Probable"].sum())
+    datos = int(seleccion["Cantidad Probable"].sum()) if len(seleccion) else 0
     return {"bloques": bloques, "datos": datos,
             "segundos": ideam_downloader.estimar_segundos(bloques, datos, len(seleccion))}
 
 
-def tabla_estaciones(seleccion):
-    """Tabla de la lista (orden estable: mejor cantidad probable primero)."""
-    if seleccion is None or seleccion.empty:
-        return pd.DataFrame(columns=["Código", "Estación", "Altitud (m)", "Terreno (m)", "Alerta", "Cantidad probable"])
-    dudosa = seleccion["altitud_dudosa"] if "altitud_dudosa" in seleccion.columns else pd.Series(False, index=seleccion.index)
+def _nombre_limpio(nombre):
+    return re.sub(r"\s*\[\d+\]\s*$", "", str(nombre)).strip()
+
+
+def tabla_lista(descargables):
+    """Lista de las estaciones que se pueden descargar (mejor cobertura primero): codigo, punto de color de su
+    clase, nombre (con ⚠ si la altitud es dudosa) y cobertura."""
+    columnas = ["Código", "●", "Estación", "Cobertura", "color"]
+    if descargables is None or descargables.empty:
+        return pd.DataFrame(columns=columnas)
+    dudosa = (descargables["altitud_dudosa"].fillna(False).astype(bool) if "altitud_dudosa" in descargables.columns
+              else pd.Series(False, index=descargables.index))
     t = pd.DataFrame({
-        "Código": [ideam_downloader.codigo_de_estacion(r, i) for i, r in seleccion.iterrows()],
-        "Estación": seleccion["nombre"].astype(str).str.replace(r"\s*\[\d+\]\s*$", "", regex=True).str.strip().values,
-        "Altitud (m)": pd.to_numeric(seleccion.get("altitud"), errors="coerce").values,
-        "Terreno (m)": pd.to_numeric(seleccion["terreno"], errors="coerce").values if "terreno" in seleccion.columns else None,
-        "Alerta": ["⚠" if d else "" for d in dudosa.fillna(False)],
-        "Cantidad probable": seleccion["Porcentaje (%)"].values,
+        "Código": [ideam_downloader.codigo_de_estacion(r, i) for i, r in descargables.iterrows()],
+        "●": "●",
+        "Estación": [_nombre_limpio(n) + (" ⚠" if d else "") for n, d in zip(descargables["nombre"], dudosa)],
+        "Cobertura": pd.to_numeric(descargables["Porcentaje (%)"], errors="coerce").values,
+        "color": [clasificar_calidad(p)["color"] for p in descargables["Porcentaje (%)"]],
     })
-    return t.sort_values(["Cantidad probable", "Código"], ascending=[False, True]).reset_index(drop=True)
+    return t.sort_values(["Cobertura", "Código"], ascending=[False, True]).reset_index(drop=True)[columnas]
 
 
 def tabla_dudosas(zona):
@@ -82,7 +92,7 @@ def tabla_dudosas(zona):
     d = zona[zona["altitud_dudosa"].fillna(False).astype(bool)]
     t = pd.DataFrame({
         "Código": [ideam_downloader.codigo_de_estacion(r, i) for i, r in d.iterrows()],
-        "Estación": d["nombre"].astype(str).str.replace(r"\s*\[\d+\]\s*$", "", regex=True).str.strip().values,
+        "Estación": [_nombre_limpio(n) for n in d["nombre"]],
         "Catálogo": pd.to_numeric(d["altitud"], errors="coerce").values,
         "Terreno": pd.to_numeric(d["terreno"], errors="coerce").values,
     })
@@ -110,59 +120,6 @@ def _explicacion_altitud(altitud, terreno, rango):
     return texto
 
 
-def _grafica_clases(seleccion, paleta):
-    filas = []
-    for orden, (limite, nombre, rango, _, color) in enumerate(CLASES_CALIDAD):
-        cantidad = int((seleccion["Clase calidad"] == nombre).sum())
-        filas.append({"Clase": f"{nombre} ({rango})", "Estaciones": cantidad,
-                      "Participación": cantidad / len(seleccion) if len(seleccion) else 0, "color": color, "orden": orden})
-    datos = pd.DataFrame(filas)
-    base = alt.Chart(datos).encode(
-        y=alt.Y("Clase:N", sort=alt.SortField("orden"), title=None,
-                axis=alt.Axis(labelLimit=220, ticks=False, domain=False, labelColor=paleta["tinta"])),
-        x=alt.X("Estaciones:Q", title=None, scale=alt.Scale(domain=[0, max(1, datos["Estaciones"].max()) * 1.15], nice=False),
-                axis=alt.Axis(labels=False, ticks=False, domain=False, grid=False)),
-    )
-    barras = base.mark_bar(cornerRadiusEnd=4, height=18).encode(
-        color=alt.Color("color:N", scale=None, legend=None),
-        tooltip=[alt.Tooltip("Clase:N"), alt.Tooltip("Estaciones:Q"),
-                 alt.Tooltip("Participación:Q", format=".0%", title="De la selección")])
-    etiquetas = base.mark_text(align="left", dx=6, fontSize=13, color=paleta["tinta_3"]).encode(text=alt.Text("Estaciones:Q", format="d"))
-    # fondo transparente: la grafica se ve sobre el vidrio del panel
-    return (barras + etiquetas).properties(height=4 * 30, background="transparent").configure_view(stroke=None)
-
-
-def _grafica_altitud(tabla, seleccionada, paleta):
-    """Un punto por estacion, de la mas baja a la mas alta. Clic = seleccionar. Triangulo naranja = altitud dudosa."""
-    datos = tabla.dropna(subset=["Altitud (m)"]).sort_values("Altitud (m)").reset_index(drop=True)
-    datos["Orden"] = range(1, len(datos) + 1)
-    datos["Elegida"] = datos["Código"] == seleccionada
-    datos["Dudosa"] = datos["Alerta"] != ""
-    datos["Terreno"] = datos["Terreno (m)"].map(lambda v: f"{_num(v)} m" if pd.notna(v) else "sin dato")
-    datos["Altitud dudosa"] = datos["Dudosa"].map({True: "Sí", False: "No"})
-    minimo, maximo = datos["Altitud (m)"].min(), datos["Altitud (m)"].max()
-    paso = 500 if maximo - minimo > 900 else 250 if maximo - minimo > 150 else 50
-    dominio = [minimo // paso * paso, (-(-maximo // paso)) * paso if maximo > minimo else minimo + paso]
-    punto = alt.selection_point(name="punto", fields=["Código"], on="click", empty=False)
-    color = (alt.when(alt.datum.Elegida).then(alt.value(paleta["tinta"]))
-             .when(alt.datum.Dudosa).then(alt.value(NARANJA_ALERTA))
-             .otherwise(alt.value(paleta["acento"])))
-    grafica = alt.Chart(datos).mark_point(filled=True, opacity=1, stroke=paleta["superficie"], strokeWidth=1.2).encode(
-        x=alt.X("Orden:Q", title=None, axis=None, scale=alt.Scale(domain=[0.5, max(1.5, len(datos) + 0.5)])),
-        y=alt.Y("Altitud (m):Q", title=None, scale=alt.Scale(domain=dominio, nice=False),
-                axis=alt.Axis(values=list(range(int(dominio[0]), int(dominio[1]) + 1, paso)), grid=True,
-                              gridColor=paleta["rejilla"], domain=False, ticks=False, labelColor=paleta["tinta_3"],
-                              labelExpr="replace(format(datum.value, ',.0f'), ',', '.')")),
-        size=alt.condition(alt.datum.Elegida, alt.value(240), alt.value(80)),
-        # la altitud dudosa se distingue por la forma ademas del color
-        shape=alt.condition(alt.datum.Dudosa, alt.value("triangle-up"), alt.value("circle")),
-        color=color,
-        tooltip=[alt.Tooltip("Estación:N"), alt.Tooltip("Altitud (m):Q", format=",.0f", title="Altitud del catálogo"),
-                 alt.Tooltip("Terreno:N", title="Relieve"), alt.Tooltip("Altitud dudosa:N")],
-    ).add_params(punto).properties(height=130, background="transparent").configure_view(stroke=None)
-    return grafica, minimo, maximo
-
-
 def _ver_en_3d():
     st.session_state["vista"] = "3D"
     st.session_state["_orbitar"] = True
@@ -182,22 +139,52 @@ def _quitar_seleccion():
     st.session_state["estacion_sel"] = None
 
 
-def tarjeta_seleccionada(fila, rango=None, vista="2D"):
-    """Ficha flotante de la estacion elegida (desde el mapa, la lista o la grafica)."""
+def _al_marcar(clave, codigos):
+    """Casillas de la lista: las filas marcadas se descargan; las demas quedan excluidas. Un clic en una celda
+    selecciona la estacion (ficha y mapa)."""
+    ss = st.session_state
+    sel = (ss.get(clave) or {}).get("selection") or {}
+    marcadas = set(sel.get("rows", []))
+    otras = set(ss.get("excluidas", set())) - set(codigos)   # exclusiones de estaciones que hoy no estan en la lista
+    ss.excluidas = otras | {c for i, c in enumerate(codigos) if i not in marcadas}
+    celdas = sel.get("cells") or []
+    if celdas and celdas[0][0] < len(codigos) and str(codigos[celdas[0][0]]) != ss.get("estacion_sel"):
+        ss.estacion_sel = str(codigos[celdas[0][0]])
+        ss._centrar = True   # el mapa va a la estacion elegida
+
+
+def _incluir(codigo):
+    """Interruptor de la ficha: incluir o quitar la estacion de la descarga (la lista se rehace con el cambio)."""
+    ss = st.session_state
+    excl = set(ss.get("excluidas", set()))
+    if ss.get(f"incluir_{codigo}"):
+        excl.discard(codigo)
+    else:
+        excl.add(codigo)
+    ss.excluidas = excl
+    ss.version_lista = ss.get("version_lista", 0) + 1
+
+
+def tarjeta_seleccionada(fila, rango=None, vista="2D", descargable=False):
+    """Ficha flotante de la estacion elegida (desde el mapa o la lista)."""
+    ss = st.session_state
+    codigo = str(ideam_downloader.codigo_de_estacion(fila))
     try:
         altitud = _num(float(fila.get("altitud"))) + " m"
     except (TypeError, ValueError):
         altitud = "altitud sin dato"
-    zona = "en la cuenca" if fila.get("zona") == "cuenca" else "en el buffer"
-    nombre = re.sub(r"\s*\[\d+\]\s*$", "", str(fila.get("nombre", ""))).strip()   # el codigo va en la linea de abajo
-    md(f'<div class="y2k-ficha-cab"><small>Estación seleccionada</small><b>{escape(nombre)}</b>'
-       f'<span>{escape(str(ideam_downloader.codigo_de_estacion(fila)))} · {altitud} · {zona}</span></div>')
+    zona = "en el área" if fila.get("zona") == "cuenca" else "en el buffer"
+    md(f'<div class="y2k-ficha-cab"><small>Estación seleccionada</small><b>{escape(_nombre_limpio(fila.get("nombre", "")))}</b>'
+       f'<span>{escape(codigo)} · {altitud} · {zona}</span></div>')
     serie = fila.get("Serie DHIME") if "Serie DHIME" in fila.index else None
     if serie == "Sí":
-        st.caption(f"Cantidad probable **{fila['Porcentaje (%)']:.0f} %** (cobertura {str(fila.get('Clase calidad', '')).lower()}) · "
+        st.caption(f"Cobertura **{fila['Porcentaje (%)']:.0f} %** ({str(fila.get('Clase calidad', '')).lower()}) · "
                    f"serie {str(fila.get('Inicio serie'))[:4]}–{str(fila.get('Fin serie'))[:4]}")
     elif serie == "No":
         st.caption("Sin serie de este parámetro en DHIME")
+    if descargable:
+        ss[f"incluir_{codigo}"] = codigo not in ss.get("excluidas", set())
+        st.toggle("Incluir en la descarga", key=f"incluir_{codigo}", on_change=_incluir, args=(codigo,))
     if fila.get("altitud_dudosa") and fila.get("terreno") is not None:
         with st.container(key="alerta_ficha"), st.expander("Altitud dudosa · Ver detalles", icon=":material/warning:"):
             st.markdown(f'<p class="y2k-hint" style="color:var(--y2k-ink-2) !important">'
@@ -207,108 +194,84 @@ def tarjeta_seleccionada(fila, rango=None, vista="2D"):
     with st.container(horizontal=True, gap="small"):
         if vista != "3D":
             st.button("Ver en 3D", key="ver_3d", icon=":material/landscape:", width="stretch", on_click=_ver_en_3d)
-        st.button("Quitar selección", key="quitar_sel", icon=":material/close:", width="stretch",
-                  on_click=_quitar_seleccion)
+        st.button("Cerrar", key="quitar_sel", icon=":material/close:", width="stretch", on_click=_quitar_seleccion)
 
 
-def mostrar_panel(zona, seleccion, param, fecha_ini, fecha_fin, umbral, seleccionada, tabla, tema="claro",
-                  dudosas=None, rango=None, cifras=None):
-    """Pestana "Resumen". tema: nombre de la paleta ("claro"/"oscuro") o la paleta ya resuelta (dict)."""
-    paleta = tema if isinstance(tema, dict) else PALETAS.get(tema, PALETAS["claro"])
-    if zona is None:
-        st.html('<p class="y2k-hint">Marca tu cuenca para ver aquí el resumen.</p>')
-        return
-    if zona.empty:
-        st.warning("No hay estaciones del IDEAM en esta zona. Activa o amplía el buffer.")
-        return
-
-    cifras = cifras or cifras_seleccion(seleccion, param, fecha_ini, fecha_fin)
-    bloques, datos = cifras["bloques"], cifras["datos"]
-    _cifras([
-        ("Estaciones", len(seleccion), f"de {len(zona)} en la zona",
-         f"Estaciones que se van a descargar, de {len(zona)} en la cuenca y el buffer"),
-        ("Cobertura media", f"{seleccion['Porcentaje (%)'].mean():.0f} %" if len(seleccion) else "–", "del periodo",
+def tablero(zona, descargables, seleccion, param, cifras, dudosas=None, rango=None):
+    """Tablero de calidad: cifras, aviso de altitud dudosa y lista de estaciones con casillas."""
+    ss = st.session_state
+    n_sel, n_desc = len(seleccion), len(descargables)
+    kpis([
+        (n_sel, "Estaciones listas", f"de {n_desc} con datos" if n_desc != n_sel else f"{len(zona)} en la zona",
+         f"Estaciones que se van a descargar. {n_desc} tienen datos de este parámetro en el periodo, de {len(zona)} en "
+         "el área y el buffer."),
+        (f"{seleccion['Porcentaje (%)'].mean():.0f} %" if n_sel else "–", "Cobertura media", "del periodo",
          "Promedio de la cantidad probable: qué parte del periodo consultado cubre el registro de las estaciones "
-         "que se van a descargar (no descuenta los huecos internos)"),
-        ("Tiempo", duracion_aprox(cifras["segundos"]), f"{bloques} consultas",
-         f"{bloques} consultas al IDEAM de hasta {param['dias_bloque']} días. Depende de la velocidad de respuesta "
-         "del servidor del IDEAM."),
-        ("Datos", f"{round(datos / 1000)}k" if datos >= 100_000 else _num(datos), "registros probables",
-         "Registros que cabrían entre el primer y el último dato de cada estación dentro del periodo, según la "
-         "frecuencia. No descuenta los datos faltantes."),
+         "que se van a descargar (no descuenta los huecos internos)."),
+        (registros_txt(cifras["datos"]), "Registros probables", duracion_aprox(cifras["segundos"]) + " de descarga",
+         f"Registros que cabrían entre el primer y el último dato de cada estación dentro del periodo. No descuenta los "
+         f"datos faltantes. La descarga hace {cifras['bloques']} consultas al IDEAM de hasta {param['dias_bloque']} días."),
     ])
-    # Nivel de aprobacion del dato (ver manual): mucho dato reciente sigue siendo preliminar
-    detalles("Los datos recientes pueden ser preliminares.",
-             "<p>Cada dato del IDEAM tiene un nivel de aprobación (preliminar, en revisión o definitivo); los "
-             "preliminares pueden cambiar. Cada Excel lo indica en la columna «Nivel de Aprobación».</p>",
-             ver="Nivel de aprobación")
 
-    # Estaciones cuya altitud del catalogo no cuadra con el relieve real
+    # Estaciones cuya altitud del catalogo no cuadra con el relieve real: una linea ambar; el detalle adentro
     if dudosas is not None and len(dudosas):
-        st.session_state["_dudosas_codigos"] = list(dudosas["Código"])
-        codigos_sel = set(tabla["Código"])
-        en_seleccion = int(dudosas["Código"].isin(codigos_sel).sum())
-        peor = dudosas.iloc[0]
+        ss["_dudosas_codigos"] = list(dudosas["Código"])
         n = len(dudosas)
-        rango_txt = (f"En esta zona el relieve va de <b>{_num(rango[0])} a {_num(rango[1])} m</b>. " if rango else "")
-        # Aviso de una linea; el detalle y la lista quedan adentro
+        peor = dudosas.iloc[0]
+        rango_txt = f"En esta zona el relieve va de <b>{_num(rango[0])} a {_num(rango[1])} m</b>. " if rango else ""
         with st.container(key="alerta_altura"), st.expander(
-                f"Altitud dudosa en {n} {'estaciones' if n != 1 else 'estación'} · Ver lista",
-                icon=":material/warning:"):
+                f"{n} {'estaciones' if n != 1 else 'estación'} con altitud dudosa", icon=":material/warning:"):
             st.markdown(
                 f'<p class="y2k-hint" style="color:var(--y2k-ink-2) !important">'
-                f'{n} {"estaciones tienen" if n != 1 else "estación tiene"}'
-                f'{f" ({en_seleccion} en la descarga)" if en_seleccion else ""} en el catálogo una altitud que difiere en '
-                f'más de {ALTITUD_DUDOSA_M} m del relieve en su punto. {rango_txt}'
+                f'En el catálogo, su altitud difiere en más de {ALTITUD_DUDOSA_M} m del relieve en su punto. {rango_txt}'
                 f'La mayor diferencia es la de <b>{escape(peor["Estación"])}</b>: el catálogo indica {_num(peor["Catálogo"])} m '
-                f'y el relieve, {_num(peor["Terreno"])} m ({_num(abs(peor["Diferencia"]))} m de diferencia). '
-                f'Elige una fila para verla en el mapa 3D.</p>', unsafe_allow_html=True)
+                f'y el relieve, {_num(peor["Terreno"])} m. Elige una fila para verla en el mapa 3D.</p>', unsafe_allow_html=True)
             st.dataframe(
                 dudosas, hide_index=True, width="stretch", key="tabla_dudosas",
                 on_select=_al_elegir_dudosa, selection_mode="single-row",
                 column_order=["Estación", "Catálogo", "Terreno", "Diferencia"],
                 column_config={"Catálogo": st.column_config.NumberColumn(format="%d m"),
                                "Terreno": st.column_config.NumberColumn("Relieve", format="%d m"),
-                               "Diferencia": st.column_config.NumberColumn(format="%+d m",
-                                                                           help="Catálogo menos relieve")})
+                               "Diferencia": st.column_config.NumberColumn(format="%+d m", help="Catálogo menos relieve")})
 
-    if param.get("avanzado") and len(seleccion):
-        st.warning(f"Descarga avanzada: {bloques} consultas de {param['dias_bloque']} días "
-                   f"(≈ {bloques // max(1, len(seleccion))} por estación).", icon=":material/hourglass_top:")
+    if param.get("avanzado") and n_sel:
+        st.warning(f"Descarga avanzada: {cifras['bloques']} consultas de {param['dias_bloque']} días "
+                   f"(≈ {cifras['bloques'] // max(1, n_sel)} por estación).", icon=":material/hourglass_top:")
 
-    if len(seleccion) == 0:
-        st.warning(f"Ninguna estación alcanza el {umbral} % de cantidad probable. Baja el mínimo o cambia las fechas.")
-        return
-
-    st.html('<p class="y2k-titulo-seccion">Cobertura del periodo</p>')
-    detalles("Estaciones por clase de cobertura.",
-             "<p>Según qué parte del periodo cubre el registro de cada estación (entre su primer y su último dato). "
-             "100 % significa que el registro abarca todo el periodo, aunque puede tener huecos.</p>",
-             ver="Cómo se calcula")
-    st.altair_chart(_grafica_clases(seleccion, paleta), width="stretch")
-
-    grafica, minimo, maximo = _grafica_altitud(tabla, seleccionada, paleta)
-    st.html('<p class="y2k-titulo-seccion">Altitud de las estaciones</p>')
-    st.altair_chart(grafica, width="stretch", on_select="rerun", selection_mode="punto", key="graf_alt")
-    st.caption(f"De {_num(minimo)} a {_num(maximo)} m ({_num(maximo - minimo)} m de desnivel) · haz clic en un punto "
-               f"para seleccionar la estación{' · triángulo naranja: altitud dudosa' if (tabla['Alerta'] != '').any() else ''}")
-
-    en_cuenca = int((seleccion["zona"] == "cuenca").sum()) if "zona" in seleccion.columns else len(seleccion)
-    fines = pd.to_datetime(seleccion["Fin serie"], errors="coerce")
-    activas = int((fines >= pd.Timestamp(datetime.date.today() - datetime.timedelta(days=365))).sum())
-    en_buffer = len(seleccion) - en_cuenca
-    st.markdown(f"**{en_cuenca}** en la cuenca{f' · **{en_buffer}** en el buffer' if en_buffer else ''}  \n"
-                f"**{activas}** activas (con datos en el último año) · **{len(seleccion) - activas}** históricas")
-
+    # Lista con casillas: marcada = se descarga. Un clic en el nombre selecciona la estacion
+    tabla = tabla_lista(descargables)
+    codigos = list(tabla["Código"])
+    excluidas = set(ss.get("excluidas", set()))
+    md(f'<div class="y2k-lista-cab"><span>Marca las que quieres descargar</span>'
+       f'<span><b>{n_sel}</b> de {n_desc}</span></div>')
+    clave = f"lista_{abs(hash(tuple(codigos))) % 10 ** 8}_{ss.get('version_lista', 0)}"
+    colores = tabla["color"].tolist()
+    vista = tabla.drop(columns=["color"]).style.apply(
+        lambda col: [f"color: {c}" for c in colores], subset=["●"]).format({"Cobertura": "{:.0f} %"})
     st.dataframe(
-        tabla, hide_index=True, width="stretch", height=260,
-        on_select="rerun", selection_mode="single-row", key="tabla_est",
-        column_order=["Alerta", "Estación", "Altitud (m)", "Cantidad probable"],
+        vista, hide_index=True, width="stretch", height=min(38 + 35 * max(1, len(tabla)), 330), key=clave,
+        on_select=partial(_al_marcar, clave, codigos), selection_mode=["multi-row", "single-cell"],
+        selection_default={"selection": {"rows": [i for i, c in enumerate(codigos) if c not in excluidas]}},
+        column_order=["●", "Estación", "Cobertura"],
         column_config={
-            "Alerta": st.column_config.TextColumn("⚠", width=34, help="⚠ = altitud dudosa (no coincide con el relieve)"),
-            "Altitud (m)": st.column_config.NumberColumn("Altitud", format="%d m"),
-            "Cantidad probable": st.column_config.ProgressColumn("Cobertura", format="%.0f %%", min_value=0, max_value=100,
-                                                                 help="Cantidad probable: qué parte del periodo cubre "
-                                                                      "el registro de la estación"),
+            "●": st.column_config.TextColumn("", width=28, help="Color de su clase de cobertura (ver la leyenda)"),
+            "Estación": st.column_config.TextColumn(width=176, help="⚠ = altitud dudosa (no coincide con el relieve)"),
+            "Cobertura": st.column_config.TextColumn(width=66, help="Cantidad probable: qué parte del periodo cubre el "
+                                                                     "registro de la estación"),
         },
     )
+    en_cuenca = int((seleccion["zona"] == "cuenca").sum()) if "zona" in seleccion.columns else n_sel
+    fines = pd.to_datetime(seleccion["Fin serie"], errors="coerce")
+    activas = int((fines >= pd.Timestamp(datetime.date.today() - datetime.timedelta(days=365))).sum())
+    st.caption(f"{en_cuenca} en el área{f' · {n_sel - en_cuenca} en el buffer' if n_sel - en_cuenca else ''} · "
+               f"{activas} con datos en el último año")
+    detalles("Los datos recientes pueden ser preliminares.",
+             "<p>Cada dato del IDEAM tiene un nivel de aprobación (preliminar, en revisión o definitivo); los "
+             "preliminares pueden cambiar. Cada Excel lo indica en la columna «Nivel de Aprobación».</p>",
+             ver="Nivel de aprobación")
+
+
+def reparto_cobertura(colores):
+    """[(nombre de la clase, n, color)] a partir de los colores de las estaciones guardadas."""
+    return [(nombre, sum(1 for c in colores if c.lower() == color.lower()), color)
+            for _, nombre, _, _, color in CLASES_CALIDAD]

@@ -34,10 +34,12 @@ def mapa_base(cuenca_gdf=None, tema="claro"):
     else:
         centro, zoom = [4.6, -74.1], 6
 
-    m = folium.Map(location=centro, zoom_start=zoom, tiles=None, control_scale=True, prefer_canvas=True)
+    # Sin control de zoom de Leaflet: el zoom, las capas y el dibujo se manejan desde la capsula de herramientas
+    # de la pagina (estilo.herramientas_2d), que pulsa estos controles ocultos
+    m = folium.Map(location=centro, zoom_start=zoom, tiles=None, control_scale=True, prefer_canvas=True, zoom_control=False)
     # Mapas base sin clave (CARTO ahora exige API key y muestra una marca de agua)
     esri = "https://server.arcgisonline.com/ArcGIS/rest/services/{}/MapServer/tile/{{z}}/{{y}}/{{x}}"
-    # Satelite arranca visible; los demas se eligen en el boton de capas (arriba a la derecha)
+    # Satelite arranca visible; los demas se eligen en el menu "Mapa base" de la capsula de herramientas
     folium.TileLayer(tiles=esri.format("World_Imagery"), attr=ATRIB_ESRI_SATELITE, name="Satélite").add_to(m)
     folium.TileLayer(tiles=esri.format("World_Topo_Map"), attr=ATRIB_ESRI_RELIEVE, name="Relieve",
                      show=False).add_to(m)
@@ -50,8 +52,7 @@ def mapa_base(cuenca_gdf=None, tema="claro"):
         attr=ATRIB_NASA, name="Satélite de noche", show=False, max_native_zoom=8, max_zoom=19,
     ).add_to(m)
 
-    # La cuenca va dentro del grupo de dibujo: asi se pueden mover sus
-    # esquinas (lapiz) o borrarla (papelera) con las herramientas del mapa
+    # La cuenca va dentro del grupo de dibujo: asi se pueden mover sus esquinas ("Ajustar las esquinas")
     editables = folium.FeatureGroup(name="Cuenca")
     if cuenca_gdf is not None:
         for geom in cuenca_gdf.geometry:
@@ -66,7 +67,7 @@ def mapa_base(cuenca_gdf=None, tema="claro"):
     estilo = {"color": AZUL, "weight": 3, "fillColor": AZUL, "fillOpacity": 0.12}
     Draw(
         feature_group=editables,
-        position="topleft",
+        position="topright",   # oculta; sus acciones ("Guardar", "Cancelar") salen junto a la capsula
         draw_options={
             "polyline": False, "circle": False, "circlemarker": False, "marker": False, "polygon": False,
             "rectangle": {"shapeOptions": estilo},
@@ -76,7 +77,7 @@ def mapa_base(cuenca_gdf=None, tema="claro"):
         show_geometry_on_click=False,
     ).add_to(m)
     folium.LayerControl(position="topright", collapsed=True).add_to(m)
-    # Creditos de las capas: una linea chica en el borde (el texto completo va al final de "Consulta")
+    # Creditos de las capas: una linea chica en el borde (el texto completo va al final del panel)
     m.get_root().header.add_child(folium.Element(
         "<style>.leaflet-control-attribution{font:10px/1.4 Figtree,system-ui,sans-serif !important;"
         "white-space:nowrap;max-width:75%;overflow:hidden;text-overflow:ellipsis}</style>"))
@@ -101,10 +102,12 @@ def cuenca_desde_dibujos(dibujos):
     return gpd.GeoDataFrame(geometry=geoms, crs="EPSG:4326")
 
 
-def _tarjeta(row, codigo):
+def _tarjeta(row, codigo, excluida=False):
     nombre = str(row.get("nombre", codigo))
     partes = [f"<b style='font-size:13px'>{nombre}</b>",
               f"<span style='color:{TINTA_2}'>{codigo} · {_altitud_txt(row)}</span>"]
+    if excluida:
+        partes.append(f"<span style='color:{TINTA_2}'>Excluida de la descarga</span>")
     if "Porcentaje (%)" in row and pd.notna(row["Porcentaje (%)"]):
         if row.get("Serie DHIME") == "No":
             partes.append("<span style='color:#B42318'>Sin serie de este parámetro en DHIME</span>")
@@ -138,8 +141,9 @@ def _marca(marcador, pin=False):
     return marcador
 
 
-def capa_dinamica(area_gdf=None, estaciones=None, umbral=0, seleccionada=None, catalogo=None):
-    """Capa que cambia sin recargar el mapa: buffer, estaciones y la seleccionada."""
+def capa_dinamica(area_gdf=None, estaciones=None, seleccionada=None, catalogo=None, excluidas=()):
+    """Capa que cambia sin recargar el mapa: buffer, estaciones y la seleccionada. Las `excluidas` (codigos que la
+    persona quito de la descarga) se dibujan huecas y con borde punteado."""
     fg = folium.FeatureGroup(name="Estaciones")
     if area_gdf is not None:
         folium.GeoJson(
@@ -154,24 +158,29 @@ def capa_dinamica(area_gdf=None, estaciones=None, umbral=0, seleccionada=None, c
         for idx, row in estaciones.iterrows():
             codigo = codigo_de_estacion(row, idx)
             pct = row["Porcentaje (%)"] if evaluadas else None
-            ok = evaluadas and row.get("Serie DHIME") == "Sí" and row.get("Cantidad Probable", 0) > 0 and pct >= umbral
+            ok = evaluadas and row.get("Serie DHIME") == "Sí" and row.get("Cantidad Probable", 0) > 0
+            fuera = ok and codigo in excluidas
             color = clasificar_calidad(pct)["color"] if ok else GRIS
             es_sel = codigo == seleccionada
-            # Con un minimo de cantidad probable, las descartadas (puntos grises) se quitan del mapa
-            if evaluadas and umbral > 0 and not ok and not es_sel:
-                continue
             if es_sel:
                 _marca(folium.CircleMarker(location=[row.geometry.y, row.geometry.x], radius=16, color=AZUL,
                                               weight=3, fill=True, fill_color="#FFFFFF", fill_opacity=0.35)).add_to(fg)
-            _marca(folium.CircleMarker(
-                location=[row.geometry.y, row.geometry.x],
-                radius=9 if es_sel else 7 if ok else 5,
-                # borde naranja = altitud dudosa; borde claro = se lee sobre el satelite
-                color="#D0602F" if row.get("altitud_dudosa") else BORDE_PIN if ok or es_sel else "#E6ECF7",
-                weight=2.5 if es_sel or row.get("altitud_dudosa") else 1.6 if ok else 1.4,
-                fill=ok or es_sel, fill_color=color, fill_opacity=0.95 if ok else 0.4,
-                tooltip=folium.Tooltip(_tarjeta(row, codigo), sticky=True),
-            ), pin=True).add_to(fg)
+            if fuera:
+                # excluida de la descarga: hueca, con borde punteado
+                marcador = folium.CircleMarker(
+                    location=[row.geometry.y, row.geometry.x], radius=9 if es_sel else 6, color="#7C87A3", weight=2,
+                    dash_array="3 3", fill=True, fill_color="#FFFFFF", fill_opacity=0.35,
+                    tooltip=folium.Tooltip(_tarjeta(row, codigo, excluida=True), sticky=True))
+            else:
+                marcador = folium.CircleMarker(
+                    location=[row.geometry.y, row.geometry.x],
+                    radius=9 if es_sel else 7 if ok else 5,
+                    # borde naranja = altitud dudosa; borde claro = se lee sobre el satelite
+                    color="#D0602F" if row.get("altitud_dudosa") else BORDE_PIN if ok or es_sel else "#E6ECF7",
+                    weight=2.5 if es_sel or row.get("altitud_dudosa") else 1.6 if ok else 1.4,
+                    fill=ok or es_sel, fill_color=color, fill_opacity=0.95 if ok else 0.4,
+                    tooltip=folium.Tooltip(_tarjeta(row, codigo), sticky=True))
+            _marca(marcador, pin=True).add_to(fg)
     elif catalogo is not None and not catalogo.empty:
         # Sin cuenca todavia: el catalogo nacional agrupado, para ubicarse
         FastMarkerCluster(data=list(zip(catalogo.geometry.y, catalogo.geometry.x)), name="Catálogo nacional").add_to(fg)

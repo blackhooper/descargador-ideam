@@ -26,10 +26,11 @@ def clasificar_calidad(porcentaje):
     return {"nombre": nombre, "rango": rango, "carpeta": carpeta, "color": color}
 
 
-def filtrar_descargables(estaciones_df, umbral):
+def filtrar_descargables(estaciones_df, umbral=0):
     """
-    Estaciones que se van a descargar: las que tienen la serie en DHIME,
-    tienen datos dentro del rango y superan el umbral de cantidad probable.
+    Estaciones que se pueden descargar: las que tienen la serie en DHIME,
+    tienen datos dentro del rango y superan el umbral de cantidad probable
+    (la app usa 0: la persona quita a mano las que no quiere).
     """
     mascara = (estaciones_df["Porcentaje (%)"] >= umbral) & (estaciones_df["Cantidad Probable"] > 0)
     if "Serie DHIME" in estaciones_df.columns:

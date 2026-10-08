@@ -144,7 +144,7 @@ def leyenda_altura(minimo, maximo, escala):
 # pagina, tapa el visor 3D con la animacion y, al "encender la pantalla", avisa al guion de la secuencia de entrada
 # (_ORBITA) para que empiecen los lasers sobre el relieve real.
 SATELITE_ACTIVO = True
-PANEL_SATELITE = True    # TEMPORAL: panel de ajustes de camara y tiempos dentro de la intro (borrarlo al terminar de afinar)
+PANEL_SATELITE = False   # panel de ajustes de camara y tiempos dentro de la intro (solo para afinarla)
 
 
 def _version_satelite():
@@ -164,17 +164,18 @@ _INTRO_SATELITAL = """
   const P = __PARAMS__;
   const visor = d.querySelector(".st-key-y2k_visor3d");
   const fin = () => { w.__y2kIntroSatFin = P.turno; };
-  const menos = w.matchMedia && w.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  // con movimiento reducido no se reproduce sola; si la persona la pide ("Repetir animacion"), si
+  const menos = w.matchMedia && w.matchMedia("(prefers-reduced-motion: reduce)").matches && !P.forzar;
   w.__y2kIntroSatTurno = P.turno;
   if (!visor || menos) { fin(); return; }
   // Si la animacion ya arranco en el clic (sobre el mapa 2D), se adopta en vez de empezar otra
   if (w.__y2kSatTemprano && w.__y2kSatTemprano.adoptar) { try { w.__y2kSatTemprano.adoptar(visor, P); return; } catch (e) { console.error(e); } }
-  // capa negra inmediata: el reproductor tarda un momento en cargar (la primera vez, bastante)
-  visor.querySelectorAll(".y2k-sat").forEach(e => e.remove());
+  // capa negra inmediata (sobre toda la ventana): el reproductor tarda un momento en cargar (la primera vez, bastante)
+  d.querySelectorAll(".y2k-sat").forEach(e => e.remove());
   const previo = d.createElement("div");
   previo.className = "y2k-sat";
-  previo.style.cssText = "position:absolute;inset:0;z-index:30;background:#000;border-radius:12px";
-  visor.appendChild(previo);
+  previo.style.cssText = "position:fixed;inset:0;z-index:60;background:#000";
+  d.body.appendChild(previo);
   try {
     if (!w.__y2kSat || w.__y2kSatV !== P.version) {
       await new Promise((ok, no) => {
@@ -207,9 +208,10 @@ def _datos_satelite(bbox, estaciones, buffer=True):
             "panel": bool(PANEL_SATELITE), "version": _version_satelite()}
 
 
-def intro_satelital(turno, bbox, estaciones, buffer=True):
-    """Guion (para components.html) que reproduce la intro satelital sobre el visor 3D de este turno."""
-    datos = {"turno": turno, **_datos_satelite(bbox, estaciones, buffer)}
+def intro_satelital(turno, bbox, estaciones, buffer=True, forzar=False):
+    """Guion (para components.html) que reproduce la intro satelital del visor 3D de este turno. `forzar`: la pidio
+    la persona ("Repetir animacion"), asi que se reproduce aunque su equipo pida reducir el movimiento."""
+    datos = {"turno": turno, "forzar": bool(forzar), **_datos_satelite(bbox, estaciones, buffer)}
     return _INTRO_SATELITAL.replace("__PARAMS__", json.dumps(datos)) + f"<!-- turno {turno} -->"
 
 
@@ -389,7 +391,7 @@ _ORBITA = """
   // Modo Lite (lo marca el CSS de la pagina): sin secuencia ni vuelta animada. Se lee aqui, no desde Python, para que
   // activarlo o quitarlo no vuelva a ejecutar este guion (moveria la camara o repetiria la animacion)
   const lite = w.getComputedStyle(d.documentElement).getPropertyValue("--y2k-lite").trim() === "1";
-  const conIntro = O.intro && !quiereMenosMovimiento && !lite && originales.length > 0;
+  const conIntro = O.intro && (!quiereMenosMovimiento || O.forzar) && !lite && originales.length > 0;
   let enIntro = conIntro, vueltaIniciada = false;
   w.__y2kEnIntro = enIntro;
   // Tamano de los efectos segun lo lejos que mira la camara (E = 1 a 4 km)
@@ -416,7 +418,7 @@ _ORBITA = """
   let tocado = false;
   const zonaDeck = d.querySelector('[data-testid="stDeckGlJsonChart"]');
   if (zonaDeck) ["pointerdown", "wheel", "touchstart", "keydown"].forEach(e => zonaDeck.addEventListener(e, () => { tocado = true; }, {once: true, capture: true}));
-  if (!conIntro && (lite || quiereMenosMovimiento)) vuelta();
+  if (!conIntro && (lite || (quiereMenosMovimiento && !O.forzar))) vuelta();
 
   // ---- 2. Esperar a que el relieve este dibujado (la cubierta "Alistando..." sigue encima) ----
   if (!visor || visor.dataset.listo !== "1") {
@@ -940,13 +942,15 @@ EXTRAS_3D = _EXTRAS_3D.replace("__AVION__", "true" if AVION_ACTIVO else "false")
 
 
 
-def orbitar(orbita, turno, intro=False, satelite=False, apex=1.7):
+def orbitar(orbita, turno, intro=False, satelite=False, apex=1.7, forzar=False):
     """Guion que acerca la camara a la estacion y da una vuelta lenta a su alrededor. `turno`
     cambia en cada seleccion nueva, asi el guion solo corre una vez por estacion elegida.
     intro: antes de la vuelta, corre la secuencia de entrada (lasers, caida de pines, alertas).
-    En modo Lite (lo lee el guion en el navegador) no hay secuencia ni vuelta: la camara salta al encuadre final."""
+    En modo Lite (lo lee el guion en el navegador) no hay secuencia ni vuelta: la camara salta al encuadre final.
+    forzar: la persona pidio repetir la animacion; se hace aunque su equipo pida reducir el movimiento."""
     import json
-    return _ORBITA.replace("__ORBITA__", json.dumps({**orbita, "intro": bool(intro), "turno": turno, "satelite": bool(satelite), "apex": float(apex)})) + f"<!-- turno {turno} -->"
+    return _ORBITA.replace("__ORBITA__", json.dumps({**orbita, "intro": bool(intro), "turno": turno, "satelite": bool(satelite),
+                                                     "apex": float(apex), "forzar": bool(forzar)})) + f"<!-- turno {turno} -->"
 
 
 def _destino(lon, lat, azimut, distancia):

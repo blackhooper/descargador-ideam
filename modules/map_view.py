@@ -3,7 +3,7 @@ import pandas as pd
 from folium.plugins import Draw, FastMarkerCluster
 from shapely.geometry import shape
 import geopandas as gpd
-from modules.estilo import ATRIB_ESRI_RELIEVE, ATRIB_ESRI_SATELITE, ATRIB_NASA
+from modules.estilo import ATRIB_ESRI_NOMBRES, ATRIB_ESRI_RELIEVE, ATRIB_ESRI_SATELITE, ATRIB_NASA
 from modules.calidad import clasificar_calidad
 from modules.ideam_downloader import codigo_de_estacion
 
@@ -39,8 +39,16 @@ def mapa_base(cuenca_gdf=None, tema="claro"):
     m = folium.Map(location=centro, zoom_start=zoom, tiles=None, control_scale=True, prefer_canvas=True, zoom_control=False)
     # Mapas base sin clave (CARTO ahora exige API key y muestra una marca de agua)
     esri = "https://server.arcgisonline.com/ArcGIS/rest/services/{}/MapServer/tile/{{z}}/{{y}}/{{x}}"
-    # Satelite arranca visible; los demas se eligen en el menu "Mapa base" de la capsula de herramientas
-    folium.TileLayer(tiles=esri.format("World_Imagery"), attr=ATRIB_ESRI_SATELITE, name="Satélite").add_to(m)
+    # "Satelite con nombres" arranca visible: la imagen con los rotulos de lugares y limites de Esri encima (las dos
+    # capas van juntas en un grupo, que el control de capas trata como un solo mapa base). Los demas se eligen en el
+    # menu "Mapa base" de la capsula de herramientas
+    con_nombres = folium.FeatureGroup(name="Satélite con nombres", overlay=False, control=True)
+    folium.TileLayer(tiles=esri.format("World_Imagery"), attr=ATRIB_ESRI_SATELITE).add_to(con_nombres)
+    folium.TileLayer(tiles=esri.format("Reference/World_Boundaries_and_Places"), attr=ATRIB_ESRI_NOMBRES,
+                     max_native_zoom=19).add_to(con_nombres)
+    con_nombres.add_to(m)
+    folium.TileLayer(tiles=esri.format("World_Imagery"), attr=ATRIB_ESRI_SATELITE, name="Satélite",
+                     show=False).add_to(m)
     folium.TileLayer(tiles=esri.format("World_Topo_Map"), attr=ATRIB_ESRI_RELIEVE, name="Relieve",
                      show=False).add_to(m)
     folium.TileLayer("OpenStreetMap", name="Calles", show=False).add_to(m)

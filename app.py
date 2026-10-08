@@ -41,8 +41,11 @@ if (ss.paso not in ("parametros", "mapa", "descarga") or (ss.paso == "mapa" and 
     ss.paso = "parametros"
 PANTALLA = {"parametros": "parametros", "mapa": "mapa", "descarga": "exportar"}[ss.paso]
 
-# Para saber si el mapa 2D sigue montado en el navegador: si la corrida anterior lo dibujo, es el mismo
-ss._mapa_en_run_anterior = ss.get("_mapa_en_esta_run", False)
+# Para saber si el mapa 2D sigue montado en el navegador. Lo monta la corrida que lo dibuja (aunque luego se
+# interrumpa o pida otra con st.rerun: lo enviado ya llego). Solo una corrida que TERMINA sin dibujarlo lo quita (ver
+# el final del guion); una corrida interrumpida antes de llegar al mapa no lo toca, el navegador lo sigue mostrando.
+# Antes se miraba solo la corrida anterior: si esa se interrumpia, el mapa se rehacia sin necesidad (y perdia el zoom)
+ss._mapa_en_run_anterior = ss.get("_mapa_montado", False)
 ss._mapa_en_esta_run = False
 
 
@@ -463,7 +466,7 @@ def mapa_2d(capa, centro=None, zoom=None):
         retorno = st_folium(base, key=f"mapa2d_{ss.version_mapa}", height=650, use_container_width=True,
                             feature_group_to_add=capa, center=centro, zoom=zoom,
                             returned_objects=["all_drawings", "last_object_clicked"])
-    ss._mapa_en_esta_run = True
+    ss._mapa_en_esta_run = ss._mapa_montado = True
     return retorno
 
 
@@ -573,9 +576,6 @@ def pantalla_parametros():
         st.button("Seleccionar área en el mapa", type="primary", key="ir_mapa", icon=":material/arrow_forward:",
                   icon_position="right", width="stretch", on_click=_ir_mapa, args=(clave_param, listo))
         estilo.como_funciona()
-        estilo.toggle_lite("lite_inicio", "Modo Lite",
-                           "Para equipos con poca memoria gráfica: sin desenfoque ni animaciones y con un 3D más "
-                           "liviano. Los datos y las funciones son los mismos. Puedes cambiarlo luego en Ajustes.")
         estilo.pie_inicio(TEXTO_LEGAL)
     with hueco_ocultos:
         if pendientes:
@@ -754,7 +754,7 @@ def pantalla_mapa():
                 with st.container(key="y2k_visor3d"):
                     deck, orbita = terreno.construir_deck(cuenca, area if buffer_on else None,
                                                           _estaciones_3d(zona, excluidas), ss.estacion_sel, textura,
-                                                          PALETA, ligero=ligero, altura=altura)
+                                                          PALETA, ligero=ligero, altura=altura, celular=_es_celular())
                     # Vuelta de camara: alrededor de la estacion recien elegida o, sin seleccion, alrededor
                     # del centro de las estaciones (al abrir el 3D, al cambiar las estaciones o al quitar la seleccion)
                     pedida = ss.pop("_orbitar", False)
@@ -941,9 +941,8 @@ def pantalla_mapa():
         if ss.estacion_sel and zona is not None and not zona.empty:
             fila = zona[[ideam_downloader.codigo_de_estacion(r, i) == ss.estacion_sel for i, r in zona.iterrows()]]
             if not fila.empty:
-                with st.container(key="y2k_ficha_cuerpo"):   # se desplaza el cuerpo, no el vidrio
-                    panel_estadisticas.tarjeta_seleccionada(fila.iloc[0], rango, vista,
-                                                            descargable=ss.estacion_sel in codigos_desc)
+                panel_estadisticas.tarjeta_seleccionada(fila.iloc[0], rango, vista,
+                                                        descargable=ss.estacion_sel in codigos_desc)
 
     # Botones ocultos: los pulsan los menus y los avisos de fallo del navegador (siempre por eleccion del usuario)
     with hueco_ocultos:
@@ -1140,3 +1139,6 @@ elif ss.paso == "mapa":
     pantalla_mapa()
 else:
     pantalla_parametros()
+# Corrida completa sin el mapa 2D: Streamlit lo quita del navegador
+if not ss._mapa_en_esta_run:
+    ss._mapa_montado = False

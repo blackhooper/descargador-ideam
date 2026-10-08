@@ -16,8 +16,8 @@ from PIL import Image
 # El terreno sale del modelo de elevacion abierto "Terrarium" (AWS / Mapzen):
 # tiles PNG donde cada pixel guarda la altura en metros. El mismo modelo se
 # usa para dibujar el relieve y para apoyar cada estacion en el terreno, asi
-# ningun pin flota ni queda enterrado. La etiqueta muestra la altitud del
-# catalogo del IDEAM (que casi siempre coincide con el terreno a pocos metros).
+# ningun pin flota ni queda enterrado. La ficha de la estacion compara la altitud
+# del catalogo del IDEAM con la del terreno (casi siempre coinciden a pocos metros).
 # ===========================================================================
 
 URL_ELEVACION = "https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png"
@@ -40,6 +40,7 @@ ALTO_VISOR = 650            # px, alto del mapa 3D en la app (para convertir dis
 # inclinacion de la camara: 35 = casi cenital, 60 = de lado (mas inclinada pide relieve hasta el
 # horizonte y llena la memoria grafica)
 PITCH_MIN, PITCH_MAX = 35, 60
+MAX_PITCH = 70              # tope de inclinacion al arrastrar o con los botones de camara
 MARGEN_VISTA = 6            # grados de holgura sobre el horizonte de montanas
 DISTANCIAS_HORIZONTE = (100, 200, 350, 550, 800, 1100, 1500, 2000, 2600, 3300, 4000)
 
@@ -323,7 +324,7 @@ def altura_terreno(lon, lat, z=ZOOM_DEM):
 
 
 # Capas que la secuencia de entrada esconde y va mostrando (mismos ids que ID_SECUENCIA del guion)
-CAPAS_SECUENCIA = ("cuenca", "buffer", "tallos", "estaciones", "saltos", "fantasmas", "fantasmas_texto")
+CAPAS_SECUENCIA = ("cuenca", "buffer", "tallos", "estaciones", "saltos", "fantasmas")
 
 
 # Vuelta de camara alrededor de la estacion elegida. Streamlit no deja animar la vista
@@ -340,6 +341,7 @@ _ORBITA = """
 (async () => {
   const w = window.parent, d = w.document;
   const O = __ORBITA__;
+  const MAX_PITCH = O.maxPitch || 70;
   const esperar = ms => new Promise(r => setTimeout(r, ms));
   // Cada ejecucion del guion tiene su numero: si arranca otra, la anterior se detiene
   const miId = w.__y2kOrbitaId = (w.__y2kOrbitaId || 0) + 1;
@@ -397,7 +399,7 @@ _ORBITA = """
   // Tamano de los efectos segun lo lejos que mira la camara (E = 1 a 4 km)
   const DIST = O.distancia || 4000, E = DIST / 4000;
   const capa = id => originales.find(l => l && l.id === id);
-  const ID_SECUENCIA = ["cuenca", "buffer", "tallos", "estaciones", "saltos", "fantasmas", "fantasmas_texto"];
+  const ID_SECUENCIA = ["cuenca", "buffer", "tallos", "estaciones", "saltos", "fantasmas"];
   const reemplazos = {};
   const refrescar = extra => poner(originales.map(l => reemplazos[l.id] || l).concat(extra || []));
   if (conIntro) {
@@ -463,7 +465,7 @@ _ORBITA = """
           await durante(1700, t => {
             const k = ease(t), mezcla = (p, q) => p + (q - p) * k;
             deck.setProps({viewState: {...(deck.props.viewState || {}), longitude: mezcla(a.lon, O.lon), latitude: mezcla(a.lat, O.lat),
-              zoom: mezcla(a.zoom, I.zoom), pitch: mezcla(a.pitch, I.pitch), bearing: a.bearing + dB * k, position: [0, 0, O.pivote], maxPitch: 85}});
+              zoom: mezcla(a.zoom, I.zoom), pitch: mezcla(a.pitch, I.pitch), bearing: a.bearing + dB * k, position: [0, 0, O.pivote], maxPitch: MAX_PITCH, minZoom: O.minZoom}});
           }, 0);
           await esperar(200);
         }
@@ -652,7 +654,7 @@ _ORBITA = """
           refrescar([disco("alerta_destello", destellos), anillo("alerta_ondas", ondas, 2), anillo("alerta_base", bases, 2),
                      dibujaHaz("haces_aura", aura, 12, 8), dibujaHaz("haces", nucleo, 4, 3)]);
         });
-        ["saltos", "fantasmas", "fantasmas_texto"].forEach(id => { const l = capa(id); if (l) reemplazos[id] = l.clone({visible: true}); });
+        ["saltos", "fantasmas"].forEach(id => { const l = capa(id); if (l) reemplazos[id] = l.clone({visible: true}); });
         refrescar();
         await esperar(600);
       }
@@ -709,7 +711,7 @@ _ORBITA = """
     const a = suave(Math.min(1, t / ACERCAMIENTO));
     const rumbo = O.inicio.bearing + (O.rumbo + giro(t) - O.inicio.bearing) * a;
     mover({
-      longitude: O.lon, latitude: O.lat, position: [0, 0, O.pivote], maxPitch: 85,
+      longitude: O.lon, latitude: O.lat, position: [0, 0, O.pivote], maxPitch: MAX_PITCH, minZoom: O.minZoom,
       zoom: O.inicio.zoom + (O.zoom - O.inicio.zoom) * a,
       pitch: O.inicio.pitch + (inclinacion(rumbo) - O.inicio.pitch) * a,
       bearing: normal(rumbo),
@@ -720,7 +722,7 @@ _ORBITA = """
   // encuadre final (misma estacion, mismo zoom). Son ajustes independientes: cualquiera de los dos basta.
   if (lite || quiereMenosMovimiento) {
     if (!tocado && !((w.__y2kParaVuelta || 0) > tInicio))
-      mover({longitude: O.lon, latitude: O.lat, position: [0, 0, O.pivote], maxPitch: 85, zoom: O.zoom,
+      mover({longitude: O.lon, latitude: O.lat, position: [0, 0, O.pivote], maxPitch: MAX_PITCH, minZoom: O.minZoom, zoom: O.zoom,
              pitch: inclinacion(O.rumbo), bearing: normal(O.rumbo)});
     return;
   }
@@ -1124,9 +1126,10 @@ def _camino_3d_calcular(anillo, base):
 
 
 def construir_deck(cuenca_gdf, area_gdf, estaciones, seleccionada=None, textura="Satélite", paleta=None,
-                   ligero=False, altura=None):
+                   ligero=False, altura=None, celular=False):
     """
     ligero: celulares, o despues de que el navegador se quedo sin memoria grafica: menos detalle.
+    celular: pantalla angosta; el relieve se pide en un recuadro mas chico (lo que alcanza a verse).
     altura: (minimo, maximo) en metros para la textura "Altura" (colores segun la altitud del relieve).
     estaciones: lista de dicts con codigo, nombre, lon, lat, altitud, pct, color [r,g,b], ok (bool), zona, alerta.
     Devuelve (deck, orbita). `orbita` trae los parametros de la vuelta de camara (ver `orbitar`):
@@ -1148,26 +1151,38 @@ def construir_deck(cuenca_gdf, area_gdf, estaciones, seleccionada=None, textura=
     # Vuelta de camara: alrededor de la estacion elegida o, si no hay, del centro de las estaciones
     orbita = _orbita(elegida, base) if elegida else _orbita_grupo(
         estaciones, area_gdf if area_gdf is not None else cuenca_gdf, base)
+    # El relieve solo se pide alrededor de la zona: el recuadro del area (con su buffer) mas, a cada lado, su propio
+    # tamano (unas 3 veces el area, minimo ~7 km) o lo que alcanza a verse con el encuadre inicial de la camara, lo que
+    # sea mayor. Lo de mas alla casi no se ve y era la mayor parte de los tiles al inclinar (memoria grafica y
+    # tirones); la neblina de la pagina (estilo) funde ese borde lejano en el cielo.
+    ancho_px = 500 if celular else 1400
+    visible = lambda z: ancho_px * 360 / (512 * 2 ** z)   # grados que caben a lo ancho de la pantalla
+    margen = max(maxx - minx, maxy - miny, 0.06, 0.9 * visible(orbita["inicio"]["zoom"]))
+    extension = [minx - margen, miny - margen, maxx + margen, maxy + margen]
+    # Alejarse tiene un tope: hasta que el recuadro del relieve casi llena la pantalla (no se ve suelto en la neblina)
+    ancho_ext = min(extension[2] - extension[0], extension[3] - extension[1])
+    orbita["minZoom"] = round(min(math.log2(ancho_px * 360 / (512 * 0.9 * ancho_ext)), orbita["inicio"]["zoom"] - 0.3), 2)
+    orbita["maxPitch"] = MAX_PITCH
     # La vista arranca donde empieza la vuelta de camara (si el guion no corre, igual se ve bien).
-    # "position" sube el punto de giro a la altura de la estacion o del grupo; max_pitch 85 deja
-    # inclinar mas que el tope de 60 que trae deck.gl al arrastrar
+    # "position" sube el punto de giro a la altura de la estacion o del grupo. Inclinacion maxima de 70 grados (deck.gl
+    # trae 60): mas alla se mira hacia el horizonte, que es justo lo que no se dibuja
     vista = pdk.ViewState(latitude=orbita["lat"], longitude=orbita["lon"], zoom=orbita["inicio"]["zoom"],
                           pitch=orbita["inicio"]["pitch"], bearing=orbita["inicio"]["bearing"],
-                          position=[0, 0, orbita["pivote"]], max_pitch=85)
+                          position=[0, 0, orbita["pivote"]], max_pitch=MAX_PITCH, min_zoom=orbita["minZoom"])
 
     # Calidad segun la distancia. La memoria grafica se va en tiles de relieve: cada uno es
     # una malla de triangulos mas una foto. Cerca de una estacion vale la pena el detalle doble;
     # en la vista de conjunto no se nota y cuesta ~4 veces mas tiles.
-    #   cerca:    tiles de 256 (foto nitida), malla fina, dibuja 3 veces mas lejos
-    #   conjunto: tiles de 512, malla simple, dibuja 2 veces mas lejos
-    #   ligero:   celular o despues de que el navegador se quedo sin memoria
+    #   cerca:    tiles de 256 (foto nitida), malla fina, dibuja 1,6 veces mas lejos
+    #   conjunto: tiles de 512, malla simple, dibuja 1,5 veces mas lejos
+    #   ligero:   celular o despues de que el navegador se quedo sin memoria (1,3 veces)
     cerca = elegida is not None and not ligero
     # Modo "Altura": con la escala de Colombia (vista general) se pixela un poco: tiles de 512 (cuatro veces menos),
     # un nivel menos de detalle e imagen a 128 px. Con la escala de la zona se queda con todo el detalle
     por_altura = textura == "Altura" and altura is not None
     pixelado = por_altura and tuple(altura) == ALTURA_COLOMBIA
     detalle = {"tiles": 256 if (cerca and not pixelado) else 512, "malla": 4 if cerca else (10 if ligero else 8),
-               "guardados": 50 if ligero else (100 if cerca else 80), "lejos": 1.8 if ligero else (3 if cerca else 2)}
+               "guardados": 50 if ligero else (100 if cerca else 80), "lejos": 1.3 if ligero else (1.6 if cerca else 1.5)}
 
     capas = [pdk.Layer(
         "TerrainLayer",
@@ -1182,6 +1197,7 @@ def construir_deck(cuenca_gdf, area_gdf, estaciones, seleccionada=None, textura=
         # (con 512, el valor normal, se estira al doble); cuesta ~4 veces mas tiles
         tile_size=detalle["tiles"],
         max_zoom=ZOOM_MAX_TILES - 1 if pixelado else ZOOM_MAX_TILES,
+        extent=extension,
         # Error de la malla en metros (mas alto = menos triangulos) y tope de tiles guardados:
         # sin tope, al girar la camara el navegador se queda sin memoria y el 3D se borra
         mesh_max_error=detalle["malla"],
@@ -1235,12 +1251,7 @@ def construir_deck(cuenca_gdf, area_gdf, estaciones, seleccionada=None, textura=
         z_terreno = (e["terreno"] - base) * EXAGERACION
         z_catalogo = (e["altitud"] - base) * EXAGERACION
         saltos.append({"desde": [e["lon"], e["lat"], z_terreno], "hasta": [e["lon"], e["lat"], z_catalogo]})
-        diferencia = e["altitud"] - e["terreno"]
-        fantasmas.append({**e, "pos": [e["lon"], e["lat"], z_catalogo],
-                          # bajo tierra la etiqueta se ve diminuta: ahi va junto al punto real del terreno
-                          "pos_texto": [e["lon"], e["lat"], max(z_catalogo, z_terreno)],
-                          "etiqueta": f"catálogo {_num(e['altitud'])} m · terreno {_num(e['terreno'])} m\n"
-                                      f"{_num(abs(diferencia))} m más {'arriba' if diferencia > 0 else 'abajo'}"})
+        fantasmas.append({**e, "pos": [e["lon"], e["lat"], z_catalogo]})
     if fantasmas:
         capas.append(pdk.Layer("LineLayer", id="saltos", data=saltos, get_source_position="desde",
                                get_target_position="hasta", get_color=[236, 131, 90, 240], get_width=3,
@@ -1249,16 +1260,6 @@ def construir_deck(cuenca_gdf, area_gdf, estaciones, seleccionada=None, textura=
                                get_fill_color=[236, 131, 90, 110], get_line_color=[236, 131, 90, 255],
                                stroked=True, line_width_min_pixels=2, get_radius=70, radius_min_pixels=6,
                                radius_max_pixels=14, billboard=True, pickable=True, parameters=encima))
-        # Etiqueta solo en la seleccionada (con todas a la vez el relieve se llena de texto);
-        # las demas muestran su ficha al pasar el cursor por el fantasma
-        capas.append(pdk.Layer("TextLayer", id="fantasmas_texto",
-                               data=[f for f in fantasmas if f["codigo"] == seleccionada], get_position="pos_texto",
-                               size_min_pixels=13, size_max_pixels=16,
-                               # pydeck convierte los textos sin comillas en expresiones: "'auto'" llega como "auto"
-                               get_text="etiqueta", character_set="'auto'", get_size=15, get_color=[22, 33, 58, 255],
-                               get_pixel_offset=[22, 0], get_text_anchor="'start'", get_alignment_baseline="'center'",
-                               background=True, get_background_color=[255, 243, 236, 235],
-                               background_padding=[6, 4], font_family="'Figtree, sans-serif'", parameters=encima))
     capas.append(pdk.Layer("ScatterplotLayer", id="estaciones", data=cabezas, get_position="pos",
                            get_fill_color="rgb", get_line_color="borde", stroked=True, line_width_min_pixels=2,
                            get_radius="radio", radius_min_pixels=5, radius_max_pixels=16,
@@ -1269,8 +1270,8 @@ def construir_deck(cuenca_gdf, area_gdf, estaciones, seleccionada=None, textura=
         initial_view_state=vista,
         # deck.gl deja de dibujar a la distancia en que un suelo plano llegaria al horizonte; con
         # montanas por encima de ese suelo, el relieve lejano se cortaba en linea recta al inclinar.
-        # far_z_multiplier=3 dibuja 3 veces mas lejos (mas seria pedirle demasiada memoria a la
-        # tarjeta grafica); near bajo evita recortes pegados a la camara.
+        # far_z_multiplier (1,3 a 1,6) da un poco de holgura sin dibujar lejos: con el relieve acotado a la zona y la
+        # neblina arriba, mas distancia solo gastaba memoria grafica; near bajo evita recortes pegados a la camara.
         views=[pdk.View(type="MapView", controller=True, far_z_multiplier=detalle["lejos"],
                         near_z_multiplier=0.05)],
         map_provider=None,

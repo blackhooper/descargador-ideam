@@ -308,12 +308,12 @@ dl.glosario dd{margin:0;color:var(--ink-2)}
         </div>
         <h3>Series de alta frecuencia</h3>
         <p>En <span class="ui">Especial</span>, las series cada 10, 5 o 2 minutos se usan con cuidado: el IDEAM las entrega de a <strong>un mes por consulta</strong>, así que 10 años son 120 consultas por estación y cada Excel puede tener cientos de miles de filas. Usa periodos cortos y pocas estaciones. La tarjeta lo recuerda con una nota breve (<span class="ui">Ver más</span>).</p>
-        <p>En la misma tarjeta puedes activar el <strong>modo Lite</strong> antes de entrar (ver <a href="#vista-3d">El mapa 3D</a>), leer las condiciones de uso de los datos y abrir este manual.</p>
+        <p>Al pie de la tarjeta puedes leer las condiciones de uso de los datos y abrir este manual. El <strong>modo Lite</strong> está en el menú <span class="ui">Ajustes</span> (ver <a href="#vista-3d">El mapa 3D y los ajustes</a>).</p>
       </section>
 
       <section id="cuenca">
         <h2><span class="etiqueta">PASO 2</span>Marcar el área en el mapa</h2>
-        <p>El mapa ocupa toda la pantalla. A la izquierda está el panel <strong>Consulta</strong>; arriba a la derecha, el menú <span class="ui">Ajustes</span> y, debajo, la cápsula de herramientas del mapa; abajo, el selector <span class="ui">2D</span> <span class="ui">3D</span> y el botón <span class="ui primario">Preparar descarga</span>. En la sección <em>Calidad de los datos</em> del panel, el nombre de tu variable (por ejemplo <span class="ui">‹ Precipitación</span>) te devuelve a la tarjeta del paso 1 para cambiar la variable o el periodo; el área y lo demás se conservan.</p>
+        <p>El mapa ocupa toda la pantalla. En el computador, el panel <strong>Consulta</strong> llega cerrado para que veas el mapa entero: ábrelo con el botón <span class="ui">Consulta</span> de arriba a la izquierda. Arriba a la derecha está el menú <span class="ui">Ajustes</span> y, debajo, la cápsula de herramientas del mapa; abajo, el selector <span class="ui">2D</span> <span class="ui">3D</span> y el botón <span class="ui primario">Preparar descarga</span>. En la sección <em>Calidad de los datos</em> del panel, el nombre de tu variable (por ejemplo <span class="ui">‹ Precipitación</span>) te devuelve a la tarjeta del paso 1 para cambiar la variable o el periodo; el área y lo demás se conservan.</p>
         <p>En el <strong>celular</strong>, el panel es una tarjeta que se abre y se cierra con el botón <span class="ui">Consulta</span> de la barra de abajo (o con la ✕ de la tarjeta, o tocando el mapa). Mientras está abierta se apartan las herramientas, la leyenda y la escala del mapa; al cerrarla vuelven.</p>
         <p>Puedes marcar el área de tres formas, todas desde el lápiz de la cápsula de herramientas: dibujar un rectángulo, usar la zona que ves en el mapa o subir el contorno de tu área (puede tener cualquier forma).</p>
 
@@ -326,7 +326,7 @@ dl.glosario dd{margin:0;color:var(--ink-2)}
         <ul>
           <li><span class="ui">Redibujar</span>: dibuja otro rectángulo.</li>
           <li><span class="ui">Ajustar</span>: arrastra las esquinas a su nuevo lugar y pulsa <span class="ui">Guardar</span> (junto a la cápsula de herramientas), o <span class="ui">Cancelar</span> para deshacer.</li>
-          <li><span class="ui">Borrar</span>: quita el área.</li>
+          <li><span class="ui">Borrar</span>: quita el área; el mapa se queda donde estaba, con el mismo zoom.</li>
         </ul>
         <p>Las mismas acciones, y la de subir un archivo, están en el menú del lápiz de la cápsula de herramientas.</p>
 
@@ -387,9 +387,10 @@ dl.glosario dd{margin:0;color:var(--ink-2)}
         <h3>Moverte por el mapa 2D</h3>
         <ul>
           <li><strong>Pasa el cursor</strong> sobre una estación para ver su ficha: nombre, código, altitud, cantidad probable, años de la serie y si está en el área o en el buffer.</li>
-          <li><strong>Haz clic</strong> en una estación para seleccionarla. Su ficha aparece arriba a la derecha (en el celular, arriba).</li>
-          <li>La <strong>leyenda</strong> (abajo a la izquierda) explica los colores y las líneas; se puede plegar.</li>
-          <li>El botón de <strong>capas</strong> de la cápsula de herramientas cambia el mapa base: <em>Satélite</em> (el predeterminado), <em>Relieve</em>, <em>Calles</em> y <em>Satélite de noche</em>. Este último muestra las luces de pueblos y ciudades vistas por la NASA, y de cerca se ve borroso.</li>
+          <li><strong>Haz clic</strong> en una estación para seleccionarla. Arriba a la derecha (en el celular, arriba) aparece una píldora con su nombre: púlsala para desplegar la ficha (ver <a href="#revisar">La ficha de la estación</a>).</li>
+          <li>La <strong>leyenda</strong> (abajo a la izquierda) explica los colores y las líneas. Está plegada: púlsala para abrirla. Los colores muestran la <em>disponibilidad estimada de datos en el periodo</em>.</li>
+          <li>El botón de <strong>capas</strong> de la cápsula de herramientas cambia el mapa base: <em>Satélite con nombres</em> (el predeterminado: la foto satelital con los nombres de lugares y los límites), <em>Satélite</em>, <em>Relieve</em>, <em>Calles</em> y <em>Satélite de noche</em>. Este último muestra las luces de pueblos y ciudades vistas por la NASA, y de cerca se ve borroso.</li>
+          <li>Cualquier menú desplegado (capas, lápiz, leyenda, ficha, buffer, Ajustes) se cierra al tocar fuera de él.</li>
         </ul>
       </section>
 
@@ -401,8 +402,10 @@ dl.glosario dd{margin:0;color:var(--ink-2)}
           <li>El relieve está <strong>exagerado ×2</strong> para que los desniveles se noten. Cada pin se apoya en el terreno real.</li>
           <li>En 3D solo aparecen las estaciones que tienen serie de la variable elegida.</li>
           <li><strong>Vuelta de cámara:</strong> al abrir el 3D, la cámara da una vuelta lenta alrededor del centro de las estaciones, para que veas dónde queda cada una respecto a las montañas. Si eliges una estación, la vuelta es alrededor de ella. Cualquier interacción con el mapa la detiene.</li>
-          <li><strong>Girar e inclinar:</strong> Ctrl + arrastrar en el computador; rueda del mouse para acercar. En el celular, arrastra para moverte y pellizca para acercar. La cápsula de la derecha hace lo mismo sin gestos: <span class="ui">+</span> y <span class="ui">−</span> acercan y alejan, y el menú <span class="ui">Cámara</span> gira, inclina y orienta al norte (sigue abierto para pulsar varias veces).</li>
-          <li><strong>Clic en un pin</strong> para seleccionar la estación. Pasa el cursor para ver su ficha.</li>
+          <li><strong>Moverte, girar e inclinar</strong> como en cualquier mapa: en el computador, arrastra para moverte, mantén el <strong>clic derecho</strong> y arrastra para girar e inclinar, y usa la rueda para acercar. En el celular, arrastra con un dedo para moverte; con dos dedos gira, desliza arriba o abajo para inclinar y pellizca para acercar.</li>
+          <li>El menú <span class="ui">Cámara</span> de la cápsula de la derecha reúne todos los controles de cámara sin gestos: una cruceta (arriba y abajo inclinan, a los lados gira y al centro una brújula que vuelve al norte), los botones <span class="ui">+</span> y <span class="ui">−</span>, una línea con el rumbo y la inclinación y un dibujo de los gestos del mouse o de los dedos. Sigue abierto para pulsar varias veces.</li>
+          <li>Para que se mueva con fluidez, el relieve se dibuja solo alrededor de tu área y se funde en una <strong>neblina</strong> hacia el horizonte; la inclinación llega hasta 70°.</li>
+          <li><strong>Clic en un pin</strong> para seleccionar la estación (aparece la píldora con su nombre). Pasa el cursor para ver su ficha.</li>
         </ul>
         <div class="nota">
           <strong>El 3D pide más al equipo</strong>
@@ -454,7 +457,7 @@ dl.glosario dd{margin:0;color:var(--ink-2)}
         </ul>
         <p>Una nota breve al final recuerda que los datos recientes pueden ser preliminares; <span class="ui">Ver más</span> lo explica (ver <a href="#aprobacion">Niveles de aprobación</a>).</p>
         <h3>La ficha de la estación seleccionada</h3>
-        <p>Al seleccionar una estación (en la lista o en el mapa) aparece su ficha flotante: código, altitud, si está en el área o en el buffer, cobertura y años de la serie. Si no tiene datos de la variable, lo dice: <em>Sin serie de esta variable en DHIME</em>. El interruptor <span class="ui">Incluir en la descarga</span> la quita o la vuelve a poner, <span class="ui">Ver en 3D</span> la muestra en el relieve y <span class="ui">Cerrar</span> cierra la ficha.</p>
+        <p>Al seleccionar una estación (en la lista o en el mapa) aparece una píldora con su nombre, plegada para no tapar el mapa. Al pulsarla se despliega la ficha: código, altitud, si está en el área o en el buffer, cobertura y años de la serie. Si no tiene datos de la variable, lo dice: <em>Sin serie de esta variable en DHIME</em>. El interruptor <span class="ui">Incluir en la descarga</span> la quita o la vuelve a poner, <span class="ui">Ver en 3D</span> la muestra en el relieve y <span class="ui">Quitar selección</span> (o la ✕ de la píldora) deja de seleccionarla. Tocar fuera de la ficha la vuelve a plegar.</p>
       </section>
 
       <section id="altitud">
@@ -545,7 +548,7 @@ dl.glosario dd{margin:0;color:var(--ink-2)}
         <h3>Fuentes de los mapas</h3>
         <p>Las capas de mapa no son del IDEAM y pertenecen a sus proveedores. Sus créditos aparecen en el borde de cada mapa y al final del panel del mapa:</p>
         <ul>
-          <li><strong>Satélite y Relieve:</strong> Esri (Maxar, Earthstar Geographics, HERE, Garmin, FAO, NOAA, USGS y la comunidad de usuarios de GIS).</li>
+          <li><strong>Satélite, Satélite con nombres y Relieve:</strong> Esri (Maxar, Earthstar Geographics, HERE, Garmin, FAO, NOAA, USGS, OpenStreetMap y la comunidad de usuarios de GIS).</li>
           <li><strong>Calles:</strong> © colaboradores de OpenStreetMap.</li>
           <li><strong>Satélite de noche:</strong> NASA EOSDIS GIBS.</li>
           <li><strong>Relieve 3D:</strong> modelo de elevación Terrarium (Mapzen, AWS Open Data), construido con datos SRTM y GMTED2010, cortesía del U.S. Geological Survey, entre otras fuentes.</li>

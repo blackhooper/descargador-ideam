@@ -6,7 +6,7 @@ import pandas as pd
 import streamlit as st
 from modules import ideam_downloader
 from modules.calidad import CLASES_CALIDAD, clasificar_calidad
-from modules.estilo import detalles, kpis, md
+from modules.estilo import detalles, ficha_pildora, kpis, md
 from modules.terreno import ALTITUD_DUDOSA_M
 
 # ===========================================================================
@@ -183,15 +183,21 @@ def _incluir(codigo):
 
 def tarjeta_seleccionada(fila, rango=None, vista="2D", descargable=False):
     """Ficha flotante de la estacion elegida (desde el mapa o la lista)."""
-    ss = st.session_state
     codigo = str(ideam_downloader.codigo_de_estacion(fila))
     try:
         altitud = _num(float(fila.get("altitud"))) + " m"
     except (TypeError, ValueError):
         altitud = "altitud sin dato"
     zona = "en el área" if fila.get("zona") == "cuenca" else "en el buffer"
-    md(f'<div class="y2k-ficha-cab"><small>Estación seleccionada</small><b>{escape(_nombre_limpio(fila.get("nombre", "")))}</b>'
-       f'<span>{escape(codigo)} · {altitud} · {zona}</span></div>')
+    # cerrada: una pildora con el nombre; al pulsarla se despliega el resto (estilo.ficha_pildora)
+    ficha_pildora(_nombre_limpio(fila.get("nombre", "")), codigo)
+    with st.container(key="y2k_ficha_cuerpo"):   # se desplaza el cuerpo, no el vidrio
+        _cuerpo_ficha(fila, codigo, altitud, zona, rango, vista, descargable)
+
+
+def _cuerpo_ficha(fila, codigo, altitud, zona, rango, vista, descargable):
+    ss = st.session_state
+    md(f'<p class="y2k-ficha-dato">Código {escape(codigo)} · {altitud} · {zona}</p>')
     serie = fila.get("Serie DHIME") if "Serie DHIME" in fila.index else None
     if serie == "Sí":
         st.caption(f"Cobertura **{fila['Porcentaje (%)']:.0f} %** ({str(fila.get('Clase calidad', '')).lower()}) · "
@@ -210,7 +216,7 @@ def tarjeta_seleccionada(fila, rango=None, vista="2D", descargable=False):
     with st.container(horizontal=True, gap="small"):
         if vista != "3D":
             st.button("Ver en 3D", key="ver_3d", icon=":material/landscape:", width="stretch", on_click=_ver_en_3d)
-        st.button("Cerrar", key="quitar_sel", icon=":material/close:", width="stretch", on_click=_quitar_seleccion)
+        st.button("Quitar selección", key="quitar_sel", icon=":material/close:", width="stretch", on_click=_quitar_seleccion)
 
 
 def tablero(zona, descargables, seleccion, param, cifras, dudosas=None, rango=None):

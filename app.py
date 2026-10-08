@@ -88,6 +88,7 @@ hueco_inicio = st.container(key="y2k_inicio")
 hueco_panel = st.container(key="y2k_panel")
 hueco_abrir = st.container(key="y2k_abrir")
 hueco_herr = st.container(key="y2k_herr")
+hueco_filtro = st.container(key="y2k_filtro")
 hueco_dock = st.container(key="y2k_dock", horizontal=True, gap=None)
 hueco_ficha = st.container(key="y2k_ficha")
 hueco_exportar = st.container(key="y2k_exportar")
@@ -340,7 +341,9 @@ def _estaciones_3d(zona, excluidas):
 # ===========================================================================
 # Acciones (callbacks: corren antes del guion, asi la pantalla nueva aparece en la misma recarga)
 # ===========================================================================
-def _ir_mapa(clave_param):
+def _ir_mapa(clave_param, listo):
+    if not listo:   # el navegador ya lo impide (el boton parpadea en rojo); esto es por si el guion no cargo
+        return
     nueva = {"etiqueta": ss.get(clave_param), "ini": ss.get("f_ini"), "fin": ss.get("f_fin")}
     if nueva != ss.consulta:
         ss.excluidas = set()   # otro parametro u otro periodo: las estaciones quitadas antes no aplican
@@ -384,6 +387,19 @@ def _pasar_a_2d():
 
 def _repetir_intro():
     ss._repetir_intro = True
+
+
+def _poner(clave, valor):
+    """Opciones del menu de capas del 3D (textura y escala): las pulsan sus botones ocultos."""
+    ss[clave] = valor
+
+
+def _quitar_filtro():
+    ss.filtro_cob = (0, 100)
+
+
+TEXTURAS = ["Satélite", "Topográfico", "Altura"]
+ESCALAS = ["Rango de la zona", "Rango de Colombia"]
 
 
 def _preparar(datos):
@@ -523,9 +539,9 @@ def pantalla_parametros():
                      icon=":material/cloud_off:")
             st.button("Reintentar", key="reintentar_catalogo", icon=":material/replay:", on_click=_reintentar_catalogo)
         if param and param.get("avanzado"):
-            estilo.detalles("El IDEAM entrega estas series de a un mes por consulta.",
-                            "<p>Diez años son 120 consultas por estación. Conviene usar periodos cortos y pocas "
-                            "estaciones.</p>", ver="Ver más")
+            estilo.aviso("Serie de alta frecuencia: un mes por consulta.",
+                         "El IDEAM entrega estas series de a un mes por consulta: diez años son 120 consultas por "
+                         "estación. Conviene usar periodos cortos y pocas estaciones.", tono="info")
 
         c1, c2 = st.container(key="y2k_fechas").columns(2, gap="small")   # en una fila tambien en el celular
         with c1:
@@ -538,24 +554,24 @@ def pantalla_parametros():
                                       key="f_fin", format="DD/MM/YYYY", label_visibility="collapsed", persist_state="session")
         fechas_ok = fecha_ini < fecha_fin
         if not fechas_ok:
-            st.error("La fecha inicial debe ser anterior a la final.", icon=":material/event_busy:")
+            estilo.aviso("La fecha inicial debe ser anterior a la final.", tono="error")
         filas = ideam_parameters.filas_estimadas(param, fecha_ini, fecha_fin) if param and fechas_ok else 0
         excede = filas > ideam_parameters.MAX_FILAS_EXCEL
         if excede:
-            st.warning(f"Con frecuencia {_frecuencia_txt(param['frecuencia'])}, este periodo daría hasta {_num(filas)} filas por "
-                       "estación y Excel admite alrededor de un millón por hoja. Acorta el periodo.",
-                       icon=":material/table_rows:")
-        st.checkbox("Separar el ZIP en carpetas por cobertura", value=True, key="carpetas", persist_state="session",
-                    help="Alta (70–100 %), media (50–70 %), baja (25–50 %) y crítica (0–25 %) del periodo consultado.")
+            estilo.aviso("El periodo es demasiado largo para un Excel.",
+                         f"Con frecuencia {_frecuencia_txt(param['frecuencia'])}, daría hasta {_num(filas)} filas por "
+                         "estación y Excel admite alrededor de un millón por hoja. Acorta el periodo.")
 
-        # Estaciones con la serie elegida: se piden por detras mientras la persona termina de elegir. El boton se
-        # enciende cuando todo esta listo (sin textos de carga)
+        # Estaciones con la serie elegida: se piden por detras mientras la persona termina de elegir. El boton es
+        # siempre azul: si se pulsa antes de que todo este listo no avanza y parpadea en rojo (lo hace el navegador,
+        # que sabe ademas si el mapa ya cargo); la unica senal de la carga es el punto de "Variable"
         series = _precargar_series(param["etiqueta"]) if param else None
         if series and not series["listo"]:
             pendientes.append(lambda s=series: not s["listo"])
         listo = bool(param and fechas_ok and not excede and series and series["listo"])
+        estilo.marca_listo(listo)
         st.button("Seleccionar área en el mapa", type="primary", key="ir_mapa", icon=":material/arrow_forward:",
-                  icon_position="right", width="stretch", disabled=not listo, on_click=_ir_mapa, args=(clave_param,))
+                  icon_position="right", width="stretch", on_click=_ir_mapa, args=(clave_param, listo))
         estilo.como_funciona()
         estilo.toggle_lite("lite_inicio", "Modo Lite",
                            "Para equipos con poca memoria gráfica: sin desenfoque ni animaciones y con un 3D más "
@@ -663,6 +679,10 @@ def pantalla_mapa():
         estilo.pie()
 
     # ---------------- estaciones del area + evaluacion ----------------
+    ss.setdefault("filtro_cob", (0, 100))   # el deslizador del filtro toma su valor de aqui (sin valor por defecto propio)
+    rango_cob = tuple(ss.filtro_cob)
+    filtro_activo = rango_cob != (0, 100)
+    n_zona_total = 0
     zona = area = None
     descargables = seleccion = None
     evaluada = False
@@ -685,6 +705,11 @@ def pantalla_mapa():
                 error_ideam = str(e)
             except Exception as e:
                 error_ideam = f"No se pudo consultar el IDEAM: {e}"
+        # Filtro de cobertura (boton de arriba a la izquierda): lo que queda fuera del rango no se ve ni se descarga
+        n_zona_total = len(zona)
+        if evaluada and filtro_activo:
+            pct = pd.to_numeric(zona["Porcentaje (%)"], errors="coerce").fillna(0)
+            zona = zona[(pct >= rango_cob[0]) & (pct <= rango_cob[1])]
         if evaluada:
             descargables = filtrar_descargables(zona, 0)
             codigos = [ideam_downloader.codigo_de_estacion(r, i) for i, r in descargables.iterrows()]
@@ -712,8 +737,8 @@ def pantalla_mapa():
         est_intro = _estaciones_3d(zona, excluidas)
 
     # ---------------- mapa (escenario a pantalla completa) ----------------
-    textura = ss.get("textura") or "Satélite"
-    escala_alt = ss.get("escala_altura") or "Rango de la zona"
+    textura = ss.get("textura") if ss.get("textura") in TEXTURAS else "Satélite"
+    escala_alt = ss.get("escala_altura") if ss.get("escala_altura") in ESCALAS else "Rango de la zona"
     repetir = False
     with escenario:
         if vista == "3D":
@@ -836,19 +861,22 @@ def pantalla_mapa():
     excede = filas_estacion > ideam_parameters.MAX_FILAS_EXCEL
     with caja_calidad:
         if error_ideam:
-            st.error(error_ideam, icon=":material/cloud_off:")
+            estilo.aviso("No se pudo consultar el IDEAM.", error_ideam, tono="error")
         elif cuenca is None:
             st.html('<p class="y2k-hint">Delimita el área de estudio para evaluar la disponibilidad de datos de cada '
                     'estación.</p>')
+        elif zona is not None and zona.empty and n_zona_total:
+            estilo.aviso(f"Ninguna estación tiene una cobertura entre {rango_cob[0]} y {rango_cob[1]} %.",
+                         "Amplía el rango en el filtro de estaciones (arriba a la izquierda del mapa).")
         elif zona is not None and zona.empty:
-            st.warning("No hay estaciones del IDEAM en esta zona. Activa o amplía el buffer.", icon=":material/location_off:")
+            estilo.aviso("No hay estaciones del IDEAM en esta zona. Activa o amplía el buffer.")
         elif excede:
-            st.warning(f"Con frecuencia {_frecuencia_txt(param['frecuencia'])}, el periodo daría hasta {_num(filas_estacion)} filas "
-                       "por estación y Excel admite alrededor de un millón por hoja. Acorta el periodo en Parámetros.",
-                       icon=":material/table_rows:")
+            estilo.aviso("El periodo es demasiado largo para un Excel.",
+                         f"Con frecuencia {_frecuencia_txt(param['frecuencia'])}, daría hasta {_num(filas_estacion)} filas "
+                         "por estación y Excel admite alrededor de un millón por hoja. Acorta el periodo en Parámetros.")
         elif evaluada and descargables.empty:
-            st.warning("Ninguna estación de la zona tiene datos de esta variable en el periodo. Cambia la variable o el "
-                       "periodo, o amplía el buffer.", icon=":material/search_off:")
+            estilo.aviso("Ninguna estación de la zona tiene datos de esta variable en el periodo.",
+                         "Cambia la variable o el periodo, o amplía el buffer.")
         elif evaluada:
             panel_estadisticas.tablero(zona, descargables, seleccion, param, cifras, dudosas, rango)
 
@@ -856,9 +884,25 @@ def pantalla_mapa():
     with hueco_herr:
         if vista == "3D":
             if zona is not None and not zona.empty:
-                estilo.controles_camara()
+                estilo.herramientas_3d(textura, escala_alt)
         else:
             estilo.herramientas_2d(cuenca is not None)
+
+    # ---------------- filtro de estaciones por cobertura (arriba a la izquierda) ----------------
+    with hueco_filtro:
+        if evaluada and n_zona_total:
+            with st.popover(f"{rango_cob[0]}–{rango_cob[1]} %" if filtro_activo else "Filtrar estaciones",
+                            icon=":material/filter_alt:", key="pop_filtro"):
+                st.html('<p class="y2k-menu-tit">Cobertura del periodo</p>')
+                st.slider("Cobertura del periodo", 0, 100, step=5, key="filtro_cob", format="%d %%",
+                          label_visibility="collapsed", persist_state="session")
+                st.caption(f"{len(zona)} de {n_zona_total} {'estaciones' if n_zona_total != 1 else 'estación'} en el rango. "
+                           "Las demás no se ven en el mapa ni se descargan.")
+                if filtro_activo:
+                    st.button("Quitar el filtro", key="quitar_filtro", icon=":material/filter_alt_off:",
+                              on_click=_quitar_filtro, width="stretch")
+            if filtro_activo:
+                estilo.marca_filtro()   # despues del boton: asi no lo mueve de lugar (y no se cierra al filtrar)
 
     # ---------------- pildoras de abajo: 2D/3D y "Preparar descarga" ----------------
     listo = evaluada and n_sel > 0 and not excede
@@ -881,13 +925,6 @@ def pantalla_mapa():
             st.segmented_control("Vista del mapa", ["2D", "3D"], key="vista", required=True,
                                  label_visibility="collapsed", persist_state="session")
             if vista == "3D" and zona is not None and not zona.empty:
-                with st.popover(f"Textura: {textura}", icon=":material/layers:"):
-                    st.segmented_control("Textura del relieve", ["Satélite", "Topográfico", "Altura"], default="Satélite",
-                                         key="textura", required=True, persist_state="session")
-                    if textura == "Altura":
-                        st.segmented_control("Escala de colores", ["Rango de la zona", "Rango de Colombia"],
-                                             default="Rango de la zona", key="escala_altura", required=True,
-                                             format_func=lambda e: e.replace("Rango", "Escala"), persist_state="session")
                 # TEMPORAL: para ver la animacion de entrada otra vez mientras se ajusta
                 if usar_intro:
                     st.button("Repetir animación", key="y2k_repetir_intro", icon=":material/replay:", on_click=_repetir_intro,
@@ -895,8 +932,7 @@ def pantalla_mapa():
                               help="En modo Lite no hay animación de entrada. Desactívalo en Ajustes para verla." if ss.lite
                               else "Repetir la animación de entrada al 3D")
         with st.container(key="y2k_dock_der"):
-            datos = ({"estaciones": seleccion.copy(), "param": param, "ini": fecha_ini, "fin": fecha_fin,
-                      "carpetas": bool(ss.get("carpetas", True))} if listo else None)
+            datos = {"estaciones": seleccion.copy(), "param": param, "ini": fecha_ini, "fin": fecha_fin} if listo else None
             st.button("Preparar descarga", type="primary", key="preparar", icon=":material/arrow_forward:",
                       icon_position="right", disabled=not listo, help=razon, on_click=_preparar, args=(datos,))
 
@@ -917,6 +953,10 @@ def pantalla_mapa():
         st.button("Borrar el área", key="y2k_borrar", on_click=_borrar_cuenca)
         st.button("Subir un archivo", key="y2k_subir", on_click=_abrir_subida)
         st.button("Cambiar la variable", key="chip_param", on_click=_volver_parametros)
+        for i, t in enumerate(TEXTURAS):   # menu de capas del 3D
+            st.button(t, key=f"y2k_tex_{i}", on_click=_poner, args=("textura", t))
+        for i, e in enumerate(ESCALAS):
+            st.button(e, key=f"y2k_esc_{i}", on_click=_poner, args=("escala_altura", e))
 
     # Lo condicional va al final, para no mover de lugar (y rehacer) lo de arriba
     if usar_intro and not ss.lite:
@@ -943,21 +983,30 @@ def _recibo(d):
         ("Periodo", f"{d['ini']:%d/%m/%Y} – {d['fin']:%d/%m/%Y}", ""),
         ("Estaciones", f"{n}", f"{en_area} en el área" + (f" · {n - en_area} en el buffer" if n - en_area else "")),
         ("Archivo", [("Un Excel por estación", "excel", "")]
-         + ([("Carpetas por cobertura", "carpeta", "Alta, media, baja y crítica")] if d.get("carpetas") else [])
+         + ([("Carpetas por cobertura", "carpeta", "Alta, media, baja y crítica")] if ss.get("carpetas", True) else [])
          + [("resumen_descarga.csv", "tabla", "Cobertura y resultado por estación"),
             ("CITACION.txt", "cita", "Cita de la fuente")], ""),
         ("Fuente", "IDEAM · DHIME", ""),
     ])
 
 
+def _zip_final(resultado, carpetas):
+    """El ZIP tal como se descarga: plano o en carpetas por cobertura (se arma una vez y se guarda)."""
+    if not carpetas:
+        return resultado["zip"]
+    if resultado.get("_zip_carpetas") is None:
+        resultado["_zip_carpetas"] = ideam_downloader.zip_con_carpetas(resultado)
+    return resultado["_zip_carpetas"]
+
+
 @st.fragment
-def _entrega(resultado):
+def _entrega(resultado, carpetas):
     """Nombre del ZIP y boton de descarga (en un fragmento: escribir el nombre no recarga la tarjeta entera)."""
     ini, fin = resultado["rango"]
     predeterminado = f"IDEAM_{resultado['etiqueta']}_{ini:%Y%m%d}-{fin:%Y%m%d}"
     nombre = st.text_input("Nombre del archivo ZIP", value=predeterminado, key="nombre_zip", max_chars=120, live=True,
                            help="Por ejemplo: descarga 1. La extensión .zip se añade sola.")
-    st.download_button("Descargar el ZIP", data=resultado["zip"], type="primary", width="stretch",
+    st.download_button("Descargar el ZIP", data=_zip_final(resultado, carpetas), type="primary", width="stretch",
                        file_name=f"{_nombre_archivo(nombre, predeterminado)}.zip", icon=":material/download:",
                        mime="application/zip", key="bajar_zip")
 
@@ -1031,7 +1080,11 @@ def pantalla_descarga():
                         "periodo o el IDEAM no respondió; el detalle está en resumen_descarga.csv, dentro del ZIP."
                         if omitidas else ""))
             estilo.resumen_final(frase, panel_estadisticas.reparto_cobertura(resultado["colores"]))
-            _entrega(resultado)
+            # Antes de descargar: si el ZIP va en carpetas por cobertura (el recibo de la derecha lo refleja)
+            carpetas = st.checkbox("Separar en carpetas por cobertura", value=True, key="carpetas", persist_state="session",
+                                   help="Alta (70–100 %), media (50–70 %), baja (25–50 %) y crítica (0–25 %) del "
+                                        "periodo consultado. Sin marcar, todos los Excel van juntos.")
+            _entrega(resultado, carpetas)
             with st.container(horizontal=True, gap="small"):
                 st.button("Volver al mapa", width="stretch", icon=":material/arrow_back:", key="volver_mapa",
                           on_click=_volver_mapa)
@@ -1068,7 +1121,8 @@ def _descargar(d, progreso, aviso):
     with turnos["candado"]:
         turnos["en_curso"][turno] = (time.time(), segundos)
     try:
-        resultado = ideam_downloader.procesar_descargas(d["estaciones"], d["carpetas"], d["ini"], d["fin"],
+        # el ZIP sale plano: las carpetas por cobertura se eligen al final, antes de descargarlo
+        resultado = ideam_downloader.procesar_descargas(d["estaciones"], False, d["ini"], d["fin"],
                                                         d["param"], {"progreso": progreso})
         ss.resultado = resultado or {"error": "No se pudo completar la descarga."}
         ss.estado_descarga = "error" if "error" in ss.resultado else "lista"

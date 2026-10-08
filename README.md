@@ -4,7 +4,7 @@ Consulta y descarga de series hidrometeorológicas del portal **DHIME del IDEAM*
 
 1. **Consulta**: eliges la serie de tiempo, como en la página del IDEAM, y el periodo. En la serie *estándar* (diaria, mensual, anual, horaria y de 2 o 3 datos al día) solo se elige la variable. En la *especial* primero se elige la frecuencia (decadal, multianual o de alta frecuencia: cada 10, 5 o 2 minutos) y luego la variable. Mientras tanto, el mapa y los datos del IDEAM se cargan por detrás.
 2. **Área y estaciones**: en el mapa dibujas un rectángulo o subes el contorno del área (shapefile en ZIP, GeoJSON, KML/KMZ o GeoPackage). La app muestra las estaciones del IDEAM que caen adentro, y en un buffer opcional. Para cada una calcula la **cantidad probable**: qué parte del periodo consultado cubre el registro de la estación, entre su primer y su último dato. Este valor no descuenta los huecos internos. Revisas la cobertura y defines qué estaciones incluir.
-3. **Descarga**: un ZIP con un Excel por estación, con el formato original del IDEAM y los bloques de años ya unidos. Si quieres, las estaciones van separadas en carpetas por cobertura del periodo. El ZIP incluye `resumen_descarga.csv` y `CITACION.txt` con la cita de la fuente.
+3. **Descarga**: un ZIP con un Excel por estación, con el formato original del IDEAM y los bloques de años ya unidos. Antes de bajarlo eliges su nombre y si las estaciones van separadas en carpetas por cobertura del periodo. El ZIP incluye `resumen_descarga.csv` y `CITACION.txt` con la cita de la fuente.
 
 Incluye vista 3D con relieve real y aviso de estaciones cuya altitud en el catálogo no coincide con el terreno.
 
@@ -83,13 +83,17 @@ La app tiene **tres pantallas** (`ss.paso`): `"parametros"`, `"mapa"` y `"descar
 
 Arriba a la derecha, en las tres, va el menú **Ajustes** (`y2k_ajustes`, `estilo.ajustes`, ícono ◐ de claro/oscuro): tema claro/oscuro, alto contraste, modo Lite y manual. Con Lite activo, junto al botón aparece la marca «Lite». Durante una descarga el menú se bloquea (cambiar algo recargaría la página y la detendría).
 
-**Sin textos de carga.** Ninguna pantalla dice «Cargando…»: la única señal de que la lista de variables del IDEAM está lista es el punto de la etiqueta «Variable», que se enciende en verde, y el botón principal, que se habilita cuando todo cargó. En el mapa, mientras se evalúa el área, el escáner la recorre.
+**Sin textos de carga.** Ninguna pantalla dice «Cargando…»: la única señal de que la lista de variables del IDEAM está lista es el punto de la etiqueta «Variable», que se enciende en azul. El botón principal es siempre azul: si se pulsa antes de que todo cargó, no avanza y da dos destellos rojos. En el mapa, mientras se evalúa el área, el escáner la recorre.
+
+**Avisos discretos** (`estilo.aviso`): una línea con su icono y, si hay detalle, «Ver más» (`<details>`). Se usan para fechas inválidas, periodo demasiado largo para Excel, series de alta frecuencia y los estados sin datos del mapa. Los errores llevan `role="alert"`.
+
+**Botones principales de vidrio líquido azul**: tinte del acento que deja ver un poco del fondo desenfocado, brillo superior, cáustica abajo y canto de luz (tokens `y2k-boton-tinte`, `y2k-boton-brillo`, `y2k-boton-caustica`, `y2k-boton-canto`). En alto contraste son opacos y sin brillos; en Lite, sin desenfoque. El texto queda por encima de 6,5:1 en claro y oscuro.
 
 **Esquina del botón de Streamlit.** En Streamlit Community Cloud, su botón («Manage app», o su logo y la foto de quien la ve) va abajo a la derecha, fuera de la app, y no se puede mover. `app._en_streamlit_cloud()` lo detecta (`*.streamlit.app` o `/mount/src`) y `estilo.aplicar(sello=True)` reserva esa esquina (`--y2k-sello`): «Preparar descarga», la barra del celular y las tarjetas del celular quedan por encima. `Y2K_SELLO=1` lo simula en otro servidor.
 
-**Vidrio sin desplazamiento.** Ninguna superficie de vidrio se desplaza: las tarjetas de Parámetros y Exportación, la ficha y el panel tienen un cuerpo interior que se desplaza (`y2k_inicio_cuerpo`, `y2k_exportar_cuerpo`, `y2k_ficha_cuerpo`, `y2k_cuerpo`). Así el brillo que sigue al puntero (va en el fondo del propio vidrio) queda siempre bajo el puntero, el canto de luz no se desfasa y la barra de desplazamiento queda dentro de la curva de la tarjeta.
+**Vidrio sin desplazamiento.** Ninguna superficie de vidrio se desplaza: las tarjetas de Parámetros y Exportación, la ficha y el panel tienen un cuerpo interior que se desplaza (`y2k_inicio_cuerpo`, `y2k_exportar_cuerpo`, `y2k_ficha_cuerpo`, `y2k_cuerpo`). Así el brillo que sigue al puntero (va en el fondo del propio vidrio) queda siempre bajo el puntero y el canto de luz no se desfasa. El cuerpo ocupa toda la tarjeta, con el mismo margen interior arriba, abajo y a los lados, y el contenido se desvanece al llegar al borde (`mask-image`, `--y2k-fundido`) en lugar de cortarse en una franja.
 
-**Huecos fijos.** Justo después del escenario, `app.py` crea siempre, en este orden, los contenedores de las tres pantallas (vacíos los que no se usan): `y2k_inicio`, `y2k_panel`, `y2k_abrir`, `y2k_herr`, `y2k_dock`, `y2k_ficha`, `y2k_exportar` y `y2k_ocultos`. Así cada uno conserva su lugar: al cambiar de pantalla, Streamlit deja un momento los elementos viejos hasta terminar la corrida (en Exportación, toda la descarga), y como siguen dentro de su propio contenedor, el CSS los oculta enseguida por su clave. Lo condicional (`y2k_precal`, el diálogo de subida) va después de todos.
+**Huecos fijos.** Justo después del escenario, `app.py` crea siempre, en este orden, los contenedores de las tres pantallas (vacíos los que no se usan): `y2k_inicio`, `y2k_panel`, `y2k_abrir`, `y2k_herr`, `y2k_filtro`, `y2k_dock`, `y2k_ficha`, `y2k_exportar` y `y2k_ocultos`. Así cada uno conserva su lugar: al cambiar de pantalla, Streamlit deja un momento los elementos viejos hasta terminar la corrida (en Exportación, toda la descarga), y como siguen dentro de su propio contenedor, el CSS los oculta enseguida por su clave. Lo condicional (`y2k_precal`, el diálogo de subida) va después de todos.
 
 ### 1. Parámetros (`pantalla_parametros` en `app.py`)
 
@@ -103,9 +107,9 @@ Arriba a la derecha, en las tres, va el menú **Ajustes** (`y2k_ajustes`, `estil
 │              │ Frecuencia (solo Especial) [frec_especial]            │
 │              │ Variable ●   [par_estandar / par_esp_<frecuencia>]    │
 │              │ Desde [f_ini]   Hasta [f_fin]           │  ● = punto  │
-│              │ ☑ Separar el ZIP en carpetas (carpetas) │  de estado  │
-│              │ [ Seleccionar área en el mapa → ] ir_mapa             │
-│              │ 1 Consulta · 2 Área y estaciones · 3 Descarga         │
+│              │ [ Seleccionar área en el mapa → ] ir_mapa  de estado  │
+│              │ 1 Establecer parámetros · 2 Delimitar el área de      │
+│              │   análisis · 3 Preparar la descarga                   │
 │              │ Modo Lite (lite_inicio) · condiciones   │             │
 │              ╰─────────────────────────────────────────╯             │
 └──────────────────────────────────────────────────────────────────────┘
@@ -114,11 +118,11 @@ Arriba a la derecha, en las tres, va el menú **Ajustes** (`y2k_ajustes`, `estil
 En el celular la tarjeta flota abajo, con margen a los lados; Desde y Hasta siguen en una fila (`y2k_fechas`) y los pasos muestran solo sus títulos.
 
 - **Serie de tiempo y frecuencia** (`serie`, como en la página del IDEAM): **Estándar** pide solo la variable (`par_estandar`: todas las series diarias, mensuales, anuales, horarias y de 2 o 3 datos al día, con la frecuencia en el nombre cuando la descripción no la dice). **Especial** pide primero la frecuencia (`frec_especial`: las decadales y multianuales que traiga el catálogo y las de alta frecuencia, cada 10, 5 o 2 minutos) y luego la variable (`par_esp_<frecuencia>`). Quién va en cada una lo decide `ideam_parameters.es_especial` (campo `especial` del catálogo). Las de alta frecuencia muestran un aviso discreto con «Ver más»: el IDEAM las entrega de a un mes por consulta.
-- **Lista de variables** (`_iniciar_precarga_servidor`): se pide en un hilo al arrancar el servidor. Mientras carga, los desplegables (`par_espera`, `frec_espera`) están en gris y no se pueden abrir, y el punto `.y2k-punto[data-estado]` respira en gris; al cargar, se enciende en verde (`listo`) y aparecen los desplegables de verdad (con búsqueda al escribir; por defecto, el día pluviométrico). Si falla, el punto se pone rojo y aparece **Reintentar**.
+- **Lista de variables** (`_iniciar_precarga_servidor`): se pide en un hilo al arrancar el servidor. Mientras carga, los desplegables (`par_espera`, `frec_espera`) están en gris y no se pueden abrir, y el punto `.y2k-punto[data-estado]` respira en gris; al cargar, se enciende en azul (`listo`) y aparecen los desplegables de verdad (con búsqueda al escribir; por defecto, el día pluviométrico). Si falla, el punto se pone rojo y aparece **Reintentar**.
 - **Nombres legibles** (`_variables_de`): la descripción y la unidad; la variable va delante solo si la descripción no la nombra. Sin códigos como `PTPM_CON` (salvo que dos se llamen igual).
 - **Series por detrás** (`_precargar_series`): al elegir una variable se pide en un hilo qué estaciones tienen esa serie (lo que necesita el mapa para evaluar). Compartido entre sesiones; si falló, se reintenta a los 30 s.
-- **El botón se enciende** cuando todo está listo: lista cargada, variable elegida, fechas válidas, periodo que cabe en Excel y series cargadas (`disabled` desde Python), y además que el mapa 2D haya cargado (eso lo sabe el navegador: el guion pone `aria-disabled` y bloquea el clic hasta `html[data-y2k-mapa-listo]`). No hay línea de estado: la señal es el botón.
-- **Pasos** (`estilo.como_funciona`): Consulta (el actual, resaltado), Área y estaciones, Descarga.
+- **El botón es siempre azul** (nunca gris). Avanza cuando todo está listo: lista cargada, variable elegida, fechas válidas, periodo que cabe en Excel y series cargadas (Python lo marca en `.y2k-cta-listo[data-listo]`, `estilo.marca_listo`) y el mapa 2D cargado (`html[data-y2k-mapa-listo]`). Si se pulsa antes, el guion detiene el clic y le pone `.y2k-parpadeo` (dos destellos rojos); para lectores de pantalla queda `aria-disabled="true"`. `_ir_mapa` recibe además `listo` y no hace nada si no lo está (por si el guion no cargó).
+- **Pasos** (`estilo.como_funciona`): Establecer parámetros (el actual, resaltado), Delimitar el área de análisis, Preparar la descarga. En el celular, solo los títulos.
 - Un **vigía** (`_vigia`, un fragmento con `run_every=1`) revisa cada segundo lo que carga por detrás y recarga la página una vez al terminar.
 - `_ir_mapa` (callback) guarda la consulta en `ss.consulta` (etiqueta de la serie y fechas) y pasa a `"mapa"` antes de que corra el guion: la pantalla nueva sale en la misma recarga.
 
@@ -140,7 +144,7 @@ En el celular la tarjeta flota abajo, con margen a los lados; Desde y Hasta sigu
 │ │  ⚠ N con altitud dudosa      │  ╭ leyenda ╮                ╭ y2k_dock_der ─╮ │
 │ │  lista con casillas          │  ╰─────────╯                │Preparar desc.→│ │
 │ │  pie y créditos              │  ╭ y2k_dock_izq ──────╮     ╰───────────────╯ │
-│ ╰──────────────────────────────╯  │ 2D│3D · Textura ▾ ↻│      (esquina libre   │
+│ ╰──────────────────────────────╯  │ 2D│3D · ↻         │      (esquina libre   │
 │                                   ╰────────────────────╯       en Streamlit Cloud)
 └──────────────────────────────────────────────────────────────────────────────┘
 ```
@@ -168,8 +172,9 @@ En **horizontal** (alto ≤ 560 px y ancho > 760 px) se usa la disposición de e
 |---|---|---|---|---|
 | Panel | `y2k_panel` | `app.pantalla_mapa` | Cabecera `y2k_panel_cab` (`estilo.cabecera_panel`: título «Consulta», plegar en escritorio y ✕ en el celular) y cuerpo `y2k_cuerpo` con desplazamiento propio | vidrio regular |
 | Reabrir panel | `y2k_abrir` | `estilo.boton_abrir_panel` | Botón «Consulta» (solo se ve con el panel plegado, en escritorio) | vidrio claro |
-| Herramientas | `y2k_herr` | `estilo.herramientas_2d` / `estilo.controles_camara` | En 2D: menús **Dibujo** (dibujar, área visible, subir, ajustar esquinas, borrar) y **Mapa base**, y zoom. En 3D: botones de cámara | vidrio claro (los menús, denso) |
-| Píldoras | `y2k_dock` (`y2k_dock_izq`, `y2k_dock_der`) | `app.pantalla_mapa` | Izquierda: en el celular, el botón **Consulta** (`estilo.boton_consulta`); el selector **2D/3D** (`vista`), y en 3D el menú **Textura** (`textura`, `escala_altura`) y **Repetir animación** (`y2k_repetir_intro`, temporal). Derecha: **Preparar descarga** (`preparar`; desactivado con la razón en la ayuda), por encima de la esquina del botón de Streamlit | vidrio claro |
+| Herramientas | `y2k_herr` | `estilo.herramientas_2d` / `estilo.herramientas_3d` | En 2D: menús **Dibujo** (dibujar, área visible, subir, ajustar esquinas, borrar) y **Mapa base**, y zoom. En 3D: menú **Cámara** (girar, inclinar, norte; sigue abierto entre pulsaciones), menú **Textura del relieve** (Satélite, Topográfico, Altura y, con Altura, su escala; pulsan los ocultos `y2k_tex_<n>` y `y2k_esc_<n>`) y zoom | vidrio claro (los menús, denso) |
+| Filtro | `y2k_filtro` | `app.pantalla_mapa` | Botón circular arriba a la izquierda del mapa (con un área evaluada): menú con un deslizador de rango de **cobertura del periodo** (`filtro_cob`, de 5 en 5 %). Lo que queda fuera no se ve en el mapa ni en la lista y no se descarga. Activo, muestra el rango («50–100 %») y ofrece «Quitar el filtro» | vidrio claro |
+| Píldoras | `y2k_dock` (`y2k_dock_izq`, `y2k_dock_der`) | `app.pantalla_mapa` | Izquierda: en el celular, el botón **Consulta** (`estilo.boton_consulta`); el selector **2D/3D** (`vista`; en el celular, elegir uno cierra la consulta para ver el mapa) y, en 3D, **Repetir animación** (`y2k_repetir_intro`, temporal). Derecha: **Preparar descarga** (`preparar`; desactivado con la razón en la ayuda), por encima de la esquina del botón de Streamlit | vidrio claro |
 | Ficha | `y2k_ficha` (cuerpo `y2k_ficha_cuerpo`) | `panel_estadisticas.tarjeta_seleccionada` | Estación elegida: nombre, código, altitud, cobertura, interruptor **Incluir en la descarga**, aviso de altitud dudosa (`alerta_ficha`), **Ver en 3D** y **Cerrar** | vidrio regular |
 | Mapa | `y2k_escenario` | `app.pantalla_mapa` | En 2D: `y2k_mapa2d` (iframe de `st_folium`), `y2k_escaner` y la leyenda. En 3D: `y2k_visor3d` (pydeck), `y2k_orbita` (guiones), leyenda, atribución y el aviso de movimiento reducido | sin vidrio (es el contenido) |
 
@@ -202,7 +207,7 @@ mapa 2D velado                                              ╭ y2k_ajustes ╮
           ╰─────────────────────────────────────────────────────────────╯
 ```
 
-En el celular la tarjeta flota abajo, con margen, y las dos columnas van una debajo de la otra. En el recibo, «Archivo» es una lista ordenada (`.y2k-archivo`): un Excel por estación, carpetas por cobertura (si se eligieron), `resumen_descarga.csv` y `CITACION.txt`. El aviso de datos preliminares no se repite aquí: ya está en el panel del mapa.
+En el celular la tarjeta flota abajo, con margen, y las dos columnas van una debajo de la otra. Al terminar, antes del nombre del ZIP está **Separar en carpetas por cobertura** (`carpetas`): la descarga arma siempre un ZIP plano y, si se marca, `ideam_downloader.zip_con_carpetas` lo reorganiza al momento (sin volver a descargar) y rehace `resumen_descarga.csv` con las rutas nuevas; se guarda en el resultado para no rehacerlo mientras se escribe el nombre. En el recibo, «Archivo» es una lista ordenada (`.y2k-archivo`): un Excel por estación, carpetas por cobertura (si se eligieron), `resumen_descarga.csv` y `CITACION.txt`. El aviso de datos preliminares no se repite aquí: ya está en el panel del mapa.
 
 - **Estados** (`ss.estado_descarga`): `pendiente` → `en_curso` → `lista` o `error`, y `detenida`. `_preparar` (callback de «Preparar descarga») deja la descarga en `pendiente` y pasa a la pantalla. La corrida que la encuentra en `pendiente` dibuja la tarjeta (recibo, condiciones, «Detener») y descarga en esa misma corrida, actualizando el avance real en un `st.empty()` (`estilo.progreso`, que llama `ideam_downloader.procesar_descargas` vía `ui["progreso"]`). Si una corrida encuentra `en_curso`, la anterior se cortó («Detener» u otra recarga): queda `detenida`.
 - **Todos los botones son callbacks** (`_detener`, `_reintentar_descarga`, `_volver_mapa`, `_nueva_consulta`) que cambian el estado antes de que corra el guion. Por eso «Volver al mapa» funciona siempre (antes, tras «Detener», la siguiente corrida volvía a empezar la descarga antes de ver el botón).
@@ -264,7 +269,7 @@ Todo lo visual de la app sale de `modules/estilo.py`. Este es el mapa del archiv
 | `CSS_ALTO`, `CSS_LITE`, `CSS_MOVIMIENTO`, `CSS_FORZADOS` | Alto contraste, modo Lite, movimiento reducido y colores forzados | **Sí** |
 | `aplicar()`, `_tokens_css()`, `_vidrio()` | Arman y ordenan todo el CSS | No |
 | `ICONOS` | Iconos SVG de línea (heredan el color del texto) | **Sí** |
-| `ajustes()`, `cabecera_inicio()`, `etiqueta()`, `como_funciona()`, `pie_inicio()`, `cabecera_panel()`, `boton_consulta()`, `boton_abrir_panel()`, `seccion()`, `acciones_area()`, `kpis()`, `herramientas_2d()`, `controles_camara()`, `leyenda_*()`, `pie()`, `cabecera_exportar()`, `progreso()`, `recibo()`, `resumen_final()`, `legal_exportar()` | Piezas HTML: definen la estructura y las clases de cada pieza | Solo sus clases decorativas; no los `data-y2k-*` ni la estructura |
+| `ajustes()`, `cabecera_inicio()`, `etiqueta()`, `como_funciona()`, `pie_inicio()`, `cabecera_panel()`, `boton_consulta()`, `boton_abrir_panel()`, `seccion()`, `acciones_area()`, `kpis()`, `aviso()`, `marca_listo()`, `marca_filtro()`, `herramientas_2d()`, `herramientas_3d()`, `leyenda_*()`, `pie()`, `cabecera_exportar()`, `progreso()`, `recibo()`, `resumen_final()`, `legal_exportar()` | Piezas HTML: definen la estructura y las clases de cada pieza | Solo sus clases decorativas; no los `data-y2k-*` ni la estructura |
 | `_UI` (dentro, `CSS_IFRAME`) | Guion de la interfaz del navegador; `CSS_IFRAME` es el estilo de los controles de Leaflet dentro de su iframe | Solo `CSS_IFRAME` |
 
 ### Pasos para cambiar la estética
@@ -318,9 +323,9 @@ Son colores **de datos o de mapa**, no de la interfaz; cambiarlos cambia el sign
 
 Estos nombres unen la estructura (Python), la estética (CSS) y el guion del navegador. Si cambias uno, hay que cambiarlo en todos los lugares que lo usan.
 
-**Claves de contenedores** (producen la clase `.st-key-<clave>`): `y2k_escenario`, `y2k_mapa2d`, `y2k_visor3d`, `y2k_ajustes`, `y2k_inicio` (cuerpo `y2k_inicio_cuerpo`), `y2k_fechas`, `y2k_panel`, `y2k_panel_cab`, `y2k_cuerpo`, `y2k_buffer`, `y2k_abrir`, `y2k_herr`, `y2k_dock`, `y2k_dock_izq`, `y2k_dock_der`, `y2k_ficha` (cuerpo `y2k_ficha_cuerpo`), `y2k_exportar` (cuerpo `y2k_exportar_cuerpo`), `alerta_altura`, `alerta_ficha` y los invisibles (`y2k_guiones`, `y2k_hipso`, `y2k_velo`, `y2k_ocultos`, `y2k_precal`, `y2k_orbita`, `y2k_escaner`).
+**Claves de contenedores** (producen la clase `.st-key-<clave>`): `y2k_escenario`, `y2k_mapa2d`, `y2k_visor3d`, `y2k_ajustes`, `y2k_inicio` (cuerpo `y2k_inicio_cuerpo`), `y2k_fechas`, `y2k_panel`, `y2k_panel_cab`, `y2k_cuerpo`, `y2k_buffer`, `y2k_abrir`, `y2k_herr`, `y2k_filtro`, `y2k_dock`, `y2k_dock_izq`, `y2k_dock_der`, `y2k_ficha` (cuerpo `y2k_ficha_cuerpo`), `y2k_exportar` (cuerpo `y2k_exportar_cuerpo`), `alerta_altura`, `alerta_ficha` y los invisibles (`y2k_guiones`, `y2k_hipso`, `y2k_velo`, `y2k_ocultos`, `y2k_precal`, `y2k_orbita`, `y2k_escaner`).
 
-**Claves de widgets que usan el CSS o los guiones**: `vista` (también `static/intro_satelital/player.js` y `terreno.css_boton_3d_espera`), `textura`, `escala_altura`, `serie`, `ir_mapa`, `preparar`, `y2k_repetir_intro`, `lite_inicio`, `lite_menu`, `pref_tono`, `pref_alto`, `bajar_zip` y los ocultos `y2k_lite_reintentar`, `y2k_reintentar3d`, `y2k_pasar2d`, `y2k_borrar`, `y2k_subir`, `chip_param`.
+**Claves de widgets que usan el CSS o los guiones**: `vista` (también `static/intro_satelital/player.js` y `terreno.css_boton_3d_espera`), `serie`, `ir_mapa`, `preparar`, `filtro_cob`, `carpetas`, `y2k_repetir_intro`, `lite_inicio`, `lite_menu`, `pref_tono`, `pref_alto`, `bajar_zip` y los ocultos `y2k_lite_reintentar`, `y2k_reintentar3d`, `y2k_pasar2d`, `y2k_borrar`, `y2k_subir`, `chip_param`, `y2k_tex_<n>`, `y2k_esc_<n>`. `textura` y `escala_altura` ya no son widgets: son claves de sesión que ponen esos botones.
 
 **Atributos de las piezas HTML** (los pone `estilo.py`, los lee el guion):
 
@@ -328,7 +333,7 @@ Estos nombres unen la estructura (Python), la estética (CSS) y el guion del nav
 |---|---|---|
 | `data-y2k-panel-btn` | Botón de la cabecera del panel y «Consulta» (escritorio) | Oculta o muestra el panel |
 | `data-y2k-consulta`, `data-y2k-hoja-cerrar` | «Consulta» de la barra y ✕ de la tarjeta (celular) | Abren y cierran la tarjeta de la consulta (también Escape y tocar el mapa) |
-| `data-y2k-pulsar="<clave>"` | Chip de la variable | Pulsa el botón oculto de esa clave (`chip_param`: volver a Parámetros) |
+| `data-y2k-pulsar="<clave>"` | Chip de la variable, opciones de textura y escala del 3D | Pulsa el botón oculto de esa clave (`chip_param`: volver a Parámetros; `y2k_tex_<n>`, `y2k_esc_<n>`) |
 | `data-y2k-menu` / `data-y2k-menu-de` (`dibujo`, `capas`) | Botones de la cápsula de herramientas y sus menús | Abren y cierran el menú (Escape, flechas, clic fuera) |
 | `data-y2k-dibujar` | «Dibujar un rectángulo», «Redibujar» | Activa la herramienta de rectángulo de Leaflet |
 | `data-y2k-editar` | «Ajustar» | Activa la edición de las esquinas de Leaflet |
@@ -336,7 +341,7 @@ Estos nombres unen la estructura (Python), la estética (CSS) y el guion del nav
 | `data-y2k-subir`, `data-y2k-borrar`, `data-y2k-2d` | «Subir un archivo», «Borrar», «Ver en 2D» | Pulsan los botones ocultos `y2k_subir`, `y2k_borrar`, `y2k_pasar2d` |
 | `data-y2k-capa` | Opciones del menú Mapa base | Eligen la capa base (pulsan el control de capas oculto de Leaflet) |
 | `data-y2k-zoom` (`mas`, `menos`) | Zoom de la cápsula | Acercan o alejan el mapa |
-| `data-y2k-cam` (`acercar`, `alejar`, `izq`, `der`, `subir`, `bajar`, `norte`) | Botones de cámara 3D | Mueven la cámara |
+| `data-y2k-cam` (`acercar`, `alejar`, `izq`, `der`, `subir`, `bajar`, `norte`) | Zoom y opciones del menú Cámara del 3D | Mueven la cámara (el menú no se cierra) |
 
 **Clases que el guion busca**: `.y2k-pantalla` (la pantalla actual), `.y2k-cierre-hoja` (la crea el guion: capa invisible sobre el mapa con la consulta del celular abierta), `.y2k-leyenda`, `.y2k-camara-estado`, `.y2k-atrib3d`, `.y2k-dialogo` (la crea el guion), `.y2k-sat` (capa de la intro, la crea `player.js`) y `.lg-claro` / `.lg-regular` (material de las piezas HTML; el brillo especular las reconoce).
 
@@ -346,7 +351,7 @@ Estos nombres unen la estructura (Python), la estética (CSS) y el guion del nav
 
 **Variables CSS que escribe el guion** (en CSS solo se les da un valor inicial): `--y2k-ov-top`, `--y2k-ov-izq`, `--y2k-ov-der`, `--y2k-ov-abajo` (la zona libre del mapa), `--y2k-ley-abajo`, `--y2k-ley-izq`, `--y2k-atrib-abajo`, `--y2k-dock-h` (en el celular, la distancia del borde de abajo a la barra), y `--mx`/`--my` en cada vidrio (brillo especular). En el iframe de Leaflet: `--tl-top`, `--tl-izq`, `--tr-top`, `--tr-der`, `--bl-abajo`, `--bl-izq`, `--br-abajo`, `--br-der`, `--acc-top`, `--acc-der` (dónde salen «Guardar» y «Cancelar» del dibujo), y la clase `y2k-hoja-abierta` en su `<html>` (aparta la escala y los créditos con la consulta del celular abierta).
 
-**Variables CSS que el guion lee**: `--y2k-lite`, `--y2k-tono`, `--y2k-alto`. `--y2k-sello` (esquina del botón de Streamlit) la pone `aplicar(sello=True)`.
+**Variables CSS que el guion lee**: `--y2k-lite`, `--y2k-tono`, `--y2k-alto`. `--y2k-sello` (esquina del botón de Streamlit) la pone `aplicar(sello=True)`, que en el celular agrega además `CSS_SELLO_MOVIL`: el crédito del relieve 3D va en la franja de abajo, a la izquierda de ese botón. El guion escribe también `--y2k-abrir-w` (ancho del botón «Consulta» del escritorio, para poner el filtro a su lado).
 
 **Almacenamiento del navegador**: `localStorage` `y2k_panel`, `y2k_leyenda` (y `y2k_sat_*` de la intro); `sessionStorage` `y2k_aviso3d_cerrado`.
 
@@ -365,12 +370,12 @@ Estos nombres unen la estructura (Python), la estética (CSS) y el guion del nav
 
 `estilo._UI` se inyecta una vez en la página principal (`estilo.instalar_ui`, dentro de `y2k_guiones`) y sobrevive a las recargas de Streamlit. Se repasa cada 500 ms y en cada cambio del DOM. Hace:
 
-- **Panel y consulta del celular** sin recargar la página (atributos en `<html>`; la elección del panel del escritorio, en `localStorage`), con `aria-expanded`. En el celular no hay arrastres (el gesto se confundía con «jalar para recargar», que además queda desactivado con `overscroll-behavior: none`): el botón «Consulta» abre y cierra la tarjeta; con ella abierta, una capa invisible sobre el mapa la cierra al tocarlo.
+- **Panel y consulta del celular** sin recargar la página (atributos en `<html>`; la elección del panel del escritorio, en `localStorage`), con `aria-expanded`. En el celular no hay arrastres (el gesto se confundía con «jalar para recargar», que además queda desactivado con `overscroll-behavior: none`): el botón «Consulta» abre y cierra la tarjeta; con ella abierta, una capa invisible sobre el mapa la cierra al tocarlo. Con la tarjeta abierta, lo que va sobre el mapa (herramientas, filtro, leyenda, créditos, ficha) se oculta enseguida y, al cerrarla, vuelve cuando la tarjeta ya bajó (transición con demora); `distribuir` reparte el espacio como si la tarjeta estuviera cerrada, así nada salta de lugar.
 - **Menús de la cápsula de herramientas** (`role="menu"`): abren y cierran, se recorren con flechas, Escape devuelve el foco. Sus opciones manejan los controles ocultos de Leaflet.
-- **Pantallas**: marca el escenario como `inert` en Parámetros y Exportación, y en Parámetros hace esperar al botón principal hasta que el mapa 2D cargó (alguna tesela, 6 s con el mapa creado o, si no carga, 15 s). Sin textos de espera: el botón se enciende.
+- **Pantallas**: marca el escenario como `inert` en Parámetros y Exportación, y en Parámetros detiene el botón principal (con dos destellos rojos) hasta que Python marca que está listo y el mapa 2D cargó (alguna tesela, 6 s con el mapa creado o, si no carga, 15 s).
 - **Reparto del espacio** (`distribuir`): mide las piezas flotantes y calcula la zona libre del mapa; sube la leyenda, la escala y la atribución por encima de las píldoras que comparten su columna, y pone las acciones del dibujo de Leaflet junto a la cápsula de herramientas. También encuadra el área recién montada en la zona libre.
 - **Mapa 2D**: inyecta `CSS_IFRAME` (oculta los controles de Leaflet, que maneja la cápsula, y da vidrio a las acciones del dibujo), traduce Leaflet.draw al español, maneja dibujar, ajustar, «Usar el área visible», capas y zoom, y vigila las teselas que fallan.
-- **3D**: botones de cámara (busca el `deck` por dentro de React) y vigilancia de WebGL, red y carga lenta.
+- **3D**: cámara (busca el `deck` por dentro de React) y vigilancia de WebGL, red y carga lenta. En el celular, con la consulta abierta la cámara deja de girar sola (el teléfono no dibuja de más debajo de la tarjeta).
 - **Varios**: traduce el cargador de archivos, quita del nombre accesible el texto de los iconos de Streamlit y mueve el brillo especular con el puntero.
 
 ## Temas, contraste, modo Lite y movimiento

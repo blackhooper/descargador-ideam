@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="description" content="Manual de usuario del Descargador IDEAM: descarga de series del portal DHIME por cuenca.">
+<meta name="description" content="Manual de usuario del Descargador IDEAM: consulta y descarga de series del portal DHIME por área.">
 <title>Manual Descargador IDEAM</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Figtree:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Silkscreen&display=swap">
@@ -190,7 +190,7 @@ dl.glosario dd{margin:0;color:var(--ink-2)}
       <h1>Descargador IDEAM</h1>
       <p class="bajada">Cómo descargar información meteorológica e hidrológica del IDEAM con el Descargador IDEAM. Herramienta independiente, no oficial del IDEAM.</p>
       <nav class="pasos" aria-label="Los cuatro pasos de la app">
-        <a class="paso" href="#parametro"><span class="n">1</span>Parámetro y fechas</a><span class="linea"></span>
+        <a class="paso" href="#parametro"><span class="n">1</span>Consulta</a><span class="linea"></span>
         <a class="paso" href="#cuenca"><span class="n">2</span>Área en el mapa</a><span class="linea"></span>
         <a class="paso" href="#revisar"><span class="n">3</span>Estaciones</a><span class="linea"></span>
         <a class="paso" href="#descarga"><span class="n">4</span>Exportación</a>
@@ -275,20 +275,26 @@ dl.glosario dd{margin:0;color:var(--ink-2)}
         <h3>Requisitos</h3>
         <ul>
           <li>Un navegador web actualizado y conexión a internet. No hay que instalar nada.</li>
-          <li>La cuenca: trazada sobre el mapa o como archivo (Shapefile, GeoJSON, KML/KMZ o GeoPackage).</li>
+          <li>El área de estudio (una cuenca, un municipio o cualquier zona): trazada sobre el mapa o como archivo (Shapefile, GeoJSON, KML/KMZ o GeoPackage).</li>
         </ul>
-        <p class="pie">Si la aplicación lleva un rato sin uso, la primera carga puede tardar hasta un minuto; las siguientes son inmediatas. Arriba a la derecha, el menú <span class="ui">Ajustes</span> cambia el tema (claro u oscuro), activa el alto contraste y el modo Lite, y abre este manual (ver <a href="#vista-3d">El mapa 3D y los ajustes</a>).</p>
+        <p class="pie">Si la aplicación lleva un rato sin uso, la primera carga puede tardar hasta un minuto; las siguientes son inmediatas. Arriba a la derecha, el menú <span class="ui">Ajustes</span> (el botón ◐) cambia el tema (claro u oscuro), activa el alto contraste y el modo Lite, y abre este manual (ver <a href="#vista-3d">El mapa 3D y los ajustes</a>).</p>
       </section>
 
       <section id="parametro">
-        <h2><span class="etiqueta">PASO 1</span>Qué descargar: parámetro y fechas</h2>
-        <p>La app abre con una tarjeta sobre el mapa de Colombia. Mientras la llenas, el mapa y la lista de parámetros del IDEAM se cargan por detrás, así que al pasar al mapa no hay que esperar.</p>
+        <h2><span class="etiqueta">PASO 1</span>Consulta: serie, variable y fechas</h2>
+        <p>La app abre con la tarjeta <em>Consulta y descarga de datos hidrometeorológicos</em> sobre el mapa de Colombia. Mientras la llenas, el mapa y la lista de variables del IDEAM se cargan por detrás, así que al pasar al mapa no hay que esperar.</p>
         <ol>
-          <li><span class="ui">Frecuencia</span>: Diario (por defecto), Mensual, Anual, Horario, 3 veces al día o 2 veces al día.</li>
-          <li><span class="ui">Parámetro</span>: la serie exacta del IDEAM con su unidad, por ejemplo <em>Precipitación total diaria (mm)</em>. Puedes abrir la lista o <strong>escribir</strong> para buscar. Mientras la lista del IDEAM carga, el desplegable está en gris; un punto pequeño junto a la palabra «Parámetro» se enciende en verde cuando ya cargó.</li>
+          <li><span class="ui">Serie de tiempo y frecuencia</span>, como en la página del IDEAM:
+            <ul>
+              <li><span class="ui">Estándar</span> (por defecto): series diarias, mensuales, anuales, horarias y de 2 o 3 datos al día. Solo eliges la variable.</li>
+              <li><span class="ui">Especial</span>: primero eliges la <span class="ui">Frecuencia</span> (decadal, multianual o de alta frecuencia: cada 10, 5 o 2 minutos) y después la variable.</li>
+            </ul>
+          </li>
+          <li><span class="ui">Variable</span>: la serie exacta del IDEAM con su unidad, por ejemplo <em>Precipitación total diaria (mm)</em>. Puedes abrir la lista o <strong>escribir</strong> para buscar. Mientras la lista del IDEAM carga, el desplegable está en gris; un punto pequeño junto a la palabra «Variable» se enciende en verde cuando ya cargó.</li>
           <li><span class="ui">Desde</span> y <span class="ui">Hasta</span>: el periodo, en formato día/mes/año (por defecto del 01/01/2000 al 31/12/2020). La fecha inicial debe ser anterior a la final. Si con esa frecuencia el periodo daría más de un millón de filas por estación, más de lo que admite Excel, la tarjeta te pide acortarlo.</li>
+          <li><span class="ui">Separar el ZIP en carpetas por cobertura</span> (marcado por defecto): cada Excel va dentro de la carpeta de su clase de cobertura (ver <a href="#cobertura">Cobertura del periodo</a>). Si lo desmarcas, todos quedan juntos.</li>
         </ol>
-        <p>El botón <span class="ui primario">Seleccionar área en el mapa</span> se activa cuando el mapa y los datos del parámetro elegido terminaron de cargar; debajo, una línea dice qué falta. Así el paso al mapa es inmediato.</p>
+        <p>El botón <span class="ui primario">Seleccionar área en el mapa</span> se enciende cuando el mapa y los datos de la variable elegida terminaron de cargar. Así el paso al mapa es inmediato. Debajo, tres pasos resumen el recorrido: <em>Consulta</em>, <em>Área y estaciones</em> y <em>Descarga</em>.</p>
         <p>El IDEAM entrega un número limitado de años por consulta. La app divide tu periodo en bloques de ese tamaño y después los une en un solo Excel:</p>
         <div class="tabla">
           <table>
@@ -301,39 +307,36 @@ dl.glosario dd{margin:0;color:var(--ink-2)}
             </tbody>
           </table>
         </div>
-        <h3>Ajustes avanzados</h3>
-        <ul>
-          <li><span class="ui">Series cada 2, 5 o 10 minutos</span> cambia las frecuencias por las de alta frecuencia. Úsalas con cuidado: el IDEAM entrega de a <strong>un mes por consulta</strong>, así que 10 años son 120 consultas por estación y cada Excel puede tener cientos de miles de filas. Usa periodos cortos y pocas estaciones.</li>
-          <li><span class="ui">Separar el ZIP en carpetas por cobertura</span> (marcado por defecto): cada Excel va dentro de la carpeta de su clase de cobertura (ver <a href="#cobertura">Cobertura del periodo</a>). Si lo desmarcas, todos quedan juntos.</li>
-        </ul>
+        <h3>Series de alta frecuencia</h3>
+        <p>En <span class="ui">Especial</span>, las series cada 10, 5 o 2 minutos se usan con cuidado: el IDEAM las entrega de a <strong>un mes por consulta</strong>, así que 10 años son 120 consultas por estación y cada Excel puede tener cientos de miles de filas. Usa periodos cortos y pocas estaciones. La tarjeta lo recuerda con una nota breve (<span class="ui">Ver más</span>).</p>
         <p>En la misma tarjeta puedes activar el <strong>modo Lite</strong> antes de entrar (ver <a href="#vista-3d">El mapa 3D</a>), leer las condiciones de uso de los datos y abrir este manual.</p>
       </section>
 
       <section id="cuenca">
         <h2><span class="etiqueta">PASO 2</span>Marcar el área en el mapa</h2>
-        <p>El mapa ocupa toda la pantalla. A la izquierda está el panel (en el celular, una hoja que se despliega desde abajo); arriba a la derecha, el menú <span class="ui">Ajustes</span> y, debajo, la cápsula de herramientas del mapa; abajo, el selector <span class="ui">2D</span> <span class="ui">3D</span> y el botón <span class="ui primario">Preparar descarga</span>. Arriba del panel, una píldora con tu parámetro y periodo te devuelve a la tarjeta del paso 1 para cambiarlos; el área y lo demás se conservan.</p>
-        <p>Puedes marcar el área de tres formas: dibujar un rectángulo, usar la zona que ves en el mapa o subir el contorno de tu cuenca (puede tener cualquier forma).</p>
+        <p>El mapa ocupa toda la pantalla. A la izquierda está el panel <strong>Consulta</strong>; arriba a la derecha, el menú <span class="ui">Ajustes</span> y, debajo, la cápsula de herramientas del mapa; abajo, el selector <span class="ui">2D</span> <span class="ui">3D</span> y el botón <span class="ui primario">Preparar descarga</span>. En la sección <em>Calidad de los datos</em> del panel, el nombre de tu variable (por ejemplo <span class="ui">‹ Precipitación</span>) te devuelve a la tarjeta del paso 1 para cambiar la variable o el periodo; el área y lo demás se conservan.</p>
+        <p>En el <strong>celular</strong>, el panel es una tarjeta que se abre y se cierra con el botón <span class="ui">Consulta</span> de la barra de abajo (o con la ✕ de la tarjeta, o tocando el mapa). Mientras está abierta se apartan las herramientas, la leyenda y la escala del mapa; al cerrarla vuelven.</p>
+        <p>Puedes marcar el área de tres formas, todas desde el lápiz de la cápsula de herramientas: dibujar un rectángulo, usar la zona que ves en el mapa o subir el contorno de tu área (puede tener cualquier forma).</p>
 
         <h3>Opción A: dibujarla en el mapa</h3>
         <ol>
           <li>Acércate a tu zona con la rueda del mouse, con dos dedos en el celular o con los botones <span class="ui">+</span> y <span class="ui">−</span> de la cápsula de herramientas.</li>
-          <li>Pulsa <span class="ui primario">Dibujar un rectángulo</span> en el panel (o el lápiz de la cápsula de herramientas, y luego <span class="ui">Dibujar un rectángulo</span>) y arrastra de una esquina a la opuesta.</li>
+          <li>Pulsa el lápiz de la cápsula de herramientas, luego <span class="ui">Dibujar un rectángulo</span>, y arrastra de una esquina a la opuesta.</li>
         </ol>
-        <p>Apenas sueltas el rectángulo, un escáner recorre la zona mientras la app busca las estaciones que caen adentro; cuando termina, las estaciones aparecen de norte a sur. Solo hay un área a la vez: si dibujas otra, reemplaza a la anterior. Para corregirla, el panel tiene cuatro botones:</p>
+        <p>Apenas sueltas el rectángulo, un escáner recorre la zona mientras la app busca las estaciones que caen adentro; cuando termina, las estaciones aparecen de norte a sur. Solo hay un área a la vez: si dibujas otra, reemplaza a la anterior. En el panel, junto al título <em>Área de estudio</em>, aparece su tamaño en km², y debajo tres botones para corregirla:</p>
         <ul>
           <li><span class="ui">Redibujar</span>: dibuja otro rectángulo.</li>
           <li><span class="ui">Ajustar</span>: arrastra las esquinas a su nuevo lugar y pulsa <span class="ui">Guardar</span> (junto a la cápsula de herramientas), o <span class="ui">Cancelar</span> para deshacer.</li>
-          <li><span class="ui">Subir</span>: reemplaza el área por la de un archivo.</li>
           <li><span class="ui">Borrar</span>: quita el área.</li>
         </ul>
-        <p>Las mismas acciones están en el menú del lápiz de la cápsula de herramientas.</p>
+        <p>Las mismas acciones, y la de subir un archivo, están en el menú del lápiz de la cápsula de herramientas.</p>
 
         <h3>Opción B: usar la zona que ves</h3>
-        <p>Acerca el mapa a tu zona y elige <span class="ui">Usar el área visible</span> en el menú del lápiz (o el enlace «usa el área visible» del panel): el área será la parte del mapa que ves, sin los bordes que tapan los paneles. Se activa cuando el mapa está lo bastante cerca (nivel de zoom 10 o más). Es también la forma de marcar el área solo con el teclado: lleva el foco al mapa, muévete con las flechas, acerca con la tecla <span class="ui">+</span> y usa esa opción.</p>
+        <p>Acerca el mapa a tu zona y elige <span class="ui">Usar el área visible</span> en el menú del lápiz: el área será la parte del mapa que ves, sin los bordes que tapan los paneles. Se activa cuando el mapa está lo bastante cerca (nivel de zoom 10 o más). Es también la forma de marcar el área solo con el teclado: lleva el foco al mapa, muévete con las flechas, acerca con la tecla <span class="ui">+</span> y usa esa opción.</p>
 
         <h3>Opción C: subir un archivo</h3>
         <ol>
-          <li>Pulsa <span class="ui">Subir archivo</span> en el panel (o en el menú del lápiz). Se abre una ventana.</li>
+          <li>Pulsa <span class="ui">Subir un archivo</span> en el menú del lápiz. Se abre una ventana.</li>
           <li>Pulsa <span class="ui">Elegir archivos</span> o arrastra tu archivo al recuadro. Si todo está bien verás <em>Archivo válido: 1 polígono</em>.</li>
           <li>Pulsa <span class="ui primario">Usar esta área</span>.</li>
         </ol>
@@ -351,21 +354,21 @@ dl.glosario dd{margin:0;color:var(--ink-2)}
         </div>
         <div class="aviso">
           <strong>El archivo debe traer polígonos y su sistema de coordenadas</strong>
-          <p>Si el shapefile no trae <code>.prj</code> y sus coordenadas están en metros, la app te avisa en lugar de ubicar el área en un lugar equivocado. Si el archivo solo tiene puntos o líneas, también lo rechaza: necesita el contorno cerrado de la cuenca. Un área subida también se puede ajustar después.</p>
+          <p>Si el shapefile no trae <code>.prj</code> y sus coordenadas están en metros, la app te avisa en lugar de ubicar el área en un lugar equivocado. Si el archivo solo tiene puntos o líneas, también lo rechaza: necesita el contorno cerrado del área. Un área subida también se puede ajustar después.</p>
         </div>
 
         <h3>El buffer</h3>
-        <p>Las estaciones cercanas al límite de la cuenca suelen ser útiles para la interpolación y el relleno de datos, aunque estén por fuera. Para incluirlas se usa el <strong>buffer</strong>: una franja alrededor del contorno, dibujada en naranja punteado.</p>
+        <p>Las estaciones cercanas al límite del área suelen ser útiles para la interpolación y el relleno de datos, aunque estén por fuera. Para incluirlas se usa el <strong>buffer</strong>: una franja alrededor del contorno, dibujada en naranja punteado. En el panel es una píldora pequeña, <span class="ui">Buffer · 2 km</span>; al pulsarla se abre su ajuste:</p>
         <ul>
-          <li>El interruptor <span class="ui">Incluir estaciones cercanas (buffer)</span> viene encendido.</li>
-          <li><span class="ui">Ancho del buffer</span> va de 0,5 a 15 km (2 km por defecto).</li>
+          <li>El interruptor <span class="ui">Incluir estaciones cercanas</span> viene encendido. Apagado, la píldora dice <span class="ui">Sin buffer</span>.</li>
+          <li><span class="ui">Ancho del buffer (km)</span> va de 0,5 a 15 km (2 km por defecto); los botones <span class="ui">−</span> y <span class="ui">+</span> lo cambian de 0,5 en 0,5 km.</li>
           <li>Cada estación queda marcada como <em>en el área</em> o <em>en el buffer</em>, y el ZIP mantiene esa información.</li>
         </ul>
       </section>
 
       <section id="estaciones">
         <h2><span class="etiqueta">EL MAPA</span>Estaciones en el mapa</h2>
-        <p>Todo se recalcula solo cuando cambias algo: el área, el buffer o las estaciones que incluyes. El botón de la esquina del panel lo oculta para ver más mapa; <span class="ui">Panel</span>, arriba a la izquierda, lo vuelve a mostrar.</p>
+        <p>Todo se recalcula solo cuando cambias algo: el área, el buffer o las estaciones que incluyes. En el computador, el botón de la esquina del panel lo oculta para ver más mapa; <span class="ui">Consulta</span>, arriba a la izquierda, lo vuelve a mostrar.</p>
         <h3>Qué significa cada punto</h3>
         <p>El color de cada estación indica su clase de cobertura del periodo consultado (ver <a href="#cobertura">Cobertura del periodo</a>):</p>
         <div class="clases" aria-label="Colores de las estaciones">
@@ -375,7 +378,7 @@ dl.glosario dd{margin:0;color:var(--ink-2)}
           <div class="clase"><span class="punto" style="background:var(--critica)"></span><b>Crítica</b><span>0–25 %</span></div>
         </div>
         <ul>
-          <li><strong>Puntos grises y huecos:</strong> estaciones sin datos de ese parámetro en tu periodo. No se pueden descargar.</li>
+          <li><strong>Puntos grises y huecos:</strong> estaciones sin datos de esa variable en tu periodo. No se pueden descargar.</li>
           <li><strong>Punto hueco con borde punteado:</strong> una estación que quitaste de la descarga (ver <a href="#revisar">Revisar las estaciones</a>).</li>
           <li><strong>Borde naranja:</strong> la altitud que dice el catálogo no coincide con el terreno (ver <a href="#altitud">Altitud dudosa</a>).</li>
           <li><strong>Anillo azul:</strong> la estación que tienes seleccionada.</li>
@@ -395,7 +398,7 @@ dl.glosario dd{margin:0;color:var(--ink-2)}
         <ul>
           <li><strong>Animación de entrada:</strong> la primera vez que abres el 3D con un área, una animación satelital cubre la pantalla mientras el relieve se carga por detrás. Puedes saltarla con <span class="ui">Saltar animación</span> o la tecla <span class="ui">Esc</span>, y verla otra vez con el botón ↻ junto a la textura. No se reproduce en el celular ni en modo Lite. Si tu equipo pide reducir el movimiento, no se reproduce sola, pero el botón ↻ la muestra si quieres verla.</li>
           <li>El relieve está <strong>exagerado ×2</strong> para que los desniveles se noten. Cada pin se apoya en el terreno real.</li>
-          <li>En 3D solo aparecen las estaciones que tienen serie del parámetro elegido.</li>
+          <li>En 3D solo aparecen las estaciones que tienen serie de la variable elegida.</li>
           <li><strong>Vuelta de cámara:</strong> al abrir el 3D, la cámara da una vuelta lenta alrededor del centro de las estaciones, para que veas dónde queda cada una respecto a las montañas. Si eliges una estación, la vuelta es alrededor de ella. Cualquier interacción con el mapa la detiene.</li>
           <li><strong>Girar e inclinar:</strong> Ctrl + arrastrar en el computador; rueda del mouse para acercar. En el celular, arrastra para moverte y pellizca para acercar. La cápsula de la derecha hace lo mismo sin gestos: acercar, alejar, girar, inclinar y orientar al norte.</li>
           <li><strong>Clic en un pin</strong> para seleccionar la estación. Pasa el cursor para ver su ficha.</li>
@@ -418,7 +421,7 @@ dl.glosario dd{margin:0;color:var(--ink-2)}
           <p>La app expresa ese número como porcentaje del total que tendría una serie ininterrumpida en todo tu periodo. Así que el porcentaje te dice cuánto de tu periodo alcanza a cubrir el registro de la estación, no qué tan densa es la serie por dentro. Una estación con 100 % puede tener vacíos importantes: significa que su registro empieza antes y termina después de tu periodo.</p>
           <p>Sirve para descartar estaciones cuyo registro no llega a tu periodo. Los huecos reales se revisan en los Excel descargados.</p>
         </div>
-        <p>Con ese porcentaje, cada estación cae en una clase de <strong>cobertura</strong> del periodo consultado. Si dejas marcada la opción de carpetas (en los ajustes avanzados del paso 1), cada Excel va en la carpeta de su clase:</p>
+        <p>Con ese porcentaje, cada estación cae en una clase de <strong>cobertura</strong> del periodo consultado. Si dejas marcada la opción de carpetas (en el paso 1), cada Excel va en la carpeta de su clase:</p>
         <div class="clases">
           <div class="clase"><span class="punto" style="background:var(--alta)"></span><b>Alta</b><span>70–100 %</span><code>1_Cobertura_Alta_70_100</code></div>
           <div class="clase"><span class="punto" style="background:var(--media)"></span><b>Media</b><span>50–70 %</span><code>2_Cobertura_Media_50_70</code></div>
@@ -435,9 +438,9 @@ dl.glosario dd{margin:0;color:var(--ink-2)}
           <table>
             <thead><tr><th>Cifra</th><th>Qué dice</th></tr></thead>
             <tbody>
-              <tr><td><strong>Estaciones listas</strong></td><td>Cuántas se van a descargar, de cuántas tienen datos de ese parámetro en tu periodo.</td></tr>
-              <tr><td><strong>Cobertura media</strong></td><td>El promedio de la cantidad probable de esas estaciones: qué parte del periodo cubren sus registros.</td></tr>
-              <tr><td><strong>Registros probables</strong></td><td>Cuántos registros cabrían, en total, entre el primer y el último dato de cada estación dentro del periodo (un máximo: no descuenta los faltantes), y cuánto tardaría la descarga, aproximadamente. Pasa el cursor para ver cuántas consultas al IDEAM hará.</td></tr>
+              <tr><td><strong>Estaciones encontradas</strong></td><td>Cuántas estaciones del IDEAM hay en el área y el buffer, y cuántas de ellas no tienen información de esa variable en tu periodo.</td></tr>
+              <tr><td><strong>Cobertura media del periodo</strong></td><td>El promedio de la cantidad probable de las estaciones marcadas: qué parte del periodo cubren sus registros.</td></tr>
+              <tr><td><strong>Tamaño del ZIP</strong></td><td>El peso aproximado del archivo que vas a descargar y cuánto tardaría la descarga (por ejemplo, <em>3 min 20 s aprox.</em>). Es una estimación hecha con los registros probables, que no descuentan los faltantes. Pasa el cursor para ver cuántos registros y consultas al IDEAM implica.</td></tr>
             </tbody>
           </table>
         </div>
@@ -448,16 +451,16 @@ dl.glosario dd{margin:0;color:var(--ink-2)}
           <li>Haz clic en el nombre de una estación para seleccionarla: el mapa viaja hasta ella y aparece su ficha.</li>
           <li>Debajo, cuántas están en el área y cuántas en el buffer, y cuántas tienen datos del último año.</li>
         </ul>
-        <p>Una nota al final recuerda que los datos recientes pueden estar en nivel preliminar y sujetos a cambios (ver <a href="#aprobacion">Niveles de aprobación</a>).</p>
+        <p>Una nota breve al final recuerda que los datos recientes pueden ser preliminares; <span class="ui">Ver más</span> lo explica (ver <a href="#aprobacion">Niveles de aprobación</a>).</p>
         <h3>La ficha de la estación seleccionada</h3>
-        <p>Al seleccionar una estación (en la lista o en el mapa) aparece su ficha flotante: código, altitud, si está en el área o en el buffer, cobertura y años de la serie. Si no tiene datos del parámetro, lo dice: <em>Sin serie de este parámetro en DHIME</em>. El interruptor <span class="ui">Incluir en la descarga</span> la quita o la vuelve a poner, <span class="ui">Ver en 3D</span> la muestra en el relieve y <span class="ui">Cerrar</span> cierra la ficha.</p>
+        <p>Al seleccionar una estación (en la lista o en el mapa) aparece su ficha flotante: código, altitud, si está en el área o en el buffer, cobertura y años de la serie. Si no tiene datos de la variable, lo dice: <em>Sin serie de esta variable en DHIME</em>. El interruptor <span class="ui">Incluir en la descarga</span> la quita o la vuelve a poner, <span class="ui">Ver en 3D</span> la muestra en el relieve y <span class="ui">Cerrar</span> cierra la ficha.</p>
       </section>
 
       <section id="altitud">
         <h2><span class="etiqueta">REVISIÓN AUTOMÁTICA</span>Altitud dudosa</h2>
         <p>La app compara la altitud que dice el catálogo del IDEAM con la altura real del terreno en el punto de la estación, según un modelo de elevación. Si se alejan <strong>más de 200 m</strong>, la estación queda marcada.</p>
         <ul>
-          <li>En el panel aparece una línea ámbar: <span class="ui">⚠ N estaciones con altitud dudosa</span>. Al abrirla ves la explicación y la lista con la altitud del catálogo, la del relieve y la diferencia. Elige una y el mapa pasa a 3D para mostrarla.</li>
+          <li>En el panel aparece una línea discreta: <span class="ui">⚠ N estaciones con altitud dudosa</span>. Al abrirla ves la explicación y la lista con la altitud del catálogo, la del relieve y la diferencia. Elige una y el mapa pasa a 3D para mostrarla.</li>
           <li>En la ficha de la estación, <span class="ui">⚠ Altitud dudosa · Ver detalles</span> explica el caso, y <span class="ui">Ver en 3D</span> la muestra en el relieve.</li>
           <li>En 3D, un <strong>círculo naranja</strong> unido por una línea al pin marca dónde quedaría la estación con la altitud del catálogo. Se ve aunque quede "bajo tierra".</li>
         </ul>
@@ -470,9 +473,9 @@ dl.glosario dd{margin:0;color:var(--ink-2)}
       <section id="descarga">
         <h2><span class="etiqueta">PASO 4</span>Exportación</h2>
         <ol>
-          <li>Pulsa <span class="ui primario">Preparar descarga</span>, abajo a la derecha. Si está gris, pasa el cursor sobre el botón: dice qué falta (por ejemplo, marcar el área o al menos una estación).</li>
+          <li>Pulsa <span class="ui primario">Preparar descarga</span>, abajo a la derecha. Si está gris, pasa el cursor sobre el botón: dice qué falta (por ejemplo, delimitar el área o seleccionar al menos una estación).</li>
           <li>El mapa queda detrás y aparece una tarjeta con el <strong>avance real</strong>: el porcentaje, una barra y el tiempo que falta, más cuántas estaciones van, cuántas se guardaron y cuántas se omitieron.</li>
-          <li>A la derecha (en el celular, debajo) está el <strong>recibo</strong> de lo que pediste: parámetro y frecuencia, periodo, número de estaciones (en el área y en el buffer), cómo viene el archivo y la fuente. Debajo, las condiciones de uso de los datos (ver <a href="#uso-datos">Uso de los datos y citación</a>).</li>
+          <li>A la derecha (en el celular, debajo) está el <strong>recibo</strong> de lo que pediste: variable y frecuencia, periodo, número de estaciones (en el área y en el buffer), la lista de lo que trae el ZIP (un Excel por estación, las carpetas por cobertura si las elegiste, <code>resumen_descarga.csv</code> y <code>CITACION.txt</code>) y la fuente. Debajo, las condiciones de uso de los datos (ver <a href="#uso-datos">Uso de los datos y citación</a>).</li>
           <li>Al terminar, la tarjeta muestra un resumen: cuántas estaciones se guardaron y cómo se reparten por cobertura.</li>
         </ol>
         <h3>Detener o esperar turno</h3>
@@ -485,7 +488,7 @@ dl.glosario dd{margin:0;color:var(--ink-2)}
         <ol>
           <li>En <span class="ui">Nombre del archivo ZIP</span> viene un nombre sugerido, como <code>IDEAM_PTPM_CON_20000101-20201231</code>. Si quieres otro (por ejemplo <em>descarga 1</em>), escríbelo; el <code>.zip</code> se agrega solo.</li>
           <li>Pulsa <span class="ui primario">Descargar el ZIP</span>.</li>
-          <li>Con <span class="ui">Volver al mapa</span> ajustas y descargas otra vez (desde ahí, la píldora del panel te lleva a cambiar el parámetro o el periodo); con <span class="ui">Nueva consulta</span> empiezas de cero.</li>
+          <li>Con <span class="ui">Volver al mapa</span> ajustas y descargas otra vez (desde ahí, el nombre de la variable en el panel te lleva a cambiar la variable o el periodo); con <span class="ui">Nueva consulta</span> empiezas de cero.</li>
         </ol>
       </section>
 
@@ -550,15 +553,15 @@ dl.glosario dd{margin:0;color:var(--ink-2)}
       <section id="problemas">
         <h2><span class="etiqueta">AYUDA</span>Problemas frecuentes</h2>
         <details>
-          <summary>No aparece ninguna estación en mi cuenca</summary>
+          <summary>No aparece ninguna estación en mi área</summary>
           <p>Puede que en esa área no haya estaciones del IDEAM. Enciende el buffer o aumenta su distancia para incluir las cercanas.</p>
         </details>
         <details>
           <summary>Hay estaciones, pero ninguna queda para descargar</summary>
           <ul>
             <li>Revisa la lista del panel: puede que hayas desmarcado todas. Marca al menos una.</li>
-            <li>Cambia el periodo (con la píldora de arriba del panel): muchas estaciones solo tienen datos de ciertas décadas.</li>
-            <li>Revisa el parámetro: una estación puede tener precipitación pero no temperatura. En la ficha lo verás como <em>Sin serie de este parámetro en DHIME</em>.</li>
+            <li>Cambia el periodo (con el nombre de la variable, en el panel): muchas estaciones solo tienen datos de ciertas décadas.</li>
+            <li>Revisa la variable: una estación puede tener precipitación pero no temperatura. En la ficha lo verás como <em>Sin serie de esta variable en DHIME</em>.</li>
           </ul>
         </details>
         <details>
@@ -566,7 +569,7 @@ dl.glosario dd{margin:0;color:var(--ink-2)}
           <ul>
             <li>Súbelo en un ZIP con <code>.shp</code>, <code>.shx</code>, <code>.dbf</code> y <code>.prj</code>.</li>
             <li>Sin <code>.prj</code> la app no sabe dónde está en el mundo. Expórtalo de nuevo desde tu SIG con el sistema de coordenadas.</li>
-            <li>Debe ser un polígono: un shapefile de puntos o líneas no sirve como cuenca.</li>
+            <li>Debe ser un polígono: un shapefile de puntos o líneas no sirve como área.</li>
           </ul>
         </details>
         <details>

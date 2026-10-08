@@ -14,7 +14,10 @@ from modules.calidad import clasificar_calidad
 # publico (Visible = true); el resto son internos o de prueba.
 # ===========================================================================
 
-# Frecuencias en el orden en que se muestran
+# Serie de tiempo y frecuencia, como en la pagina del IDEAM:
+#   - Estandar: se elige solo la variable (cada parametro ya trae su frecuencia: diaria, mensual, horaria...)
+#   - Especial: primero la frecuencia y luego la variable. Agrupa las series decadales y multianuales del IDEAM
+#     y las de alta frecuencia (cada pocos minutos), que el IDEAM entrega de a un mes por consulta
 FRECUENCIAS_NORMALES = ["Diario", "Mensual", "Anual", "Horario", "03 Veces al Día", "02 Veces al Día"]
 # Datos cada pocos minutos: el IDEAM solo entrega 1 mes por consulta
 FRECUENCIAS_AVANZADAS = ["Cada 10 Minutos", "Cada 05 Minutos", "Cada 02 Minutos", "Minutal"]
@@ -25,6 +28,48 @@ SEGUNDOS_POR_FRECUENCIA = {
     "03 Veces al Día": 8 * 3600, "02 Veces al Día": 12 * 3600, "Horario": 3600,
     "Cada 10 Minutos": 600, "Cada 05 Minutos": 300, "Cada 02 Minutos": 120, "Minutal": 60,
 }
+
+
+def _normal(texto):
+    return re.sub(r"\s+", " ", str(texto or "")).strip().lower()
+
+
+def es_decadal_o_multianual(frecuencia):
+    """Series especiales del IDEAM: decadales (cada 10 dias) y multianuales (valores de largo plazo)."""
+    f = _normal(frecuencia)
+    return "decad" in f or "década" in f or "multianual" in f
+
+
+def es_especial(frecuencia):
+    """True si la frecuencia va en "Especial": decadal, multianual o alta frecuencia (cada pocos minutos)."""
+    return es_decadal_o_multianual(frecuencia) or frecuencia in FRECUENCIAS_AVANZADAS
+
+
+def segundos_de(frecuencia):
+    """Segundos entre datos de una frecuencia (por defecto, un dia)."""
+    if frecuencia in SEGUNDOS_POR_FRECUENCIA:
+        return SEGUNDOS_POR_FRECUENCIA[frecuencia]
+    f = _normal(frecuencia)
+    if "multianual" in f:
+        return 30 * 86400   # un valor por mes del ano (promedios de largo plazo)
+    if "decad" in f or "década" in f:
+        return 10 * 86400
+    return 86400
+
+
+def nombre_frecuencia(frecuencia):
+    """Frecuencia legible: "Cada 05 Minutos" -> "Cada 5 minutos", "03 Veces al Día" -> "3 veces al día"."""
+    f = re.sub(r"\b0(\d)", r"\1", str(frecuencia)).strip().lower()
+    return f[:1].upper() + f[1:]
+
+
+def frecuencias_especiales(catalogo):
+    """Frecuencias de "Especial" presentes en el catalogo: decadales y multianuales primero, luego las de alta
+    frecuencia (de la menos a la mas densa)."""
+    presentes = {p["frecuencia"] for p in catalogo}
+    raras = sorted((f for f in presentes if es_decadal_o_multianual(f)),
+                   key=lambda f: (0 if "decad" in _normal(f) or "década" in _normal(f) else 1, _normal(f)))
+    return raras + [f for f in FRECUENCIAS_AVANZADAS if f in presentes]
 
 # Excel no admite mas de 1.048.576 filas por hoja
 MAX_FILAS_EXCEL = 1_000_000
@@ -59,7 +104,7 @@ def obtener_catalogo_parametros():
     """
     Lista de parametros publicos del IDEAM, cada uno como dict:
     variable, variable_nombre, etiqueta, descripcion, unidad, frecuencia,
-    avanzado (True si es de datos cada pocos minutos) y dias_bloque
+    avanzado (True si es de datos cada pocos minutos), especial (True si va en la serie "Especial") y dias_bloque
     (dias maximos por consulta; el servidor rechaza consultas mas largas).
     """
     token = ideam_downloader.obtener_token()
@@ -88,6 +133,7 @@ def obtener_catalogo_parametros():
                     "unidad": p.get("Unidad") or "",
                     "frecuencia": frecuencia,
                     "avanzado": frecuencia in FRECUENCIAS_AVANZADAS,
+                    "especial": es_especial(frecuencia),
                     "dias_bloque": max(1, int(anios * 360)),
                 })
     return catalogo
@@ -113,7 +159,7 @@ def parametros_disponibles(catalogo, variable, frecuencia):
 
 def filas_estimadas(param, fecha_ini, fecha_fin):
     """Cuantos datos (filas de Excel) puede traer una estacion en ese rango."""
-    segundos = SEGUNDOS_POR_FRECUENCIA.get(param["frecuencia"], 86400)
+    segundos = segundos_de(param["frecuencia"])
     return int(((fecha_fin - fecha_ini).days + 1) * 86400 // segundos)
 
 
@@ -129,7 +175,7 @@ def get_metadata_availability(estaciones_df, param, fecha_ini, fecha_fin):
     if estaciones_df is None or estaciones_df.empty: return None
 
     series = ideam_downloader.obtener_series_disponibles(param["etiqueta"])
-    periodo_nominal = SEGUNDOS_POR_FRECUENCIA.get(param["frecuencia"], 86400)
+    periodo_nominal = segundos_de(param["frecuencia"])
 
     # Rango pedido: desde fecha_ini 00:00 hasta el final del dia fecha_fin
     rango_ini = datetime.combine(fecha_ini, datetime.min.time())

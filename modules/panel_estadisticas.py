@@ -11,9 +11,9 @@ from modules.terreno import ALTITUD_DUDOSA_M
 
 # ===========================================================================
 # TABLERO DE CALIDAD (panel de la pantalla del mapa) Y FICHA DE LA ESTACION
-# Tres cifras (estaciones listas, cobertura media y registros probables), un
-# aviso de altitud dudosa y la lista de estaciones con casillas para quitar o
-# volver a incluir cada una en la descarga.
+# Tres cifras (estaciones encontradas, cobertura media y tamano del ZIP con el
+# tiempo aproximado), un aviso de altitud dudosa y la lista de estaciones con
+# casillas para quitar o volver a incluir cada una en la descarga.
 # ===========================================================================
 
 
@@ -21,15 +21,31 @@ def _num(n):
     return f"{n:,.0f}".replace(",", ".")
 
 
+# Tamano del ZIP: una fila del Excel del IDEAM ocupa unos 50 bytes ya comprimida (hoja con celdas combinadas por
+# fila; medido con una hoja del mismo formato) y cada Excel suma su logo, estilos y encabezado
+BYTES_POR_REGISTRO = 50
+BYTES_POR_EXCEL = 30_000
+
+
 def duracion_aprox(segundos):
-    """Duracion estimada en palabras ("≈ 2 min"): el formato de reloj (01:54) se presta a confusion en una estimacion."""
-    s = max(0, int(segundos))
-    if s < 60:
-        return "menos de 1 min"
-    if s < 3600:
-        return f"≈ {round(s / 60)} min"
-    horas, minutos = divmod(round(s / 60), 60)
-    return f"≈ {horas} h {minutos} min" if minutos else f"≈ {horas} h"
+    """Duracion estimada corta: "40 s aprox.", "3 min 20 s aprox.", "1 h 05 min aprox."."""
+    return f"{ideam_downloader.duracion_texto(max(5, segundos))} aprox."
+
+
+def peso_zip(registros, n_estaciones):
+    """Bytes aproximados del ZIP (Excel por estacion, resumen y cita)."""
+    return registros * BYTES_POR_REGISTRO + n_estaciones * BYTES_POR_EXCEL + 2_000
+
+
+def tamano_txt(n_bytes):
+    """Tamano legible: "850 kB", "2,4 MB", "68 MB", "1,3 GB"."""
+    if n_bytes < 1_000_000:
+        return f"{max(1, round(n_bytes / 1000))} kB"
+    if n_bytes < 10_000_000:
+        return f"{n_bytes / 1_000_000:.1f} MB".replace(".", ",")
+    if n_bytes < 1_000_000_000:
+        return f"{round(n_bytes / 1_000_000)} MB"
+    return f"{n_bytes / 1_000_000_000:.1f} GB".replace(".", ",")
 
 
 def registros_txt(n):
@@ -181,7 +197,7 @@ def tarjeta_seleccionada(fila, rango=None, vista="2D", descargable=False):
         st.caption(f"Cobertura **{fila['Porcentaje (%)']:.0f} %** ({str(fila.get('Clase calidad', '')).lower()}) · "
                    f"serie {str(fila.get('Inicio serie'))[:4]}–{str(fila.get('Fin serie'))[:4]}")
     elif serie == "No":
-        st.caption("Sin serie de este parámetro en DHIME")
+        st.caption("Sin serie de esta variable en DHIME")
     if descargable:
         ss[f"incluir_{codigo}"] = codigo not in ss.get("excluidas", set())
         st.toggle("Incluir en la descarga", key=f"incluir_{codigo}", on_change=_incluir, args=(codigo,))
@@ -200,17 +216,19 @@ def tarjeta_seleccionada(fila, rango=None, vista="2D", descargable=False):
 def tablero(zona, descargables, seleccion, param, cifras, dudosas=None, rango=None):
     """Tablero de calidad: cifras, aviso de altitud dudosa y lista de estaciones con casillas."""
     ss = st.session_state
-    n_sel, n_desc = len(seleccion), len(descargables)
+    n_sel, n_desc, n_zona = len(seleccion), len(descargables), len(zona)
+    sin_info = n_zona - n_desc
     kpis([
-        (n_sel, "Estaciones listas", f"de {n_desc} con datos" if n_desc != n_sel else f"{len(zona)} en la zona",
-         f"Estaciones que se van a descargar. {n_desc} tienen datos de este parámetro en el periodo, de {len(zona)} en "
-         "el área y el buffer."),
-        (f"{seleccion['Porcentaje (%)'].mean():.0f} %" if n_sel else "–", "Cobertura media", "del periodo",
-         "Promedio de la cantidad probable: qué parte del periodo consultado cubre el registro de las estaciones "
-         "que se van a descargar (no descuenta los huecos internos)."),
-        (registros_txt(cifras["datos"]), "Registros probables", duracion_aprox(cifras["segundos"]) + " de descarga",
-         f"Registros que cabrían entre el primer y el último dato de cada estación dentro del periodo. No descuenta los "
-         f"datos faltantes. La descarga hace {cifras['bloques']} consultas al IDEAM de hasta {param['dias_bloque']} días."),
+        (n_zona, "Estaciones encontradas",
+         f"{sin_info} {'estaciones' if sin_info != 1 else 'estación'} sin información" if sin_info else "Todas con información",
+         f"Estaciones del IDEAM en el área y el buffer. {n_desc} tienen datos de esta variable en el periodo."),
+        (f"{seleccion['Porcentaje (%)'].mean():.0f} %" if n_sel else "–", "Cobertura media del periodo", "",
+         "Promedio de la cantidad probable de las estaciones seleccionadas: qué parte del periodo consultado cubre su "
+         "registro (no descuenta los huecos internos)."),
+        (f"≈ {tamano_txt(peso_zip(cifras['datos'], n_sel))}" if n_sel else "–", "Tamaño del ZIP",
+         duracion_aprox(cifras["segundos"]) if n_sel else "",
+         f"Estimación para {n_sel} {'estaciones' if n_sel != 1 else 'estación'} y {registros_txt(cifras['datos'])} "
+         f"registros probables. La descarga hace {cifras['bloques']} consultas al IDEAM de hasta {param['dias_bloque']} días."),
     ])
 
     # Estaciones cuya altitud del catalogo no cuadra con el relieve real: una linea ambar; el detalle adentro
@@ -235,14 +253,15 @@ def tablero(zona, descargables, seleccion, param, cifras, dudosas=None, rango=No
                                "Diferencia": st.column_config.NumberColumn(format="%+d m", help="Catálogo menos relieve")})
 
     if param.get("avanzado") and n_sel:
-        st.warning(f"Descarga avanzada: {cifras['bloques']} consultas de {param['dias_bloque']} días "
-                   f"(≈ {cifras['bloques'] // max(1, n_sel)} por estación).", icon=":material/hourglass_top:")
+        detalles(f"Serie de alta frecuencia: {cifras['bloques']} consultas al IDEAM.",
+                 f"<p>El IDEAM entrega estas series de a {param['dias_bloque']} días por consulta "
+                 f"(≈ {cifras['bloques'] // max(1, n_sel)} por estación), así que la descarga tarda más.</p>", ver="Ver más")
 
     # Lista con casillas: marcada = se descarga. Un clic en el nombre selecciona la estacion
     tabla = tabla_lista(descargables)
     codigos = list(tabla["Código"])
     excluidas = set(ss.get("excluidas", set()))
-    md(f'<div class="y2k-lista-cab"><span>Marca las que quieres descargar</span>'
+    md(f'<div class="y2k-lista-cab"><span>Estaciones a descargar</span>'
        f'<span><b>{n_sel}</b> de {n_desc}</span></div>')
     clave = f"lista_{abs(hash(tuple(codigos))) % 10 ** 8}_{ss.get('version_lista', 0)}"
     colores = tabla["color"].tolist()
@@ -268,7 +287,7 @@ def tablero(zona, descargables, seleccion, param, cifras, dudosas=None, rango=No
     detalles("Los datos recientes pueden ser preliminares.",
              "<p>Cada dato del IDEAM tiene un nivel de aprobación (preliminar, en revisión o definitivo); los "
              "preliminares pueden cambiar. Cada Excel lo indica en la columna «Nivel de Aprobación».</p>",
-             ver="Nivel de aprobación")
+             ver="Ver más")
 
 
 def reparto_cobertura(colores):

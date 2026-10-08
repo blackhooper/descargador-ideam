@@ -1,6 +1,6 @@
 // Reproductor de la intro satelital (del mapa 2D al despliegue 3D).
 // Se carga como modulo en la pagina de Streamlit (ver terreno.INTRO_SATELITAL) y deja window.__y2kSat.reproducir().
-// Dibuja la escena 3D (satellite-scene.js) y encima la interfaz (HUD), todo en una capa que tapa el visor 3D mientras
+// Dibuja la escena 3D (satellite-scene.js) y encima la interfaz (HUD), todo en una capa que tapa la ventana mientras
 // el relieve real se carga por detras. Al terminar hace el "encendido" tipo monitor y libera la memoria grafica.
 import { satelliteImage } from './satimg.js';
 import { crearMosaico, cajaDe } from './mosaico.js';
@@ -316,11 +316,14 @@ function armarPanel(R, S, TUNE, mod) {
   };
 }
 
-// ---- capa que tapa el visor 3D ----
-function armarCapa(visor, geom) {
+// ---- capa que tapa la ventana mientras se arma el 3D ----
+// Va directo en <body> (fija, encima de los controles de vidrio): si viviera dentro de un contenedor de Streamlit,
+// este podria rehacerse al pasar del 2D al 3D y la animacion se perderia sin aviso.
+function armarCapa() {
   const ov = document.createElement('div');
   ov.className = 'y2k-sat';
-  ov.style.cssText = (geom ? 'position:absolute;left:0;width:100%;top:' + geom.top + 'px;height:' + geom.height + 'px;' : 'position:absolute;inset:0;') + 'z-index:30;background:#000;overflow:hidden;border-radius:12px;display:flex;align-items:center;justify-content:center;pointer-events:auto';
+  ov.setAttribute('role', 'region'); ov.setAttribute('aria-label', 'Animación de entrada al 3D');
+  ov.style.cssText = 'position:fixed;inset:0;z-index:60;background:#000;overflow:hidden;display:flex;align-items:center;justify-content:center;pointer-events:auto';
   const stage = document.createElement('div');
   stage.style.cssText = 'position:relative;width:100%;aspect-ratio:16/9;background:#000;overflow:hidden';
   const host = document.createElement('div'); host.style.cssText = 'position:absolute;inset:0';
@@ -346,9 +349,10 @@ function armarCapa(visor, geom) {
   const saltar = document.createElement('button');
   saltar.type = 'button';
   saltar.textContent = 'Saltar animación';
-  saltar.style.cssText = 'all:unset;cursor:pointer;position:absolute;right:10px;bottom:10px;z-index:41;background:rgba(4,14,26,.7);color:#d8f6ff;border:1px solid #35f0ff55;border-radius:8px;padding:5px 12px;font:600 12px ' + sans;
+  saltar.title = 'Saltar animación (Esc)';
+  saltar.style.cssText = 'all:unset;cursor:pointer;position:absolute;right:20px;bottom:20px;z-index:41;background:rgba(4,14,26,.7);color:#d8f6ff;border:1px solid #35f0ff55;border-radius:999px;padding:10px 16px;font:600 13px ' + sans;
   ov.append(arriba, abajo, linea, saltar);
-  visor.appendChild(ov);
+  document.body.appendChild(ov);
   const ajustar = () => {
     const w = ov.clientWidth, hh = ov.clientHeight, ancho = Math.min(w, hh * 16 / 9);
     stage.style.width = ancho + 'px'; stage.style.height = (ancho * 9 / 16) + 'px';
@@ -356,7 +360,6 @@ function armarCapa(visor, geom) {
   ajustar();
   const ro = new ResizeObserver(ajustar); ro.observe(ov);
   return { ov, stage, host, img, svg, scan, white, black, msg, arriba, abajo, linea, saltar,
-    mover(v) { v.appendChild(ov); ov.style.top = ''; ov.style.left = ''; ov.style.width = ''; ov.style.height = ''; ov.style.inset = '0'; },
     cerrar() { ro.disconnect(); ov.remove(); } };
 }
 
@@ -389,18 +392,17 @@ async function precalentar(p) {
 async function reproducir(o) {
   const w = window;
   if (w.__y2kSatActual) { try { w.__y2kSatActual.cancelar(); } catch (e) { /* ya terminada */ } }
-  const visor = o.visor || o.host;
   if (o.clave) w.__y2kSatUltima = o.clave;   // el clic en 3D no vuelve a arrancar una intro temprana para esta cuenca
-  visor.querySelectorAll('.y2k-sat').forEach(e => e.remove());
-  const R = armarCapa(visor, o.geom);
+  document.querySelectorAll('.y2k-sat').forEach(e => e.remove());
+  const R = armarCapa();
   let vivo = true, raf = 0, api = null;
   const S = { T: 0, playing: true, speed: 1, fase: 'carga', saltar: false, Tend: 16.5, api: null,
     holdEnd: guardado.leer('holdEnd', false), vistaAuto: guardado.leer('vistaAuto', true), vista: null, liviana: guardado.leer('liviana', false), lon: o.lon, lat: o.lat, defaults: null,
     buf: o.buffer !== false, n: o.n != null ? o.n : (o.estaciones || []).length };
   // la senal que espera el guion del visor 3D para empezar los lasers
   // Arranque temprano: la animacion empieza en el clic, sobre el mapa 2D, sin esperar al servidor (que tarda 2-3 s en
-  // dibujar el visor 3D). Cuando el visor llega, el guion de esa corrida la "adopta": la mueve dentro del visor
-  // y le pone el numero de turno. Si nadie la adopta en 20 s (el servidor decidio no hacer intro), se retira sola.
+  // dibujar el visor 3D). Cuando el visor llega, el guion de esa corrida la "adopta": le pone el numero de turno
+  // (la capa sigue en <body>, encima de todo). Si nadie la adopta en 20 s (el servidor decidio no hacer intro), se retira sola.
   const senal = () => { if (o.turno == null) { S.finPend = true; return; } w.__y2kIntroSatFin = o.turno; };
   const ctrl = {
     cancelar() { vivo = false; if (w.__y2kSatTemprano === ctrl) w.__y2kSatTemprano = null; limpiar(); },
@@ -408,10 +410,8 @@ async function reproducir(o) {
       clearTimeout(S.reloj); o.turno = P.turno;
       // si ya termino o fallo (p. ej. no cargo Three.js), no se vuelve a poner su capa negra sobre el 3D: solo se avisa
       if (!vivo) { if (w.__y2kSatTemprano === ctrl) w.__y2kSatTemprano = null; senal(); return; }
-      R.mover(v);
       if (P.buffer !== undefined) S.buf = P.buffer !== false;   // el servidor manda el estado real del buffer
       if (P.n != null) S.n = P.n;
-      if (o.host && o.host.style) o.host.style.position = o.posPrevia || '';
       if (w.__y2kSatTemprano === ctrl) w.__y2kSatTemprano = null;
       if (S.finPend) senal();
     },
@@ -423,11 +423,15 @@ async function reproducir(o) {
   }
   function limpiar() {
     cancelAnimationFrame(raf); clearTimeout(S.reloj);
-    if (o.host && o.host.style && o.posPrevia != null) o.host.style.position = o.posPrevia;
+    document.removeEventListener('keydown', tecla, true);
     if (api) { try { api.destroy(); } catch (e) { /* ya liberada */ } api = null; S.api = null; }
     R.cerrar();
   }
   R.saltar.addEventListener('click', () => { S.saltar = true; });
+  // Escape salta la animacion; el foco va al boton de saltar (la capa tapa toda la ventana)
+  const tecla = ev => { if (ev.key === 'Escape' && R.ov.isConnected) { S.saltar = true; ev.preventDefault(); } };
+  document.addEventListener('keydown', tecla, true);
+  try { R.saltar.focus({ preventScroll: true }); } catch (e) { /* sin foco */ }
   try {
     const mod = await import(urlEscena(o.version));
     const { TUNE, DUR } = mod;
@@ -499,7 +503,8 @@ async function reproducir(o) {
     };
     const bucle = now => {
       if (!vivo) return;
-      if (!R.ov.isConnected) { vivo = false; senal(); limpiar(); return; }
+      // la capa se fue, o ya adoptada el visor 3D desaparecio (volvio al 2D o cambio de pantalla): se termina
+      if (!R.ov.isConnected || (o.turno != null && !document.querySelector('.st-key-y2k_visor3d'))) { vivo = false; senal(); limpiar(); return; }
       const dt = Math.min(0.05, (now - ultimo) / 1000); ultimo = now;
       if (S.fase === 'play') {
         tick();
@@ -544,13 +549,8 @@ function alClic(ev) {
   if (w.matchMedia && w.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
   // en modo Lite no hay intro (el servidor tampoco la manda)
   if (w.getComputedStyle(d.documentElement).getPropertyValue('--y2k-lite').trim() === '1') return;
-  // la animacion cubre el escenario del mapa (que ocupa la pantalla); si no esta, el bloque de la vista
-  const bloque = d.querySelector('.st-key-y2k_escenario') || b.closest('[data-testid="stVerticalBlock"]');
-  if (!bloque) return;
   w.__y2kSatUltima = PRE.clave;
-  const posPrevia = bloque.style.position;
-  if (w.getComputedStyle(bloque).position === 'static') bloque.style.position = 'relative';
-  reproducir(Object.assign({}, PRE, { host: bloque, posPrevia, temprano: true, turno: null, geom: null }));
+  reproducir(Object.assign({}, PRE, { temprano: true, turno: null }));
 }
 if (window.__y2kSatClicFn) document.removeEventListener('click', window.__y2kSatClicFn, true);
 window.__y2kSatClicFn = alClic;

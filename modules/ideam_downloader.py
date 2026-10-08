@@ -17,9 +17,8 @@ import xml.etree.ElementTree as ET
 from xml.sax.saxutils import escape as xml_escape
 import openpyxl
 from openpyxl.utils import get_column_letter, column_index_from_string
-from html import escape as html_escape
 from modules.calidad import clasificar_calidad
-from modules import estilo, escena_descarga
+from modules import estilo
 
 # ---------------------------------------------------------------------------
 # MODO DEPURACION
@@ -954,33 +953,43 @@ def plan_descarga(estaciones_df, fecha_ini, fecha_fin, param):
     return plan, total_bloques, estimar_segundos(total_bloques, total_filas, len(plan))
 
 
+def duracion_texto(segundos):
+    """Duracion legible para la pantalla de exportacion: "40 s", "3 min 20 s", "1 h 05 min"."""
+    s = int(max(0, round(segundos)))
+    if s < 60:
+        return f"{s} s"
+    if s < 600:
+        m, seg = divmod(s, 60)
+        return f"{m} min {seg:02d} s" if seg else f"{m} min"
+    if s < 3600:
+        return f"{round(s / 60)} min"
+    h, m = divmod(round(s / 60), 60)
+    return f"{h} h {m:02d} min"
+
+
 def procesar_descargas(estaciones_df, clasificar_en_carpetas, fecha_ini, fecha_fin, param, ui):
     """
     Descarga todas las estaciones (4 a la vez) y arma el ZIP.
-    ui: dict de st.empty() donde se dibuja el avance: "barra", "estado",
-        "consola" y "oculto" (este ultimo lo lee la escena de la descarga).
-    Devuelve un dict con el zip y el resumen, o None si no hubo token.
+    ui: dict con un st.empty() en "progreso", donde se dibuja el avance real (barra, tiempo que falta y cifras).
+    Devuelve un dict con el zip y el resumen, o {"error": ...} si no hubo acceso al portal.
     """
     dias_bloque = param.get("dias_bloque", DIAS_POR_BLOQUE_DEFECTO)
     plan, total_bloques, segundos_estimados = plan_descarga(estaciones_df, fecha_ini, fecha_fin, param)
     total_estaciones = len(plan)
-    log_lines = []
     resumen = []
     colores = []   # uno por estacion terminada (color de su calidad; gris si se omitio)
 
     def log(texto, clase=""):
-        hora = datetime.datetime.now().strftime("%H:%M:%S")
-        log_lines.append(f'<div class="{clase}">[{hora}] {html_escape(texto)}</div>')
-        del log_lines[:-16]
-        ui["consola"].markdown('<div class="y2k-consola">' + "".join(log_lines) + "</div>", unsafe_allow_html=True)
+        """Registro interno: solo los avisos (estaciones omitidas, sesion vencida) van a la consola del servidor."""
+        if clase == "w":
+            print(f"[descarga] {texto}", flush=True)
 
     def pintar(fraccion, restante, terminado=False):
-        ui["barra"].markdown(estilo.barra_pixel(fraccion), unsafe_allow_html=True)
-        ui["estado"].markdown(
-            f'<div class="y2k-pmeta"><span><b>{fraccion:.0%}</b> · faltan ≈ <b>{formatear_duracion(restante)}</b></span>'
-            f'<span>Estaciones <b>{terminadas}/{total_estaciones}</b> · Guardadas <b>{guardadas}</b> · '
-            f'Omitidas <b>{terminadas - guardadas}</b></span></div>', unsafe_allow_html=True)
-        ui["oculto"].markdown(escena_descarga.estado_oculto(fraccion, colores, terminado), unsafe_allow_html=True)
+        principal = "Terminando…" if terminado else (f"Faltan ≈ {duracion_texto(restante)}" if restante >= 1
+                                                    else "Faltan unos segundos")
+        meta = (f"<span>Estaciones <b>{terminadas} de {total_estaciones}</b></span>"
+                f"<span>Guardadas <b>{guardadas}</b></span><span>Omitidas <b>{terminadas - guardadas}</b></span>")
+        ui["progreso"].markdown(estilo.progreso(fraccion, principal, meta), unsafe_allow_html=True)
 
     token_auth = obtener_token()
     if not token_auth:
@@ -1092,7 +1101,7 @@ def procesar_descargas(estaciones_df, clasificar_en_carpetas, fecha_ini, fecha_f
 
     # Igual que el portal: el IDEAM registra cada serie descargada (sin datos de la persona)
     registrar_descargas_ideam(param, guardadas, token_auth)
-    duracion = formatear_duracion(time.time() - inicio)
+    duracion = duracion_texto(time.time() - inicio)
     log(f"ZIP listo en {duracion} · incluye resumen_descarga.csv y CITACION.txt", "w")
     pintar(1.0, 0, terminado=True)
     return {

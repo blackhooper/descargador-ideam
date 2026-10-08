@@ -1762,6 +1762,11 @@ _UI = r"""
     map.eachLayer(enganchar);
     map.on("layeradd", function (e) { enganchar(e.layer); });
     map.on("baselayerchange", function (e) { map.__y2kBase = e.name; estadoCapas(); });
+    // mientras se dibuja o se ajustan las esquinas, el navegador no debe desplazar ni ampliar con el dedo: con el
+    // arrastre del mapa apagado, Leaflet deja "touch-action: pan-x pan-y" y Safari puede cortar el gesto a la mitad
+    var cont = map.getContainer();
+    map.on("draw:drawstart draw:editstart", function () { cont.style.touchAction = "none"; });
+    map.on("draw:drawstop draw:editstop", function () { cont.style.touchAction = ""; });
     map.on("zoomend", estadoArea);
     try { new w.ResizeObserver(function () { try { map.invalidateSize({pan: false}); } catch (e) {} }).observe(marco2d()); } catch (e) {}
     // el area recien montada (archivo, vuelta del 3D) se encuadra en la zona libre, no debajo del panel
@@ -1776,20 +1781,31 @@ _UI = r"""
     }, 250);
     estadoArea(); estadoCapas();
   }
-  // Herramientas: dibujar, ajustar las esquinas, capas y zoom (manejan los controles ocultos de Leaflet)
+  // Herramientas: dibujar, ajustar las esquinas, capas y zoom (manejan los controles ocultos de Leaflet).
+  // Dibujar y ajustar se activan por el manejador de Leaflet.draw: en iPhone, iPad y iPod sus botones responden al toque
+  // (touchstart) y no al clic, asi que pulsarlos con .click() no hacia nada. El clic queda solo de respaldo
+  function controlDibujo(win) {
+    if (win.__y2kDraw && win.__y2kDraw._toolbars) return win.__y2kDraw;
+    var k = Object.keys(win).find(function (x) { return x.indexOf("draw_control_") === 0 && win[x] && win[x]._toolbars; });
+    return (win.__y2kDraw = k ? win[k] : null);
+  }
+  function activarHerramienta(barra, modo, selector) {
+    var win = winMapa(), doc = docMapa();
+    if (!win || !doc) return false;
+    var ctl = controlDibujo(win), tb = ctl && ctl._toolbars && ctl._toolbars[barra];
+    var m = tb && tb._modes && tb._modes[modo];
+    if (m && m.handler) { if (!m.handler.enabled()) m.handler.enable(); return true; }
+    var a = doc.querySelector(selector);
+    if (a) a.click();
+    return !!a;
+  }
   function dibujarRectangulo() {
-    var doc = docMapa(), a = doc && doc.querySelector(".leaflet-draw-draw-rectangle");
-    if (!a) return;
     if (esMovil()) ponerHoja(false);
-    a.click();
-    try { marco2d().focus(); } catch (e) {}
+    if (activarHerramienta("draw", "rectangle", ".leaflet-draw-draw-rectangle")) try { marco2d().focus(); } catch (e) {}
   }
   function editarArea() {
-    var doc = docMapa(), a = doc && doc.querySelector(".leaflet-draw-edit-edit");
-    if (!a) return;
     if (esMovil()) ponerHoja(false);
-    a.click();
-    try { marco2d().focus(); } catch (e) {}
+    if (activarHerramienta("edit", "edit", ".leaflet-draw-edit-edit")) try { marco2d().focus(); } catch (e) {}
   }
   // "Borrar": en el 2D se quita el rectangulo en el navegador y se avisa al componente como si se hubiera borrado
   // con Leaflet.draw (Python recibe la lista vacia). Asi el mapa no se rehace y se queda el encuadre y el zoom.
@@ -2111,7 +2127,7 @@ _UI = r"""
 
 def instalar_ui():
     """Inyecta el guion de la interfaz en la pagina principal (sobrevive a las recargas de Streamlit)."""
-    codigo = (_UI.replace("__V__", "34").replace("__ICONO_ALERTA__", json.dumps(ICONOS["alerta"]))
+    codigo = (_UI.replace("__V__", "35").replace("__ICONO_ALERTA__", json.dumps(ICONOS["alerta"]))
               .replace("__MOVIL__", json.dumps(MOVIL)).replace("__VIDRIO__", json.dumps(VIDRIO)))
     cuerpo = ("(function(){var w=window.parent;var s=w.document.createElement('script');"
               f"s.textContent={json.dumps(codigo)};w.document.head.appendChild(s);s.remove();}})();")

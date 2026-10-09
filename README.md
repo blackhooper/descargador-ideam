@@ -2,7 +2,7 @@
 
 Consulta y descarga de series hidrometeorológicas del portal **DHIME del IDEAM** (Colombia) para todas las estaciones de un área (una cuenca, un municipio o cualquier zona). Es una herramienta independiente, no oficial del IDEAM.
 
-1. **Consulta**: eliges la serie de tiempo, como en la página del IDEAM, y el periodo. En la serie *estándar* (diaria, mensual, anual, horaria y de 2 o 3 datos al día) solo se elige la variable. En la *especial* primero se elige la frecuencia (decadal, multianual o de alta frecuencia: cada 10, 5 o 2 minutos) y luego la variable. Mientras tanto, el mapa y los datos del IDEAM se cargan por detrás.
+1. **Consulta**: eliges la serie de tiempo y el periodo, con las mismas listas que la página del IDEAM. En la serie *estándar* eliges la variable y luego el parámetro (series diarias, mensuales, anuales, horarias y de alta frecuencia; para Precipitación: día pluviométrico, total mensual y total anual). En la *especial* eliges la frecuencia (decadal o multianual), la variable y el parámetro con su cálculo, con el texto de la página: «Día pluviométrico |SUM [PTPM_CON]». Mientras tanto, el mapa y los datos del IDEAM se cargan por detrás.
 2. **Área y estaciones**: en el mapa dibujas un rectángulo o subes el contorno del área (shapefile en ZIP, GeoJSON, KML/KMZ o GeoPackage). La app muestra las estaciones del IDEAM que caen adentro, y en un buffer opcional. Para cada una calcula la **cantidad probable**: qué parte del periodo consultado cubre el registro de la estación, entre su primer y su último dato. Este valor no descuenta los huecos internos. Revisas la cobertura y defines qué estaciones incluir.
 3. **Descarga**: un ZIP con un Excel por estación, con el formato original del IDEAM y los bloques de años ya unidos. Antes de bajarlo eliges su nombre y si las estaciones van separadas en carpetas por cobertura del periodo. El ZIP incluye `resumen_descarga.csv` y `CITACION.txt` con la cita de la fuente.
 
@@ -68,8 +68,8 @@ La estructura y la estética se conectan solo por **nombres**: las claves de los
 | `modules/map_view.py` | Estructura | Mapa 2D (Leaflet vía `streamlit-folium`): capas base, herramienta de dibujo (oculta: la maneja la cápsula de herramientas), pines (también los excluidos) y fichas emergentes |
 | `modules/terreno.py` | Lógica + estructura | Vista 3D: relieve, textura por altura, pines, cámara, secuencia de entrada y guiones de la intro satelital |
 | `modules/escaner.py`, `modules/scan_overlay.js` | Estructura | Escáner del mapa 2D: animación mientras se calculan las estaciones y aparición de los pines en orden |
-| `modules/ideam_downloader.py` | Lógica | Token, consultas por bloques de años, fusión de los Excel, cupos y turnos, `CITACION.txt` |
-| `modules/ideam_parameters.py` | Lógica | Variables y parámetros visibles del portal, serie estándar o especial de cada frecuencia (`es_especial`, `frecuencias_especiales`), límites de años por frecuencia |
+| `modules/ideam_downloader.py` | Lógica | Token, consultas por bloques de años (`bloques_de`), tabla de la serie especial (`obtener_series_calculo`), fusión de los Excel, cupos y turnos, `CITACION.txt` |
+| `modules/ideam_parameters.py` | Lógica | Catálogo de la serie estándar y la especial como en el portal (`obtener_catalogo_parametros`, `variables_de`, `parametros_de`, `frecuencias_especiales`), límites de años por frecuencia y de la multianual (`periodo_excedido`), cantidad probable |
 | `modules/ideam_catalog.py` | Lógica | Catálogo de estaciones (caché en `data/ideam_catalogo_completo.geojson`) |
 | `modules/calidad.py` | Lógica | Clases de cobertura (alta ≥ 70 %, media ≥ 50 %, baja ≥ 25 %, crítica) y sus colores |
 | `modules/geo_input.py`, `geo_utils.py` | Lógica | Lectura de archivos, buffer y filtro espacial |
@@ -85,7 +85,7 @@ Arriba a la derecha, en las tres, va el menú **Ajustes** (`y2k_ajustes`, `estil
 
 **Sin textos de carga.** Ninguna pantalla dice «Cargando…»: la única señal de que la lista de variables del IDEAM está lista es el punto de la etiqueta «Variable», que se enciende en azul. El botón principal es siempre azul: si se pulsa antes de que todo cargó, no avanza y da dos destellos rojos. En el mapa, mientras se evalúa el área, el escáner la recorre.
 
-**Avisos discretos** (`estilo.aviso`): una línea con su icono y, si hay detalle, «Ver más» (`<details>`). Se usan para fechas inválidas, periodo demasiado largo para Excel, series de alta frecuencia y los estados sin datos del mapa. Los errores llevan `role="alert"`.
+**Avisos discretos** (`estilo.aviso`): una línea con su icono y, si hay detalle, «Ver más» (`<details>`). Se usan para fechas inválidas, periodo demasiado largo para Excel o para una serie multianual, series de alta frecuencia y los estados sin datos del mapa. Los errores llevan `role="alert"`.
 
 **Botones principales de vidrio líquido azul**: tinte del acento que deja ver un poco del fondo desenfocado, brillo superior, cáustica abajo y canto de luz (tokens `y2k-boton-tinte`, `y2k-boton-brillo`, `y2k-boton-caustica`, `y2k-boton-canto`). En alto contraste son opacos y sin brillos; en Lite, sin desenfoque. El texto queda por encima de 6,5:1 en claro y oscuro.
 
@@ -107,7 +107,9 @@ Arriba a la derecha, en las tres, va el menú **Ajustes** (`y2k_ajustes`, `estil
 │              │ Serie de tiempo y frecuencia   [serie]  │             │
 │              │   Estándar │ Especial                   │             │
 │              │ Frecuencia (solo Especial) [frec_especial]            │
-│              │ Variable ●   [par_estandar / par_esp_<frecuencia>]    │
+│              │ Variable ●   [var_est / var_esp_<frecuencia>]         │
+│              │ Parámetro    [par_est_<variable> /                    │
+│              │               par_esp_<frecuencia>_<variable>]        │
 │              │ Desde [f_ini]   Hasta [f_fin]           │  ● = punto  │
 │              │ [ Seleccionar área en el mapa → ] ir_mapa  de estado  │
 │              │ 1 Establecer parámetros · 2 Delimitar el área de      │
@@ -119,14 +121,34 @@ Arriba a la derecha, en las tres, va el menú **Ajustes** (`y2k_ajustes`, `estil
 
 En el celular la tarjeta flota abajo, con margen a los lados; Desde y Hasta siguen en una fila (`y2k_fechas`) y los pasos muestran solo sus títulos.
 
-- **Serie de tiempo y frecuencia** (`serie`, como en la página del IDEAM): **Estándar** pide solo la variable (`par_estandar`: todas las series diarias, mensuales, anuales, horarias y de 2 o 3 datos al día, con la frecuencia en el nombre cuando la descripción no la dice). **Especial** pide primero la frecuencia (`frec_especial`: las decadales y multianuales que traiga el catálogo y las de alta frecuencia, cada 10, 5 o 2 minutos) y luego la variable (`par_esp_<frecuencia>`). Quién va en cada una lo decide `ideam_parameters.es_especial` (campo `especial` del catálogo). Las de alta frecuencia muestran un aviso discreto con «Ver más»: el IDEAM las entrega de a un mes por consulta.
-- **Lista de variables** (`_iniciar_precarga_servidor`): se pide en un hilo al arrancar el servidor. Mientras carga, los desplegables (`par_espera`, `frec_espera`) están en gris y no se pueden abrir, y el punto `.y2k-punto[data-estado]` respira en gris; al cargar, se enciende en azul (`listo`) y aparecen los desplegables de verdad (con búsqueda al escribir; por defecto, el día pluviométrico). Si falla, el punto se pone rojo y aparece **Reintentar**.
-- **Nombres legibles** (`_variables_de`): la descripción y la unidad; la variable va delante solo si la descripción no la nombra. Sin códigos como `PTPM_CON` (salvo que dos se llamen igual).
+- **Serie de tiempo y frecuencia** (`serie`), igual que en la página del IDEAM: **Estándar** pide la variable (`var_est`) y luego el parámetro (`par_est_<variable>`). **Especial** pide la frecuencia (`frec_especial`: Decadal o Multianual), la variable (`var_esp_<frecuencia>`) y el parámetro (`par_esp_<frecuencia>_<variable>`). Cada desplegable sale de `app._desplegable` y cada variable recuerda su parámetro. Solo se ofrecen las variables que tienen parámetros en la serie (y frecuencia) elegida. Las de alta frecuencia van en Estándar, como en la página, y muestran un aviso discreto con «Ver más»: el IDEAM las entrega de a un mes por consulta. Ver [Series estándar y especial](#series-estándar-y-especial).
+- **Lista de variables** (`_iniciar_precarga_servidor`): se pide en un hilo al arrancar el servidor. Mientras carga, los desplegables (`espera_<campo>`) están en gris y no se pueden abrir, y el punto `.y2k-punto[data-estado]` respira en gris; al cargar, se enciende en azul (`listo`) y aparecen los desplegables de verdad (con búsqueda al escribir; por defecto, Precipitación y el día pluviométrico). Si falla, el punto se pone rojo y aparece **Reintentar** (`ideam_parameters.limpiar_catalogo`).
+- **Textos de las listas**: los de la página. En Estándar, la descripción del parámetro (si dos se llaman igual en una variable, con la etiqueta: «… [PTPM_CON]»; si el IDEAM no trae descripción o trae «null», la etiqueta). En Especial, «descripción |cálculo [etiqueta]»; sin descripción, «etiqueta |cálculo».
+- **Serie multianual**: no se puede partir en bloques, así que si el periodo pasa el límite de una consulta (`ideam_parameters.periodo_excedido`) aparece un aviso y el botón no avanza.
 - **Series por detrás** (`_precargar_series`): al elegir una variable se pide en un hilo qué estaciones tienen esa serie (lo que necesita el mapa para evaluar). Compartido entre sesiones; si falló, se reintenta a los 30 s.
 - **El botón es siempre azul** (nunca gris). Avanza cuando todo está listo: lista cargada, variable elegida, fechas válidas, periodo que cabe en Excel y series cargadas (Python lo marca en `.y2k-cta-listo[data-listo]`, `estilo.marca_listo`) y el mapa 2D cargado (`html[data-y2k-mapa-listo]`). Si se pulsa antes, el guion detiene el clic y le pone `.y2k-parpadeo` (dos destellos rojos); para lectores de pantalla queda `aria-disabled="true"`. `_ir_mapa` recibe además `listo` y no hace nada si no lo está (por si el guion no cargó).
 - **Pasos** (`estilo.como_funciona`): Establecer parámetros (el actual, resaltado), Delimitar el área de análisis, Preparar la descarga. En el celular, solo los títulos.
 - Un **vigía** (`_vigia`, un fragmento con `run_every=1`) revisa cada segundo lo que carga por detrás y recarga la página una vez al terminar.
-- `_ir_mapa` (callback) guarda la consulta en `ss.consulta` (etiqueta de la serie y fechas) y pasa a `"mapa"` antes de que corra el guion: la pantalla nueva sale en la misma recarga.
+- `_ir_mapa` (callback) guarda la consulta en `ss.consulta` (clave única del parámetro y fechas) y pasa a `"mapa"` antes de que corra el guion: la pantalla nueva sale en la misma recarga.
+
+#### Series estándar y especial
+
+Se arman con los mismos servicios que usa la página del IDEAM (`widgets/Ciudadano/Widget.js` de atencionciudadano.ideam.gov.co), comprobado contra el portal en vivo el 2026-10-09:
+
+| | Estándar | Especial |
+|---|---|---|
+| Frecuencia | — | Lista fija de la página: Decadal y Multianual |
+| Variable | `PortalDescargas/obtenerVariables` | La misma lista |
+| Parámetro | `GestionDatos/ConsultarInformacionSeriesTiempoGD?idparametro=<variable>`, solo los que tienen `Visible = true`, en el orden del servicio | Tabla `SERIESTIEMPOCALCULO_VIEW` del servicio de mapas de DHIME (`dhime.ideam.gov.co/server/rest/services/CNE/Estaciones/MapServer/9`, pública, sin token; `ideam_downloader.obtener_series_calculo`), filtrada por frecuencia y variable y ordenada por descripción |
+| Descarga | `"TipoSerie": "Estandard"`, `"Calculo": ""` | `"TipoSerie": "Decadal"` o `"Multianual"`, `"Calculo"`: `SUM`, `MAX`, `MIN`, `AVG` o `NA` |
+
+- Cada parámetro tiene una **clave única** (`clave`): `PRECIPITACION|PTPM_CON` o `Decadal|PRECIPITACION|SUM|PTPM_CON`. La etiqueta sola no sirve: una misma etiqueta va con varios cálculos (TMX_CON decadal: AVG, MAX y MIN) y en más de una variable (TV_CAL_* en Tensión de vapor y Presión atmosférica).
+- La serie especial es un cálculo sobre una **serie base** (la de la etiqueta). Como en la página, las estaciones y su cantidad probable salen de esa serie. La **decadal** trae un dato por década (36 por año: días 1, 11 y 21). La **multianual** trae siempre 36 filas: el mínimo, la media y el máximo de cada mes en todo el periodo.
+- **Límite por consulta**: el de la frecuencia de la serie base (`frecuencia_base`, de `Restricciones/GestionDatos`): diaria 30 años, mensual 50, horaria 10. Si se pasa, el IDEAM responde HTTP 400 sin cuerpo. Medido: con N años de límite acepta unos días más de N años de calendario. La decadal se parte en bloques cuyos cortes caen al final de un mes (`ideam_downloader.bloques_de`), así ninguna década queda partida. La multianual va siempre en una consulta, porque partirla daría otros mínimos, medias y máximos, y por eso la pantalla de Parámetros no deja pedir más de N × 365,25 días.
+- Si un cálculo no tiene datos (por ejemplo TMX_CON decadal MIN), el IDEAM devuelve un ZIP vacío; la estación queda omitida con ese motivo en `resumen_descarga.csv`.
+- Si el servicio de mapas no responde, la serie Estándar sigue funcionando: la Especial queda vacía («No disponible por ahora») y se reintenta a los 5 minutos.
+- Los Excel y el ZIP llevan el rótulo de la serie (`ideam_downloader.rotulo_serie`): `…_PTPM_CON.xlsx`, `…_PTPM_CON_Decadal_SUM.xlsx`, `…_PTPM_TT_M_Multianual.xlsx`. `CITACION.txt` indica la serie y el cálculo.
+- REC VIENTO tiene filas en la tabla, pero la página no la ofrece porque no está entre las variables del portal; se omite igual.
 
 ### 2. Mapa (`pantalla_mapa` en `app.py`)
 
@@ -185,7 +207,7 @@ En **horizontal** (alto ≤ 560 px y ancho > 760 px) se usa la disposición de e
 **Cuerpo del panel** (`y2k_cuerpo`), en dos secciones (`estilo.seccion`):
 
 1. **Área de estudio**: con área, su tamaño en una cápsula (`.y2k-km`) y tres acciones compactas (`estilo.acciones_area`: Redibujar, Ajustar, Borrar); sin área, «Sin definir» (dibujar o subir el área se hace desde el menú **Dibujo** de la cápsula de herramientas, sin repetirlo en el panel). En 3D, un aviso y «Ver en 2D». Después, el **buffer** en una píldora pequeña (`app._control_buffer`, `st.popover` con clave `pop_buffer`): al pulsarla se activa o desactiva (`buf_on`) y se cambia el ancho con − y + de 0,5 en 0,5 km (`buf_km`).
-2. **Calidad de los datos** (`panel_estadisticas.tablero`): a la derecha del título, la variable consultada en corto (`.y2k-chip`, solo su nombre; al pulsarla pulsa el botón oculto `chip_param` y vuelve a Parámetros). Tres cifras (`estilo.kpis`): **Estaciones encontradas** (y cuántas no tienen información), **Cobertura media del periodo** y **Tamaño del ZIP** con el tiempo aproximado («≈ 12 MB», «3 min 20 s aprox.»; `panel_estadisticas.peso_zip`: unos 50 bytes por registro probable ya comprimido más el logo y los estilos de cada Excel). Después, la línea discreta de altitud dudosa (`alerta_altura`, con la lista `tabla_dudosas` que lleva al 3D) y la **lista con casillas** (`st.dataframe` con selección `multi-row` + `single-cell`: las filas marcadas se descargan; un clic en una celda selecciona la estación y el mapa va a ella). Las excluidas se guardan en `ss.excluidas` (códigos) y en el mapa salen huecas con borde punteado. Al final, la nota de datos preliminares (una línea con «Ver más») y el pie (`estilo.pie`, con los créditos de los mapas).
+2. **Calidad de los datos** (`panel_estadisticas.tablero`): a la derecha del título, la variable consultada en corto (`.y2k-chip`, solo su nombre; al pulsarla pulsa el botón oculto `chip_param` y vuelve a Parámetros). Tres cifras (`estilo.kpis`): **Estaciones encontradas** (y cuántas no tienen información), **Cobertura media del periodo** y **Tamaño del ZIP** con el tiempo aproximado («≈ 12 MB», «3 min 20 s aprox.»; `panel_estadisticas.peso_zip`: unos 17 bytes por registro probable ya comprimido más unos 33 kB por Excel de logo, estilos y encabezado; medido con descargas reales de precipitación diaria, el error quedó entre −6 % y +3 %). Después, la línea discreta de altitud dudosa (`alerta_altura`, con la lista `tabla_dudosas` que lleva al 3D) y la **lista con casillas** (`st.dataframe` con selección `multi-row` + `single-cell`: las filas marcadas se descargan; un clic en una celda selecciona la estación y el mapa va a ella). Las excluidas se guardan en `ss.excluidas` (códigos) y en el mapa salen huecas con borde punteado. Al final, la nota de datos preliminares (una línea con «Ver más») y el pie (`estilo.pie`, con los créditos de los mapas).
 
 Los estados sin datos (sin área, zona sin estaciones, IDEAM caído, periodo demasiado largo, ninguna estación con datos) se explican en la sección de calidad, y **Preparar descarga** queda desactivado con la razón en su ayuda. Mientras se evalúa el área no hay textos de carga: el escáner la recorre en el mapa.
 
@@ -412,7 +434,6 @@ Reintentar rehace el visor 3D y repone la cámara y la selección; en 2D vuelve 
 - Aún no hay animación para la cuenca subida desde archivo (el mapa todavía no existe mientras se calcula).
 - Sin área, el mapa muestra el catálogo nacional agrupado (`FastMarkerCluster`) para ubicarse. La capa se arma de nuevo en cada corrida: folium no deja volver a dibujar el mismo objeto (el agrupador quedaría sin definir).
 - La lista de variables del IDEAM se pide por detrás al arrancar el servidor (`app._iniciar_precarga_servidor`) y las series de la variable elegida, al elegirla (`app._precargar_series`); ver [Parámetros](#1-parámetros-pantalla_parametros-en-apppy).
-- Las series **decadales y multianuales** se ofrecen en «Especial» solo si el catálogo del IDEAM las trae con esa periodicidad (`ideam_parameters.es_especial` reconoce «decad…» y «multianual» en el nombre de la frecuencia). No se han podido comprobar contra el portal en vivo: si el IDEAM las nombra de otra forma, hay que ajustar esa función.
 
 **Contratos que no hay que romper** (si cambias `app.py`, `map_view.py` o `escaner.py`):
 

@@ -3,7 +3,6 @@ import os
 import re
 import threading
 import time
-import unicodedata
 from datetime import date
 
 import pandas as pd
@@ -152,9 +151,7 @@ def _precargar_series(etiqueta):
 
 def _reintentar_catalogo():
     _iniciar_precarga_servidor.clear()
-    limpiar = getattr(ideam_parameters.obtener_catalogo_parametros, "clear", None)
-    if limpiar:
-        limpiar()
+    ideam_parameters.limpiar_catalogo()
 
 
 _precarga = _iniciar_precarga_servidor()
@@ -202,59 +199,37 @@ def _frecuencia_txt(frecuencia):
     return {"diario": "diaria", "horario": "horaria"}.get(f, f)
 
 
-def _sin_tildes(texto):
-    return "".join(c for c in unicodedata.normalize("NFD", str(texto).lower()) if unicodedata.category(c) != "Mn")
+def _por_defecto(opciones, *preferidas):
+    """Posicion de la primera opcion preferida que este en la lista (si ninguna esta, la primera)."""
+    claves = list(opciones)
+    return next((claves.index(c) for c in preferidas if c in opciones), 0)
 
 
-_ORDEN_FRECUENCIAS = {f: i for i, f in enumerate(ideam_parameters.FRECUENCIAS_NORMALES)}
-_RAIZ_FRECUENCIA = {"Diario": "diari", "Mensual": "mensual", "Anual": "anual", "Horario": "horari",
-                    "03 Veces al Día": "veces", "02 Veces al Día": "veces"}
+def _clave_widget(texto):
+    return re.sub(r"\W+", "_", str(texto))
 
 
-def _variables_de(catalogo_param, serie, frecuencia=None):
-    """{etiqueta: parametro} de la serie elegida, con un nombre legible en "nombre": la descripcion y la unidad, con
-    la variable delante si la descripcion no la nombra. En la serie estandar se agrega la frecuencia (si la
-    descripcion no la dice), porque ahi se elige sin filtrarla antes. Sin codigos (salvo que dos se llamen igual)."""
-    if serie == "Especial":
-        params = [p for p in catalogo_param if p["frecuencia"] == frecuencia]
-    else:
-        params = [p for p in catalogo_param if not p.get("especial", ideam_parameters.es_especial(p["frecuencia"]))]
-    nombres = {}
-    for p in params:
-        var, desc = p["variable_nombre"], p["descripcion"]
-        nombre = desc if _sin_tildes(var.split()[0]) in _sin_tildes(desc) else f"{var} · {desc[:1].lower()}{desc[1:]}"
-        if p["unidad"]:
-            nombre += f" ({p['unidad']})"
-        raiz = _RAIZ_FRECUENCIA.get(p["frecuencia"], _sin_tildes(p["frecuencia"]))
-        if serie != "Especial" and raiz not in _sin_tildes(desc):
-            nombre += f" · {ideam_parameters.nombre_frecuencia(p['frecuencia']).lower()}"
-        nombres[p["etiqueta"]] = nombre
-    repetidos = {n for n in nombres.values() if list(nombres.values()).count(n) > 1}
-    ordenados = sorted(params, key=lambda p: (_sin_tildes(p["variable_nombre"]), _ORDEN_FRECUENCIAS.get(p["frecuencia"], 99),
-                                              _sin_tildes(nombres[p["etiqueta"]])))
-    return {p["etiqueta"]: {**p, "nombre": nombres[p["etiqueta"]] + (f" · {p['etiqueta']}" if nombres[p["etiqueta"]] in repetidos else "")}
-            for p in ordenados}
+def _desplegable(titulo, opciones, clave, espera, defecto=0, punto=None):
+    """Desplegable con su etiqueta visible; devuelve el valor elegido. opciones: {valor: texto}. Sin opciones
+    (mientras carga la lista del IDEAM o si fallo) va en gris y no se puede abrir, con otra clave: asi el de verdad
+    nace con su valor por defecto."""
+    estilo.etiqueta(titulo, punto=punto)
+    if not opciones:
+        st.selectbox(titulo, [], index=None, key=f"espera_{_clave_widget(titulo)}", label_visibility="collapsed",
+                     disabled=True, placeholder=espera)
+        return None
+    return st.selectbox(titulo, list(opciones), index=defecto, key=clave, label_visibility="collapsed",
+                        format_func=lambda v: opciones.get(v, v), placeholder="Escribe para buscar",
+                        persist_state="session")
 
 
-def _variable_por_defecto(opciones):
-    """Posicion de la variable que se ofrece primero: el dia pluviometrico, o la primera precipitacion diaria."""
-    etiquetas = list(opciones)
-    for prueba in (lambda p: p["etiqueta"] == "PTPM_CON",
-                   lambda p: p["variable"] == "PRECIPITACION" and p["frecuencia"] == "Diario",
-                   lambda p: p["variable"] == "PRECIPITACION"):
-        i = next((i for i, e in enumerate(etiquetas) if prueba(opciones[e])), None)
-        if i is not None:
-            return i
-    return 0
-
-
-def _param_de(etiqueta):
-    """Parametro del catalogo por su etiqueta (None si la lista no esta o ya no lo trae)."""
+def _param_de(clave):
+    """Parametro del catalogo por su clave (None si la lista no esta o ya no lo trae)."""
     try:
         catalogo_param = ideam_parameters.obtener_catalogo_parametros()
     except Exception:
         return None
-    return next((p for p in catalogo_param if p["etiqueta"] == etiqueta), None)
+    return next((p for p in catalogo_param if p["clave"] == clave), None)
 
 
 def _sincronizar(fuente, valor, a_codigo):
@@ -347,7 +322,7 @@ def _estaciones_3d(zona, excluidas):
 def _ir_mapa(clave_param, listo):
     if not listo:   # el navegador ya lo impide (el boton parpadea en rojo); esto es por si el guion no cargo
         return
-    nueva = {"etiqueta": ss.get(clave_param), "ini": ss.get("f_ini"), "fin": ss.get("f_fin")}
+    nueva = {"clave": ss.get(clave_param), "ini": ss.get("f_ini"), "fin": ss.get("f_fin")}
     if nueva != ss.consulta:
         ss.excluidas = set()   # otro parametro u otro periodo: las estaciones quitadas antes no aplican
     ss.consulta = nueva
@@ -496,9 +471,11 @@ def pantalla_parametros():
         serie = st.segmented_control(
             "Serie de tiempo y frecuencia", ["Estándar", "Especial"], default="Estándar", key="serie", required=True,
             width="stretch", persist_state="session",
-            help="**Estándar:** series diarias, mensuales, anuales, horarias y de 2 o 3 datos al día; solo se elige la "
-                 "variable.\n\n**Especial:** series decadales y multianuales, y de alta frecuencia (cada 10, 5 o 2 "
-                 "minutos); primero se elige la frecuencia.")
+            help="**Estándar:** se elige la variable y luego el parámetro (series diarias, mensuales, anuales, horarias "
+                 "y de alta frecuencia).\n\n**Especial:** se elige la frecuencia (decadal o multianual), la variable y "
+                 "el parámetro con su cálculo: suma, máximo, mínimo o promedio de cada década, o el mínimo, la media y "
+                 "el máximo de cada mes en todo el periodo.")
+        especial = serie == "Especial"
 
         # Lista de variables del IDEAM: los desplegables quedan en gris hasta que carga (el punto se enciende)
         estado_cat = "cargando" if not _precarga["listo"] else ("error" if _precarga["error"] else "listo")
@@ -511,32 +488,23 @@ def pantalla_parametros():
         if estado_cat == "cargando":
             pendientes.append(lambda: not _precarga["listo"])
         vacio = "No disponible" if estado_cat == "error" else None
+        cargada = estado_cat == "listo"
 
+        # Como en la pagina: [Frecuencia (solo Especial)] -> Variable -> Parametro, cada uno con su lista
         frecuencia = None
-        if serie == "Especial":
-            estilo.etiqueta("Frecuencia")
-            frecuencias = ideam_parameters.frecuencias_especiales(catalogo_param) if catalogo_param else []
-            if frecuencias:
-                frecuencia = st.selectbox("Frecuencia", frecuencias, key="frec_especial", label_visibility="collapsed",
-                                          format_func=ideam_parameters.nombre_frecuencia, persist_state="session")
-            else:
-                st.selectbox("Frecuencia", [], index=None, key="frec_espera", label_visibility="collapsed", disabled=True,
-                             placeholder=vacio or ("Sin series especiales" if estado_cat == "listo" else "Frecuencia"))
-        opciones = _variables_de(catalogo_param, serie, frecuencia) if catalogo_param else {}
-        estilo.etiqueta("Variable", punto=estado_cat)
-        etiquetas = list(opciones)
-        clave_param = f"par_esp_{frecuencia}" if serie == "Especial" else "par_estandar"
-        if etiquetas:
-            etiqueta = st.selectbox("Variable", etiquetas, index=_variable_por_defecto(opciones), key=clave_param,
-                                    label_visibility="collapsed",
-                                    format_func=lambda e: opciones[e]["nombre"] if e in opciones else e,
-                                    placeholder="Escribe para buscar", persist_state="session")
-        else:
-            # mientras carga (o si fallo), un desplegable gris que no se puede abrir; otra clave, para que el de
-            # verdad nazca con su valor por defecto. El unico aviso de la carga es el punto de la etiqueta
-            etiqueta = st.selectbox("Variable", [], index=None, key="par_espera", label_visibility="collapsed",
-                                    disabled=True, placeholder=vacio or ("Sin variables" if estado_cat == "listo" else "Variable"))
-        param = opciones.get(etiqueta) if etiqueta else None
+        if especial:
+            frecuencias = ideam_parameters.frecuencias_especiales(catalogo_param)
+            frecuencia = _desplegable("Frecuencia", {f: f for f in frecuencias}, "frec_especial",
+                                      vacio or ("No disponible por ahora" if cargada else "Frecuencia"))
+        sufijo = f"esp_{frecuencia}" if especial else "est"
+        variables = ideam_parameters.variables_de(catalogo_param, especial, frecuencia)
+        variable = _desplegable("Variable", variables, f"var_{sufijo}", vacio or ("Sin variables" if cargada else "Variable"),
+                                defecto=_por_defecto(variables, "PRECIPITACION"), punto=estado_cat)
+        params = ideam_parameters.parametros_de(catalogo_param, variable, especial, frecuencia) if variable else {}
+        clave_param = f"par_{sufijo}_{_clave_widget(variable)}"
+        clave = _desplegable("Parámetro", {c: p["nombre"] for c, p in params.items()}, clave_param,
+                             vacio or ("Sin parámetros" if cargada else "Parámetro"), defecto=_por_defecto(params, "PRECIPITACION|PTPM_CON"))
+        param = params.get(clave) if clave else None
         if estado_cat == "error":
             st.error(f"No se pudo cargar la lista de variables del IDEAM. {_precarga['error'] or ''}".strip(),
                      icon=":material/cloud_off:")
@@ -564,6 +532,12 @@ def pantalla_parametros():
             estilo.aviso("El periodo es demasiado largo para un Excel.",
                          f"Con frecuencia {_frecuencia_txt(param['frecuencia'])}, daría hasta {_num(filas)} filas por "
                          "estación y Excel admite alrededor de un millón por hoja. Acorta el periodo.")
+        # La serie multianual no se puede partir en bloques (cada bloque daria otros minimos, medias y maximos)
+        anios_max = ideam_parameters.periodo_excedido(param, fecha_ini, fecha_fin) if param and fechas_ok else None
+        if anios_max:
+            estilo.aviso("El periodo es demasiado largo para una serie multianual.",
+                         f"El IDEAM calcula los valores multianuales de una sola vez y para esta serie acepta hasta "
+                         f"{_num(anios_max)} años por consulta. Acorta el periodo.")
 
         # Estaciones con la serie elegida: se piden por detras mientras la persona termina de elegir. El boton es
         # siempre azul: si se pulsa antes de que todo este listo no avanza y parpadea en rojo (lo hace el navegador,
@@ -571,7 +545,7 @@ def pantalla_parametros():
         series = _precargar_series(param["etiqueta"]) if param else None
         if series and not series["listo"]:
             pendientes.append(lambda s=series: not s["listo"])
-        listo = bool(param and fechas_ok and not excede and series and series["listo"])
+        listo = bool(param and fechas_ok and not excede and not anios_max and series and series["listo"])
         estilo.marca_listo(listo)
         st.button("Seleccionar área en el mapa", type="primary", key="ir_mapa", icon=":material/arrow_forward:",
                   icon_position="right", width="stretch", on_click=_ir_mapa, args=(clave_param, listo))
@@ -646,7 +620,7 @@ def _control_buffer():
 
 def pantalla_mapa():
     consulta = ss.consulta
-    param = _param_de(consulta["etiqueta"])
+    param = _param_de(consulta.get("clave"))
     if param is None:   # la lista del IDEAM no esta (servidor reiniciado o sin red): de vuelta a Parametros
         ss.paso = "parametros"
         st.rerun()
@@ -673,7 +647,7 @@ def pantalla_mapa():
         buffer_on, buffer_km = _control_buffer()
         # la variable consultada, en corto (sin fechas): al pulsarla se vuelve a Parametros
         estilo.seccion("Calidad de los datos", chip=(
-            param["variable_nombre"], f"{param['descripcion']} · {_periodo(fecha_ini, fecha_fin)}. "
+            param["variable_nombre"], f"{param['nombre']} · {_periodo(fecha_ini, fecha_fin)}. "
                                       "Pulsa para cambiar la variable o el periodo"))
         caja_calidad = st.container()
         estilo.pie()
@@ -978,7 +952,8 @@ def _recibo(d):
     p = d["param"]
     unidad = f" ({p['unidad']})" if p.get("unidad") else ""
     estilo.recibo([
-        ("Variable", p["descripcion"] + unidad, f"Frecuencia {_frecuencia_txt(p['frecuencia'])}"),
+        ("Variable", p["descripcion"] + unidad, f"Frecuencia {_frecuencia_txt(p['frecuencia'])}"
+         + (f" · cálculo {p['calculo']}" if p["especial"] and p["calculo"] not in ("", "NA") else "")),
         ("Periodo", f"{d['ini']:%d/%m/%Y} – {d['fin']:%d/%m/%Y}", ""),
         ("Estaciones", f"{n}", f"{en_area} en el área" + (f" · {n - en_area} en el buffer" if n - en_area else "")),
         ("Archivo", [("Un Excel por estación", "excel", "")]
@@ -1002,7 +977,7 @@ def _zip_final(resultado, carpetas):
 def _entrega(resultado, carpetas):
     """Nombre del ZIP y boton de descarga (en un fragmento: escribir el nombre no recarga la tarjeta entera)."""
     ini, fin = resultado["rango"]
-    predeterminado = f"IDEAM_{resultado['etiqueta']}_{ini:%Y%m%d}-{fin:%Y%m%d}"
+    predeterminado = f"IDEAM_{resultado['rotulo']}_{ini:%Y%m%d}-{fin:%Y%m%d}"
     nombre = st.text_input("Nombre del archivo ZIP", value=predeterminado, key="nombre_zip", max_chars=120, live=True,
                            help="Por ejemplo: descarga 1. La extensión .zip se añade sola.")
     st.download_button("Descargar el ZIP", data=_zip_final(resultado, carpetas), type="primary", width="stretch",

@@ -189,7 +189,7 @@ def tarjeta_seleccionada(fila, rango=None, vista="2D", descargable=False):
         altitud = _num(float(fila.get("altitud"))) + " m"
     except (TypeError, ValueError):
         altitud = "altitud sin dato"
-    zona = "en el área" if fila.get("zona") == "cuenca" else "en el buffer"
+    zona = {"cuenca": "en el área", "buffer": "en el buffer"}.get(fila.get("zona"), "")
     # cerrada: una pildora con el nombre; al pulsarla se despliega el resto (estilo.ficha_pildora)
     ficha_pildora(_nombre_limpio(fila.get("nombre", "")), codigo)
     with st.container(key="y2k_ficha_cuerpo"):   # se desplaza el cuerpo, no el vidrio
@@ -198,7 +198,7 @@ def tarjeta_seleccionada(fila, rango=None, vista="2D", descargable=False):
 
 def _cuerpo_ficha(fila, codigo, altitud, zona, rango, vista, descargable):
     ss = st.session_state
-    md(f'<p class="y2k-ficha-dato">Código {escape(codigo)} · {altitud} · {zona}</p>')
+    md(f'<p class="y2k-ficha-dato">Código {escape(codigo)} · {altitud}{f" · {zona}" if zona else ""}</p>')
     serie = fila.get("Serie DHIME") if "Serie DHIME" in fila.index else None
     if serie == "Sí":
         st.caption(f"Cobertura **{fila['Porcentaje (%)']:.0f} %** ({str(fila.get('Clase calidad', '')).lower()}) · "
@@ -220,15 +220,17 @@ def _cuerpo_ficha(fila, codigo, altitud, zona, rango, vista, descargable):
         st.button("Quitar selección", key="quitar_sel", icon=":material/close:", width="stretch", on_click=_quitar_seleccion)
 
 
-def tablero(zona, descargables, seleccion, param, cifras, dudosas=None, rango=None):
-    """Tablero de calidad: cifras, aviso de altitud dudosa y lista de estaciones con casillas."""
+def tablero(zona, descargables, seleccion, param, cifras, dudosas=None, rango=None, ubicacion=None):
+    """Tablero de calidad: cifras, aviso de altitud dudosa y lista de estaciones con casillas. `ubicacion`: texto
+    del filtro ("Antioquia · Medellín") si las estaciones se eligieron por ubicacion en vez de con un area."""
     ss = st.session_state
     n_sel, n_desc, n_zona = len(seleccion), len(descargables), len(zona)
     sin_info = n_zona - n_desc
     kpis([
         (n_zona, "Estaciones encontradas",
          f"{sin_info} {'estaciones' if sin_info != 1 else 'estación'} sin información" if sin_info else "Todas con información",
-         f"Estaciones del IDEAM en el área y el buffer. {n_desc} tienen datos de esta variable en el periodo."),
+         (f"Estaciones con esta serie en {ubicacion}." if ubicacion else "Estaciones del IDEAM en el área y el buffer.")
+         + f" {n_desc} tienen datos de esta variable en el periodo."),
         (f"{seleccion['Porcentaje (%)'].mean():.0f} %" if n_sel else "–", "Cobertura media del periodo", "",
          "Promedio de la cantidad probable de las estaciones seleccionadas: qué parte del periodo consultado cubre su "
          "registro (no descuenta los huecos internos)."),
@@ -291,8 +293,8 @@ def tablero(zona, descargables, seleccion, param, cifras, dudosas=None, rango=No
     en_cuenca = int((seleccion["zona"] == "cuenca").sum()) if "zona" in seleccion.columns else n_sel
     fines = pd.to_datetime(seleccion["Fin serie"], errors="coerce")
     activas = int((fines >= pd.Timestamp(datetime.date.today() - datetime.timedelta(days=365))).sum())
-    st.caption(f"{en_cuenca} en el área{f' · {n_sel - en_cuenca} en el buffer' if n_sel - en_cuenca else ''} · "
-               f"{activas} con datos en el último año")
+    lugar = "" if ubicacion else f"{en_cuenca} en el área{f' · {n_sel - en_cuenca} en el buffer' if n_sel - en_cuenca else ''} · "
+    st.caption(f"{lugar}{activas} con datos en el último año")
     detalles("Los datos recientes pueden ser preliminares.",
              "<p>Cada dato del IDEAM tiene un nivel de aprobación (preliminar, en revisión o definitivo); los "
              "preliminares pueden cambiar. Cada Excel lo indica en la columna «Nivel de Aprobación».</p>",

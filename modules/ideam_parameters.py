@@ -1,6 +1,7 @@
 import math
 import re
 import time
+import unicodedata
 import pandas as pd
 import streamlit as st
 from concurrent.futures import ThreadPoolExecutor
@@ -207,6 +208,72 @@ def periodo_excedido(param, fecha_ini, fecha_fin):
         return None
     anios = param["anios_max"]
     return anios if (fecha_fin - fecha_ini).days > int(anios * 365.25) else None
+
+
+# ===========================================================================
+# FILTRO POR UBICACION (como "Datos Estación" de la pagina del IDEAM)
+# Departamento, municipio y estaciones salen de la lista de estaciones de la serie
+# (Reportes/ObtenerEstacionesSerieTiempo, ideam_downloader.obtener_series_disponibles), la misma que filtra la
+# pagina. Ya esta cargada cuando se elige el parametro, asi que no hay que esperar nada mas.
+# ===========================================================================
+TODOS_LOS_MUNICIPIOS = "*"
+
+
+def _orden(texto):
+    """Para ordenar por nombre sin que las tildes ni las mayusculas cambien el orden."""
+    return unicodedata.normalize("NFD", str(texto)).encode("ascii", "ignore").decode().lower()
+
+
+def _id(valor):
+    return str(int(float(valor))) if valor not in (None, "") else ""
+
+
+def departamentos_de(series):
+    """{IdDepartamento: nombre} de los departamentos con estaciones de la serie, por nombre."""
+    deps = {_id(r.get("IdDepartamento")): str(r.get("Departamento") or "").strip() for r in series.values()}
+    deps.pop("", None)
+    return dict(sorted(deps.items(), key=lambda d: _orden(d[1])))
+
+
+def municipios_de(series, departamento):
+    """{IdMunicipio: nombre} de los municipios del departamento con estaciones de la serie, por nombre; primero
+    "Todos" (TODOS_LOS_MUNICIPIOS), como en la pagina."""
+    mpios = {_id(r.get("IdMunicipio")): str(r.get("Municipio") or "").strip() for r in series.values()
+             if _id(r.get("IdDepartamento")) == departamento}
+    mpios.pop("", None)
+    return {TODOS_LOS_MUNICIPIOS: "Todos", **dict(sorted(mpios.items(), key=lambda m: _orden(m[1])))}
+
+
+def nombre_estacion(registro):
+    """"ABEJORRAL [26180010]": el IDEAM ya trae el codigo en el nombre (a veces con espacios de mas)."""
+    nombre, codigo = re.sub(r"\s+", " ", str(registro.get("Nombre") or "")).strip(), str(registro["IdEstacion"])
+    return nombre if f"[{codigo}]" in nombre else f"{nombre} [{codigo}]".strip()
+
+
+def estaciones_de(series, departamento, municipio=TODOS_LOS_MUNICIPIOS):
+    """{codigo: "ABEJORRAL [26180010] · 1961–1980"} de las estaciones del departamento (y municipio) que tienen la
+    serie, por nombre. Los años son los del primer y el ultimo dato de la serie (FechaIni y FechaFin de la pagina)."""
+    elegidas = [r for r in series.values() if _id(r.get("IdDepartamento")) == departamento
+                and municipio in (TODOS_LOS_MUNICIPIOS, _id(r.get("IdMunicipio")))]
+    salida = {}
+    for r in sorted(elegidas, key=lambda r: _orden(nombre_estacion(r))):
+        anios = "–".join(a for a in (str(r.get("InicioData") or "")[:4], str(r.get("FinData") or "")[:4]) if a)
+        salida[str(r["IdEstacion"])] = nombre_estacion(r) + (f" · {anios}" if anios else "")
+    return salida
+
+
+def filtro_ubicacion(series, departamento, municipio=TODOS_LOS_MUNICIPIOS, estaciones=()):
+    """El filtro elegido: {"codigos": [...], "texto": "Antioquia · Medellín"}; None sin departamento.
+    Sin estaciones elegidas cuentan todas las del departamento (y municipio)."""
+    deps = departamentos_de(series)
+    if departamento not in deps:
+        return None
+    disponibles = estaciones_de(series, departamento, municipio)
+    codigos = [c for c in estaciones if c in disponibles] or list(disponibles)
+    partes = [deps[departamento], municipios_de(series, departamento).get(municipio, "Todos")]
+    if estaciones:
+        partes.append(f"{len(codigos)} {'estaciones' if len(codigos) != 1 else 'estación'}")
+    return {"codigos": codigos, "texto": " · ".join(partes)}
 
 
 def filas_estimadas(param, fecha_ini, fecha_fin):

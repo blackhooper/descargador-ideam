@@ -459,6 +459,9 @@ details.y2k-aviso > div p{margin:0 !important;font-size:12.5px !important;color:
 .y2k-pie-inicio p{margin:0;font-size:12px;color:var(--y2k-ink-3)}
 .st-key-y2k_inicio [data-testid="stExpander"] details,.st-key-y2k_exportar [data-testid="stExpander"] details{border-radius:16px !important;border:0 !important;
   background:var(--y2k-campo);box-shadow:0 0 0 1px var(--y2k-campo-borde) inset}
+/* el titulo del desplegable no lleva franja propia al abrirse (Streamlit le pone un fondo gris con esquinas de 8 px que
+   no casan con la caja de 16 px): abierto y cerrado se ven igual */
+.st-key-y2k_inicio [data-testid="stExpander"] summary{background:transparent !important;border-radius:16px !important}
 
 /* ================= PANTALLA 2: MAPA ================= */
 /* panel lateral */
@@ -513,6 +516,11 @@ html[data-y2k-panel="cerrado"]{--y2k-libre-izq:0px}
 .st-key-y2k_buffer .stPopover button [data-testid="stIconMaterial"]{font-size:17px !important;color:var(--y2k-accent-texto)}
 .st-key-y2k_buffer .stPopover button:hover{box-shadow:inset 0 0 0 1.5px var(--y2k-accent) !important}
 .y2k-acciones{display:flex;flex-wrap:wrap;gap:6px}
+[data-testid="stMarkdownContainer"] p.y2k-hint.y2k-ubic{display:flex;align-items:flex-start;gap:6px;margin:0 0 8px !important}
+.y2k-ubic svg{width:15px;height:15px;flex:none;margin-top:2px}
+/* nombres largos en las listas desplegables (estaciones): se cortan con «…» en vez de en seco */
+[role="listbox"] [role="option"] > div{display:block !important;align-self:center;min-width:0;overflow:hidden;text-overflow:ellipsis;
+  white-space:nowrap}
 .y2k-acciones .y2k-boton{flex:1 1 auto;justify-content:center}
 /* con un area marcada: tres acciones compactas en una fila (icono arriba, texto abajo) */
 .y2k-acciones.fichas{display:grid;grid-template-columns:repeat(3,minmax(0,1fr))}
@@ -1340,6 +1348,7 @@ _UI = r"""
       det.addEventListener("toggle", function () { setTimeout(distribuir, 30); });
     });
     traducirCargador();
+    traducirListas();
     estadoArea();
     estadoCapas();
     esperaMapa();
@@ -1373,6 +1382,22 @@ _UI = r"""
   function pulsadoEnMapa() {
     alPulsar(null);
     if (d.querySelector('[data-testid="stPopoverBody"]')) d.body.dispatchEvent(new w.MouseEvent("click", {bubbles: true}));
+  }
+
+  // Textos de las listas desplegables de Streamlit (vienen en ingles): el buscador de estaciones permite elegir
+  // todas las coincidencias de una busqueda
+  function traducirListas() {
+    d.querySelectorAll('[role="listbox"], [data-baseweb="popover"]').forEach(function (z) {
+      var it = d.createTreeWalker(z, NodeFilter.SHOW_TEXT), n, t;
+      while ((n = it.nextNode())) {
+        t = n.nodeValue.trim();
+        if (t === "Select all") n.nodeValue = "Elegir todas";
+        else if (t === "No results") n.nodeValue = "Sin resultados";
+        else if (/^Select \d+ matches$/.test(t)) n.nodeValue = t.replace(/^Select (\d+) matches$/, "Elegir las $1 coincidencias");
+      }
+    });
+    d.querySelectorAll('[aria-label="Clear value"]').forEach(function (b) { b.setAttribute("aria-label", "Borrar"); });
+    d.querySelectorAll('[aria-label="Clear all"]').forEach(function (b) { b.setAttribute("aria-label", "Quitar todas"); });
   }
 
   // Textos del cargador de archivos de Streamlit (vienen en ingles)
@@ -2127,7 +2152,7 @@ _UI = r"""
 
 def instalar_ui():
     """Inyecta el guion de la interfaz en la pagina principal (sobrevive a las recargas de Streamlit)."""
-    codigo = (_UI.replace("__V__", "35").replace("__ICONO_ALERTA__", json.dumps(ICONOS["alerta"]))
+    codigo = (_UI.replace("__V__", "36").replace("__ICONO_ALERTA__", json.dumps(ICONOS["alerta"]))
               .replace("__MOVIL__", json.dumps(MOVIL)).replace("__VIDRIO__", json.dumps(VIDRIO)))
     cuerpo = ("(function(){var w=window.parent;var s=w.document.createElement('script');"
               f"s.textContent={json.dumps(codigo)};w.document.head.appendChild(s);s.remove();}})();")
@@ -2238,6 +2263,14 @@ def acciones_area(hay_cuenca, vista="2D"):
        f'<button type="button" class="y2k-boton sec" data-y2k-editar title="Ajustar las esquinas">{ICONOS["ajustar"]}Ajustar</button>'
        f'<button type="button" class="y2k-boton sec peligro" data-y2k-borrar title="Borrar el área">{ICONOS["borrar"]}Borrar</button>'
        '</div>')
+
+
+def ubicacion_elegida(texto):
+    """Panel con estaciones elegidas por ubicacion (en Parametros), en lugar del area: de donde son y «Quitar filtro»
+    (pulsa el boton oculto y2k_quitar_ubicacion; vuelve al modo area)."""
+    md(f'<p class="y2k-hint y2k-ubic">{ICONOS["estacion"]}<span>{escape(texto)}</span></p>'
+       '<div class="y2k-acciones"><button type="button" class="y2k-boton sec" data-y2k-pulsar="y2k_quitar_ubicacion" '
+       f'title="Elegir las estaciones con un área del mapa">{ICONOS["cerrar"]}Quitar filtro</button></div>')
 
 
 def kpis(items):

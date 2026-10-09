@@ -292,6 +292,7 @@ dl.glosario dd{margin:0;color:var(--ink-2)}
           </li>
           <li><span class="ui">Variable</span> y <span class="ui">Parámetro</span>: solo aparecen las variables que tienen series en la opción elegida. Puedes abrir cada lista o <strong>escribir</strong> para buscar. Mientras la lista del IDEAM carga, los desplegables están en gris; un punto pequeño junto a la palabra «Variable» se enciende en azul cuando ya cargó.</li>
           <li><span class="ui">Desde</span> y <span class="ui">Hasta</span>: el periodo, en formato día/mes/año (por defecto del 01/01/2000 al 31/12/2020). La fecha inicial debe ser anterior a la final. Si con esa frecuencia el periodo daría más de un millón de filas por estación, más de lo que admite Excel, la tarjeta te pide acortarlo.</li>
+          <li><span class="ui">Filtrar por ubicación · opcional</span> (ver <a href="#ubicacion">Elegir las estaciones por ubicación</a>): otra forma de elegir las estaciones, sin dibujar un área.</li>
         </ol>
         <p>Cuando el mapa y los datos de la variable elegida terminaron de cargar, <span class="ui primario">Seleccionar área en el mapa</span> te lleva al mapa sin esperas. Si lo pulsas antes, no avanza y da dos destellos rojos: espera a que el punto de «Variable» se encienda. Debajo, tres pasos resumen el recorrido: <em>Establecer parámetros</em>, <em>Delimitar el área de análisis</em> y <em>Preparar la descarga</em>.</p>
         <p>El IDEAM entrega un número limitado de años por consulta. La app divide tu periodo en bloques de ese tamaño y después los une en un solo Excel:</p>
@@ -306,6 +307,14 @@ dl.glosario dd{margin:0;color:var(--ink-2)}
             </tbody>
           </table>
         </div>
+        <h3 id="ubicacion">Elegir las estaciones por ubicación</h3>
+        <p>Como en la sección <em>Datos Estación</em> de la página del IDEAM, puedes elegir las estaciones por su ubicación en vez de marcar un área en el mapa. Abre el desplegable <span class="ui">Filtrar por ubicación · opcional</span>, al final de la tarjeta:</p>
+        <ol>
+          <li><span class="ui">Departamento</span>: solo aparecen los que tienen estaciones con la serie elegida.</li>
+          <li><span class="ui">Municipio</span>: <em>Todos</em> por defecto, o uno en particular.</li>
+          <li><span class="ui">Estaciones</span> (opcional): escribe el nombre o el código y elige una o varias. Cada opción muestra el año del primer y del último dato de la serie, por ejemplo <em>ASTILLEROS [27011110] · 1991–2026</em>. Si no eliges ninguna, cuentan todas las del departamento o municipio.</li>
+        </ol>
+        <p>El botón cambia a <span class="ui primario">Ver N estaciones en el mapa</span>. En el mapa verás solo esas estaciones, encuadradas, con su cobertura y la lista para descargar; el panel dice de dónde son (por ejemplo, <em>Antioquia · Medellín</em>). <span class="ui">Quitar filtro</span>, en el panel, o dibujar o subir un área te devuelven a la forma de siempre. Para quitarlo desde la tarjeta, borra el departamento con su ×.</p>
         <h3 id="serie-especial">La serie especial</h3>
         <p>Son cálculos del IDEAM sobre una serie base (la del código entre corchetes). Las estaciones y su cobertura son las de esa serie base.</p>
         <ul>
@@ -322,7 +331,7 @@ dl.glosario dd{margin:0;color:var(--ink-2)}
         <h2><span class="etiqueta">PASO 2</span>Marcar el área en el mapa</h2>
         <p>El mapa ocupa toda la pantalla. En el computador, el panel <strong>Consulta</strong> llega cerrado para que veas el mapa entero: ábrelo con el botón <span class="ui">Consulta</span> de arriba a la izquierda. Arriba a la derecha está el menú <span class="ui">Ajustes</span> y, debajo, la cápsula de herramientas del mapa; abajo, el selector <span class="ui">2D</span> <span class="ui">3D</span> y el botón <span class="ui primario">Preparar descarga</span>. En la sección <em>Calidad de los datos</em> del panel, el nombre de tu variable (por ejemplo <span class="ui">‹ Precipitación</span>) te devuelve a la tarjeta del paso 1 para cambiar la variable o el periodo; el área y lo demás se conservan.</p>
         <p>En el <strong>celular</strong>, el panel es una tarjeta que se abre y se cierra con el botón <span class="ui">Consulta</span> de la barra de abajo (o con la ✕ de la tarjeta, o tocando el mapa). Mientras está abierta se apartan las herramientas, la leyenda y la escala del mapa; al cerrarla vuelven.</p>
-        <p>Puedes marcar el área de tres formas, todas desde el lápiz de la cápsula de herramientas: dibujar un rectángulo, usar la zona que ves en el mapa o subir el contorno de tu área (puede tener cualquier forma).</p>
+        <p>Puedes marcar el área de tres formas, todas desde el lápiz de la cápsula de herramientas: dibujar un rectángulo, usar la zona que ves en el mapa o subir el contorno de tu área (puede tener cualquier forma). Si en el paso 1 elegiste las estaciones por ubicación, no hace falta marcar nada (ver <a href="#ubicacion">Elegir las estaciones por ubicación</a>).</p>
 
         <h3>Opción A: dibujarla en el mapa</h3>
         <ol>
@@ -486,7 +495,7 @@ dl.glosario dd{margin:0;color:var(--ink-2)}
         <ol>
           <li>Pulsa <span class="ui primario">Preparar descarga</span>, abajo a la derecha. Si está gris, pasa el cursor sobre el botón: dice qué falta (por ejemplo, delimitar el área o seleccionar al menos una estación).</li>
           <li>El mapa queda detrás y aparece una tarjeta con el <strong>avance real</strong>: el porcentaje, una barra y el tiempo que falta, más cuántas estaciones van, cuántas se guardaron y cuántas se omitieron.</li>
-          <li>A la derecha (en el celular, debajo) está el <strong>recibo</strong> de lo que pediste: variable y frecuencia, periodo, número de estaciones (en el área y en el buffer), la lista de lo que trae el ZIP (un Excel por estación, las carpetas por cobertura si las elegiste, <code>resumen_descarga.csv</code> y <code>CITACION.txt</code>) y la fuente. Debajo, las condiciones de uso de los datos (ver <a href="#uso-datos">Uso de los datos y citación</a>).</li>
+          <li>A la derecha (en el celular, debajo) está el <strong>recibo</strong> de lo que pediste: variable y frecuencia, periodo, número de estaciones (en el área y en el buffer, o su ubicación si las elegiste por departamento y municipio), la lista de lo que trae el ZIP (un Excel por estación, las carpetas por cobertura si las elegiste, <code>resumen_descarga.csv</code> y <code>CITACION.txt</code>) y la fuente. Debajo, las condiciones de uso de los datos (ver <a href="#uso-datos">Uso de los datos y citación</a>).</li>
           <li>Al terminar, la tarjeta muestra un resumen: cuántas estaciones se guardaron y cómo se reparten por cobertura.</li>
         </ol>
         <h3>Detener o esperar turno</h3>

@@ -1136,8 +1136,10 @@ def _camino_3d_calcular(anillo, base):
 
 
 def construir_deck(cuenca_gdf, area_gdf, estaciones, seleccionada=None, textura="Satélite", paleta=None,
-                   ligero=False, altura=None, celular=False):
+                   ligero=False, altura=None, celular=False, marco_gdf=None):
     """
+    marco_gdf: recuadro que encuadra la escena cuando no hay area ni cuenca (estaciones elegidas por ubicacion); no
+    se dibuja.
     ligero: celulares, o despues de que el navegador se quedo sin memoria grafica: menos detalle.
     celular: pantalla angosta; el relieve se pide en un recuadro mas chico (lo que alcanza a verse).
     altura: (minimo, maximo) en metros para la textura "Altura" (colores segun la altitud del relieve).
@@ -1146,7 +1148,8 @@ def construir_deck(cuenca_gdf, area_gdf, estaciones, seleccionada=None, textura=
     alrededor de la estacion seleccionada o, si no hay, del centro de las estaciones.
     """
     paleta = paleta or {"tinta": "#16213A", "superficie": "#FBFCFE", "borde": "#B8C4D8"}
-    minx, miny, maxx, maxy = (area_gdf if area_gdf is not None else cuenca_gdf).total_bounds
+    marco = next(g for g in (area_gdf, cuenca_gdf, marco_gdf) if g is not None)
+    minx, miny, maxx, maxy = marco.total_bounds
     lon_c, lat_c = (minx + maxx) / 2, (miny + maxy) / 2
     # Toda la escena se baja la altura del terreno en el centro de la cuenca: la camara
     # de deck.gl apunta al nivel 0, y con el relieve a ~5 km (Bogota x2) al acercarse
@@ -1160,7 +1163,7 @@ def construir_deck(cuenca_gdf, area_gdf, estaciones, seleccionada=None, textura=
     elegida = next((e for e in estaciones if e["codigo"] == seleccionada), None)
     # Vuelta de camara: alrededor de la estacion elegida o, si no hay, del centro de las estaciones
     orbita = _orbita(elegida, base) if elegida else _orbita_grupo(
-        estaciones, area_gdf if area_gdf is not None else cuenca_gdf, base)
+        estaciones, marco, base)
     # El relieve solo se pide alrededor de la zona: el recuadro del area (con su buffer) mas, a cada lado, su propio
     # tamano (unas 3 veces el area, minimo ~7 km) o lo que alcanza a verse con el encuadre inicial de la camara, lo que
     # sea mayor. Lo de mas alla casi no se ve y era la mayor parte de los tiles al inclinar (memoria grafica y

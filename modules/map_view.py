@@ -123,8 +123,9 @@ def _tarjeta(row, codigo, excluida=False):
             partes.append(f"Cantidad probable <b>{row['Porcentaje (%)']:.0f} %</b> · cobertura {row.get('Clase calidad', '').lower()}")
             if row.get("Inicio serie"):
                 partes.append(f"<span style='color:{TINTA_2}'>Serie {str(row['Inicio serie'])[:4]}–{str(row['Fin serie'])[:4]}</span>")
-    if row.get("zona"):
-        partes.append(f"<span style='color:{TINTA_2}'>{'En la cuenca' if row['zona'] == 'cuenca' else 'En el buffer'}</span>")
+    lugar = {"cuenca": "En la cuenca", "buffer": "En el buffer"}.get(row.get("zona"))
+    if lugar:
+        partes.append(f"<span style='color:{TINTA_2}'>{lugar}</span>")
     if row.get("altitud_dudosa") and row.get("terreno") is not None:
         partes.append(f"<span style='color:{ALERTA}'>⚠ Altitud dudosa: el relieve marca "
                       f"{row['terreno']:,.0f} m</span>".replace(",", "."))

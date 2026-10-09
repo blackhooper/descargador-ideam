@@ -1,10 +1,12 @@
 import json
+import math
 import os
 import re
 import threading
 import time
 from datetime import date
 
+import geopandas as gpd
 import pandas as pd
 import shapely
 import streamlit as st
@@ -209,18 +211,86 @@ def _clave_widget(texto):
     return re.sub(r"\W+", "_", str(texto))
 
 
-def _desplegable(titulo, opciones, clave, espera, defecto=0, punto=None):
+def _desplegable(titulo, opciones, clave, espera, defecto=0, punto=None, buscar="Escribe para buscar"):
     """Desplegable con su etiqueta visible; devuelve el valor elegido. opciones: {valor: texto}. Sin opciones
     (mientras carga la lista del IDEAM o si fallo) va en gris y no se puede abrir, con otra clave: asi el de verdad
-    nace con su valor por defecto."""
+    nace con su valor por defecto. defecto=None: empieza sin nada elegido (con `buscar` como texto)."""
     estilo.etiqueta(titulo, punto=punto)
     if not opciones:
         st.selectbox(titulo, [], index=None, key=f"espera_{_clave_widget(titulo)}", label_visibility="collapsed",
                      disabled=True, placeholder=espera)
         return None
     return st.selectbox(titulo, list(opciones), index=defecto, key=clave, label_visibility="collapsed",
-                        format_func=lambda v: opciones.get(v, v), placeholder="Escribe para buscar",
+                        format_func=lambda v: opciones.get(v, v), placeholder=buscar,
                         persist_state="session")
+
+
+def _vigente(clave, opciones, multiple=False):
+    """Olvida lo elegido en un campo si ya no esta entre sus opciones (otra serie u otro departamento)."""
+    valor = ss.get(clave)
+    if multiple and valor:
+        ss[clave] = [v for v in valor if v in opciones]
+    elif not multiple and valor is not None and valor not in opciones:
+        del ss[clave]
+
+
+def _filtro_ubicacion(etiqueta, cargada):
+    """Desplegable «Filtrar por ubicación» de Parametros (como «Datos Estación» de la pagina del IDEAM):
+    departamento, municipio y estaciones de la serie elegida. Es otra forma de elegir las estaciones y reemplaza al
+    area del mapa. Va cerrado para no llenar la tarjeta (abierto si ya hay un filtro). Devuelve el filtro
+    ({"codigos", "texto"}) o None si no se eligio departamento. `cargada`: las estaciones de la serie ya llegaron."""
+    series = ideam_downloader.obtener_series_disponibles(etiqueta) if cargada else {}
+    deps = ideam_parameters.departamentos_de(series)
+    _vigente("ubic_dep", deps)
+    with st.container(key="y2k_ubicacion"), st.expander("Filtrar por ubicación · opcional", icon=":material/location_on:",
+                                                        expanded=ss.get("ubic_dep") is not None):
+        # sin departamento no hay filtro (la × del campo lo quita): se olvidan tambien municipio y estaciones
+        dep = _desplegable("Departamento", deps, "ubic_dep", "Departamento", defecto=None,
+                           buscar="Elige un departamento")
+        if dep is None:
+            ss.pop("ubic_mun", None)
+            ss.pop("ubic_est", None)
+            return None
+        municipios = ideam_parameters.municipios_de(series, dep)
+        _vigente("ubic_mun", municipios)
+        mun = _desplegable("Municipio", municipios, "ubic_mun", "Municipio")
+        estaciones = ideam_parameters.estaciones_de(series, dep, mun)
+        _vigente("ubic_est", estaciones, multiple=True)
+        estilo.etiqueta("Estaciones")
+        elegidas = st.multiselect("Estaciones", list(estaciones), key="ubic_est", label_visibility="collapsed",
+                                  format_func=lambda c: estaciones.get(c, c), persist_state="session",
+                                  placeholder="Todas · nombre o código")
+    return ideam_parameters.filtro_ubicacion(series, dep, mun, elegidas)
+
+
+@st.cache_resource(show_spinner=False)
+def _codigos_catalogo():
+    """Codigo IDEAM de cada estacion del catalogo (mismo indice), para elegirlas por codigo sin recorrerlo cada vez."""
+    return pd.Series([ideam_downloader.codigo_de_estacion(r, i) for i, r in catalogo.iterrows()], index=catalogo.index)
+
+
+def _estaciones_del_filtro(filtro):
+    """Estaciones del catalogo elegidas por ubicacion, con zona = "filtro"."""
+    zona = catalogo[_codigos_catalogo().reindex(catalogo.index).isin(set(filtro["codigos"])).values].copy()
+    zona["zona"] = "filtro"
+    return zona
+
+
+def _marco(zona):
+    """Recuadro de las estaciones con unos 2 km de margen: encuadra el 3D y mide el relieve (no se dibuja)."""
+    minx, miny, maxx, maxy = zona.total_bounds
+    return gpd.GeoDataFrame(geometry=[shapely.box(minx - .02, miny - .02, maxx + .02, maxy + .02)], crs=4326)
+
+
+def _encuadre(zona):
+    """Centro y zoom del mapa 2D para que quepan todas las estaciones (pantalla de ~1000 x 600 px; en el celular
+    ~340 x 520). El desfase minusculo hace que el mapa se mueva aunque se repita el mismo encuadre."""
+    minx, miny, maxx, maxy = zona.total_bounds
+    ancho_px, alto_px = (340, 520) if _es_celular() else (1000, 600)
+    zoom = min(math.log2(ancho_px * 360 / (256 * max(maxx - minx, .01))),
+               math.log2(alto_px * 360 / (256 * max(maxy - miny, .01))))
+    ss.saltos += 1
+    return ((miny + maxy) / 2 + ss.saltos * 1e-9, (minx + maxx) / 2), min(13, max(5, int(zoom))) + (ss.saltos % 2) * 1e-4
 
 
 def _param_de(clave):
@@ -308,7 +378,7 @@ def _estaciones_3d(zona, excluidas):
             "pct_txt": (f"{pct:.0f} %" + (" · excluida" if tiene and not ok else "")) if evaluada else "sin evaluar",
             "color": _hex_a_rgb(clasificar_calidad(pct)["color"]) if ok else [150, 160, 180],
             "ok": ok,
-            "zona": "En el área" if r.get("zona") == "cuenca" else "En el buffer",
+            "zona": {"cuenca": "En el área", "buffer": "En el buffer"}.get(r.get("zona"), ""),
             "alerta": f"⚠ Altitud dudosa: el relieve marca {_num(r['terreno'])} m" if dudosa else "",
             "terreno": r.get("terreno"),
             "dudosa": dudosa,
@@ -319,14 +389,40 @@ def _estaciones_3d(zona, excluidas):
 # ===========================================================================
 # Acciones (callbacks: corren antes del guion, asi la pantalla nueva aparece en la misma recarga)
 # ===========================================================================
-def _ir_mapa(clave_param, listo):
+def _ir_mapa(clave_param, listo, filtro=None):
     if not listo:   # el navegador ya lo impide (el boton parpadea en rojo); esto es por si el guion no cargo
         return
-    nueva = {"clave": ss.get(clave_param), "ini": ss.get("f_ini"), "fin": ss.get("f_fin")}
+    nueva = {"clave": ss.get(clave_param), "ini": ss.get("f_ini"), "fin": ss.get("f_fin"), "filtro": filtro}
     if nueva != ss.consulta:
-        ss.excluidas = set()   # otro parametro u otro periodo: las estaciones quitadas antes no aplican
+        ss.excluidas = set()   # otro parametro, otro periodo u otras estaciones: las quitadas antes no aplican
+    if filtro:
+        # Las estaciones elegidas por ubicacion reemplazan al area: si habia una, se quita (el mapa se arma de nuevo,
+        # sin el rectangulo) y el mapa se encuadra en las estaciones
+        if ss.cuenca is not None:
+            ss.cuenca = None
+            ss.version_mapa += 1
+        ss._encuadrar = True
     ss.consulta = nueva
     ss.paso = "mapa"
+
+
+# Campos del filtro por ubicacion (Parametros)
+UBICACION = ("ubic_dep", "ubic_mun", "ubic_est")
+
+
+def _quitar_ubicacion():
+    """Los tres campos del filtro por ubicacion vuelven a vacio."""
+    for clave in UBICACION:
+        ss.pop(clave, None)
+
+
+def _quitar_filtro_mapa():
+    """«Quitar filtro» del panel: vuelve al modo area (dibujar o subir un area). Tambien se vacia en Parametros."""
+    if ss.consulta:
+        ss.consulta = {**ss.consulta, "filtro": None}
+    _quitar_ubicacion()
+    ss.estacion_sel = None
+    ss.excluidas = set()
 
 
 def _volver_parametros():
@@ -451,7 +547,8 @@ def mapa_de_fondo(nuevo_permitido=True):
     if not nuevo_permitido and not (ss._mapa_en_run_anterior and ss.get("_mapa_version") == ss.version_mapa):
         return
     args = ss.get("_capa_args")
-    capa = map_view.capa_dinamica(*args) if ss.cuenca is not None and args is not None else _capa_catalogo()
+    hay_zona = ss.cuenca is not None or bool((ss.consulta or {}).get("filtro"))
+    capa = map_view.capa_dinamica(*args) if hay_zona and args is not None else _capa_catalogo()
     with escenario:
         mapa_2d(capa)
 
@@ -545,10 +642,15 @@ def pantalla_parametros():
         series = _precargar_series(param["etiqueta"]) if param else None
         if series and not series["listo"]:
             pendientes.append(lambda s=series: not s["listo"])
+        # Otra forma de elegir las estaciones (departamento, municipio, estaciones), en un desplegable al final
+        filtro = _filtro_ubicacion(param["etiqueta"], bool(series and series["listo"] and not series["error"])) \
+            if param else None
         listo = bool(param and fechas_ok and not excede and not anios_max and series and series["listo"])
         estilo.marca_listo(listo)
-        st.button("Seleccionar área en el mapa", type="primary", key="ir_mapa", icon=":material/arrow_forward:",
-                  icon_position="right", width="stretch", on_click=_ir_mapa, args=(clave_param, listo))
+        n_filtro = len(filtro["codigos"]) if filtro else 0
+        st.button(f"Ver {n_filtro} {'estaciones' if n_filtro != 1 else 'estación'} en el mapa" if filtro
+                  else "Seleccionar área en el mapa", type="primary", key="ir_mapa", icon=":material/arrow_forward:",
+                  icon_position="right", width="stretch", on_click=_ir_mapa, args=(clave_param, listo, filtro))
         estilo.como_funciona()
         estilo.pie_inicio(TEXTO_LEGAL)
     with hueco_ocultos:
@@ -589,6 +691,7 @@ def dialogo_subida():
     st.success(f"Archivo válido: {len(poligonos)} {'polígonos' if len(poligonos) != 1 else 'polígono'}.")
     if st.button("Usar esta área", type="primary", width="stretch", key="usar_subida", icon=":material/check:"):
         ss.cuenca = poligonos[["geometry"]].reset_index(drop=True)
+        _quitar_filtro_mapa()   # un area reemplaza a las estaciones elegidas por ubicacion
         ss.version_mapa += 1
         ss.version_subida += 1
         ss.estacion_sel = None
@@ -626,6 +729,9 @@ def pantalla_mapa():
         st.rerun()
     fecha_ini, fecha_fin = consulta["ini"], consulta["fin"]
     cuenca = ss.cuenca
+    # Estaciones elegidas por ubicacion en Parametros: reemplazan al area (sin rectangulo ni buffer)
+    filtro = consulta.get("filtro")
+    encuadrar = ss.pop("_encuadrar", False)
     vista = ss.get("vista") or "2D"   # el selector 2D/3D se dibuja abajo, en las pildoras
     excluidas = set(ss.excluidas)
 
@@ -640,11 +746,16 @@ def pantalla_mapa():
 
     # ---------------- area y buffer ----------------
     with cuerpo:
-        area_km2 = _area_km2(cuenca) if cuenca is not None else None
-        estilo.seccion("Área de estudio", capsula=f"≈ {_km_txt(area_km2)} km²" if area_km2 else None,
-                       valor="" if cuenca is not None else "Sin definir")
-        estilo.acciones_area(cuenca is not None, vista)
-        buffer_on, buffer_km = _control_buffer()
+        if filtro:
+            estilo.seccion("Estaciones elegidas")
+            estilo.ubicacion_elegida(filtro["texto"])
+            buffer_on, buffer_km = False, 0
+        else:
+            area_km2 = _area_km2(cuenca) if cuenca is not None else None
+            estilo.seccion("Área de estudio", capsula=f"≈ {_km_txt(area_km2)} km²" if area_km2 else None,
+                           valor="" if cuenca is not None else "Sin definir")
+            estilo.acciones_area(cuenca is not None, vista)
+            buffer_on, buffer_km = _control_buffer()
         # la variable consultada, en corto (sin fechas): al pulsarla se vuelve a Parametros
         estilo.seccion("Calidad de los datos", chip=(
             param["variable_nombre"], f"{param['nombre']} · {_periodo(fecha_ini, fecha_fin)}. "
@@ -661,11 +772,15 @@ def pantalla_mapa():
     descargables = seleccion = None
     evaluada = False
     error_ideam = None
-    if cuenca is not None and catalogo is not None:
+    if catalogo is not None and filtro:
+        zona = _estaciones_del_filtro(filtro)
+        area = _marco(zona) if not zona.empty else None
+    elif cuenca is not None and catalogo is not None:
         area = geo_utils.create_buffer(cuenca, buffer_km if buffer_on else 0)
         zona = geo_utils.filter_stations(catalogo, area)
         union = cuenca.union_all()
         zona["zona"] = ["cuenca" if union.covers(g) else "buffer" for g in zona.geometry]
+    if zona is not None:
         if not zona.empty:
             # sin textos de carga: mientras se calcula, el escaner recorre el area en el mapa
             _revisar_altitudes(zona)
@@ -728,7 +843,8 @@ def pantalla_mapa():
                 with st.container(key="y2k_visor3d"):
                     deck, orbita = terreno.construir_deck(cuenca, area if buffer_on else None,
                                                           _estaciones_3d(zona, excluidas), ss.estacion_sel, textura,
-                                                          PALETA, ligero=ligero, altura=altura, celular=_es_celular())
+                                                          PALETA, ligero=ligero, altura=altura, celular=_es_celular(),
+                                                          marco_gdf=area)
                     # Vuelta de camara: alrededor de la estacion recien elegida o, sin seleccion, alrededor
                     # del centro de las estaciones (al abrir el 3D, al cambiar las estaciones o al quitar la seleccion)
                     pedida = ss.pop("_orbitar", False)
@@ -786,12 +902,14 @@ def pantalla_mapa():
                     estilo.sobre_mapa("Tu equipo pide reducir el movimiento, así que la animación de entrada no se "
                                       "reproduce sola. Puedes verla con el botón ↻ de abajo.", "y2k-nota-mov")
         else:
-            if cuenca is None:
+            if cuenca is None and not filtro:
                 capa = _capa_catalogo()
             else:
                 ss._capa_args = (area if buffer_on else None, zona, ss.estacion_sel, None, excluidas & codigos_desc)
                 capa = map_view.capa_dinamica(*ss._capa_args)
             centro = zoom = None
+            if encuadrar and zona is not None and not zona.empty:
+                centro, zoom = _encuadre(zona)   # recien llegadas las estaciones elegidas por ubicacion
             if cambio_sel and zona is not None and ss.estacion_sel:
                 elegida = zona[[ideam_downloader.codigo_de_estacion(r, i) == ss.estacion_sel for i, r in zona.iterrows()]]
                 if not elegida.empty:
@@ -805,6 +923,8 @@ def pantalla_mapa():
                 nueva = map_view.cuenca_desde_dibujos(retorno["all_drawings"])
                 if _firma(nueva) != _firma(cuenca):
                     ss.cuenca = nueva
+                    if filtro:
+                        _quitar_filtro_mapa()   # un area reemplaza a las estaciones elegidas por ubicacion
                     ss.estacion_sel = None
                     ss.excluidas = set()
                     st.rerun()
@@ -823,7 +943,7 @@ def pantalla_mapa():
             clic = (retorno or {}).get("last_object_clicked")
             if _sincronizar("mapa2d", clic, lambda c: _estacion_cercana(zona, c)):
                 st.rerun()
-            if cuenca is not None:
+            if cuenca is not None or filtro:
                 estilo.leyenda_estaciones([(f"{c[1]} {c[2]}", c[4]) for c in CLASES_CALIDAD],
                                           hay_excluidas=bool(excluidas & codigos_desc))
         ss._vista_prev = vista
@@ -836,7 +956,7 @@ def pantalla_mapa():
     with caja_calidad:
         if error_ideam:
             estilo.aviso("No se pudo consultar el IDEAM.", error_ideam, tono="error")
-        elif cuenca is None:
+        elif cuenca is None and not filtro:
             st.html('<p class="y2k-hint">Delimita el área de estudio para evaluar la disponibilidad de datos de cada '
                     'estación.</p>')
         elif zona is not None and zona.empty and n_zona_total:
@@ -852,7 +972,8 @@ def pantalla_mapa():
             estilo.aviso("Ninguna estación de la zona tiene datos de esta variable en el periodo.",
                          "Cambia la variable o el periodo, o amplía el buffer.")
         elif evaluada:
-            panel_estadisticas.tablero(zona, descargables, seleccion, param, cifras, dudosas, rango)
+            panel_estadisticas.tablero(zona, descargables, seleccion, param, cifras, dudosas, rango,
+                                       ubicacion=filtro["texto"] if filtro else None)
 
     # ---------------- capsula de herramientas (derecha) ----------------
     with hueco_herr:
@@ -883,7 +1004,7 @@ def pantalla_mapa():
     if listo:
         razon = (f"{n_sel} {'estaciones' if n_sel != 1 else 'estación'} · "
                  f"{panel_estadisticas.duracion_aprox(cifras['segundos'])}")
-    elif cuenca is None:
+    elif cuenca is None and not filtro:
         razon = "Delimita el área de estudio"
     elif error_ideam:
         razon = "No se pudo consultar el IDEAM"
@@ -906,7 +1027,8 @@ def pantalla_mapa():
                               help="En modo Lite no hay animación de entrada. Desactívalo en Ajustes para verla." if ss.lite
                               else "Repetir la animación de entrada al 3D")
         with st.container(key="y2k_dock_der"):
-            datos = {"estaciones": seleccion.copy(), "param": param, "ini": fecha_ini, "fin": fecha_fin} if listo else None
+            datos = {"estaciones": seleccion.copy(), "param": param, "ini": fecha_ini, "fin": fecha_fin,
+                     "ubicacion": filtro["texto"] if filtro else None} if listo else None
             st.button("Preparar descarga", type="primary", key="preparar", icon=":material/arrow_forward:",
                       icon_position="right", disabled=not listo, help=razon, on_click=_preparar, args=(datos,))
 
@@ -924,6 +1046,7 @@ def pantalla_mapa():
         st.button("Seguir intentando", key="y2k_reintentar3d", on_click=_recargar_3d)
         st.button("Ver en 2D", key="y2k_pasar2d", on_click=_pasar_a_2d)
         st.button("Borrar el área", key="y2k_borrar", on_click=_borrar_cuenca)
+        st.button("Quitar filtro", key="y2k_quitar_ubicacion", on_click=_quitar_filtro_mapa)
         st.button("Subir un archivo", key="y2k_subir", on_click=_abrir_subida)
         st.button("Cambiar la variable", key="chip_param", on_click=_volver_parametros)
         for i, t in enumerate(TEXTURAS):   # menu de capas del 3D
@@ -949,13 +1072,14 @@ def pantalla_mapa():
 def _recibo(d):
     n = len(d["estaciones"])
     en_area = int((d["estaciones"]["zona"] == "cuenca").sum()) if "zona" in d["estaciones"].columns else n
+    lugar = d.get("ubicacion") or (f"{en_area} en el área" + (f" · {n - en_area} en el buffer" if n - en_area else ""))
     p = d["param"]
     unidad = f" ({p['unidad']})" if p.get("unidad") else ""
     estilo.recibo([
         ("Variable", p["descripcion"] + unidad, f"Frecuencia {_frecuencia_txt(p['frecuencia'])}"
          + (f" · cálculo {p['calculo']}" if p["especial"] and p["calculo"] not in ("", "NA") else "")),
         ("Periodo", f"{d['ini']:%d/%m/%Y} – {d['fin']:%d/%m/%Y}", ""),
-        ("Estaciones", f"{n}", f"{en_area} en el área" + (f" · {n - en_area} en el buffer" if n - en_area else "")),
+        ("Estaciones", f"{n}", lugar),
         ("Archivo", [("Un Excel por estación", "excel", "")]
          + ([("Carpetas por cobertura", "carpeta", "Alta, media, baja y crítica")] if ss.get("carpetas", True) else [])
          + [("resumen_descarga.csv", "tabla", "Cobertura y resultado por estación"),

@@ -158,6 +158,32 @@ def consultar_api(ruta, params=None, token=None):
     return response.json()
 
 
+URL_SERIES_CALCULO = "https://dhime.ideam.gov.co/server/rest/services/CNE/Estaciones/MapServer/9/query"
+
+
+def obtener_series_calculo():
+    """
+    Parametros de la serie "Especial" del portal: la tabla SERIESTIEMPOCALCULO_VIEW del servicio de mapas de DHIME,
+    la misma que consulta la pagina del IDEAM al elegir frecuencia y variable. Cada fila trae idparametro, etiqueta,
+    descripcion, calculo (SUM, MAX, MIN, AVG o NA) y frecuencia ("Decadal" o "Multianual"), en el orden en que la
+    pagina los muestra (por descripcion). Es publica: no lleva token. Si falla lanza una excepcion.
+    """
+    consulta = {"where": "1=1", "outFields": "idparametro,etiqueta,descripcion,calculo,frecuencia",
+                "returnDistinctValues": "true", "orderByFields": "descripcion ASC", "returnGeometry": "false", "f": "json"}
+    try:
+        response = requests.get(URL_SERIES_CALCULO, params=consulta, timeout=30, headers={
+            "Referer": "https://atencionciudadano.ideam.gov.co/",
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36"
+        })
+        response.raise_for_status()
+        datos = response.json()
+    except (requests.RequestException, ValueError) as e:
+        raise RuntimeError(f"El servicio de mapas del IDEAM no respondió: {e}") from e
+    if "error" in datos:
+        raise RuntimeError(f"El servicio de mapas del IDEAM respondió con un error: {datos['error']}")
+    return [f["attributes"] for f in datos.get("features", [])]
+
+
 @st.cache_data(ttl=6 * 3600, show_spinner=False)
 def obtener_series_disponibles(etiqueta):
     """
@@ -541,12 +567,14 @@ def a_fecha(valor):
     return datetime.date.fromisoformat(str(valor)[:10])
 
 
-def calcular_bloques(fecha_ini, fecha_fin, inicio_serie=None, fin_serie=None, dias_por_bloque=DIAS_POR_BLOQUE_DEFECTO):
+def calcular_bloques(fecha_ini, fecha_fin, inicio_serie=None, fin_serie=None, dias_por_bloque=DIAS_POR_BLOQUE_DEFECTO,
+                     alinear_mes=False):
     """
     Parte el rango pedido en bloques de maximo `dias_por_bloque` dias (el
     IDEAM rechaza consultas mas largas). Si se conocen las fechas del primer
     y ultimo dato de la serie, el rango se recorta a ellas para no pedir
     bloques que de seguro vienen vacios (cada peticion tarda 1-7 segundos).
+    alinear_mes: cada corte cae al final de un mes (asi una decada nunca queda partida entre dos bloques).
     """
     if inicio_serie:
         fecha_ini = max(fecha_ini, inicio_serie)
@@ -556,9 +584,41 @@ def calcular_bloques(fecha_ini, fecha_fin, inicio_serie=None, fin_serie=None, di
     inicio_actual = fecha_ini
     while inicio_actual <= fecha_fin:
         fin_actual = min(inicio_actual + datetime.timedelta(days=dias_por_bloque - 1), fecha_fin)
+        if alinear_mes and fin_actual < fecha_fin:
+            fin_mes = (fin_actual + datetime.timedelta(days=1)).replace(day=1) - datetime.timedelta(days=1)
+            fin_actual = fin_mes if fin_mes >= inicio_actual else fin_actual
         bloques.append((inicio_actual, fin_actual))
         inicio_actual = fin_actual + datetime.timedelta(days=1)
     return bloques
+
+
+def bloques_de(param, fecha_ini, fecha_fin, inicio_serie=None, fin_serie=None):
+    """Bloques de una estacion para el parametro. La serie multianual va en una sola consulta: sus valores son el
+    minimo, la media y el maximo de todo el periodo, y al partirlo darian otros (el periodo maximo lo controla la
+    pantalla de Parametros). En la decadal los cortes caen al final de un mes."""
+    if param.get("frecuencia") == "Multianual":
+        return calcular_bloques(fecha_ini, fecha_fin, inicio_serie, fin_serie, (fecha_fin - fecha_ini).days + 1)
+    return calcular_bloques(fecha_ini, fecha_fin, inicio_serie, fin_serie,
+                            param.get("dias_bloque", DIAS_POR_BLOQUE_DEFECTO),
+                            alinear_mes=param.get("frecuencia") == "Decadal")
+
+
+def rotulo_serie(param):
+    """Rotulo de la serie para nombres de archivo: "PTPM_CON" o, en la serie especial, "PTPM_CON_Decadal_SUM"
+    (sin el calculo "NA" de las multianuales). Sin caracteres que no admite un nombre de archivo."""
+    partes = [param["etiqueta"]]
+    if param.get("especial"):
+        partes += [param["frecuencia"]] + ([param["calculo"]] if param.get("calculo") not in ("", "NA", None) else [])
+    return re.sub(r'[\\/:*?"<>|\s]+', "-", "_".join(partes))
+
+
+def _zip_vacio(datos):
+    """True si la respuesta es un ZIP sin ningun archivo (asi responde el IDEAM cuando no hay datos que calcular)."""
+    try:
+        with zipfile.ZipFile(io.BytesIO(datos)) as zf:
+            return not [n for n in zf.namelist() if not n.endswith("/")]
+    except Exception:
+        return False
 
 
 def codigo_de_estacion(row, respaldo=""):
@@ -575,7 +635,7 @@ def descargar_excel_ideam(fecha_ini, fecha_fin, token_auth, param, codigo_estaci
     """
     Descarga la serie de una estacion en bloques y los fusiona en un Excel.
     param: dict del parametro del IDEAM (ver ideam_parameters.obtener_catalogo_parametros);
-           se usan "variable", "etiqueta" y "dias_bloque".
+           se usan "variable", "etiqueta", "tipo_serie", "calculo", "frecuencia" y "dias_bloque".
     inicio_serie / fin_serie (date): si se conocen, se evitan bloques vacios.
     al_terminar_bloque(n): se llama cada vez que se terminan n bloques
     (para la barra de progreso). Puede llamarse desde otro hilo.
@@ -595,14 +655,15 @@ def descargar_excel_ideam(fecha_ini, fecha_fin, token_auth, param, codigo_estaci
     var_normalizada = param["variable"]      # ej. "PRECIPITACION", "HUM RELATIVA"
     param_etiqueta = param["etiqueta"]       # ej. "PTPM_CON"
 
+    # Igual que la pagina: en la serie especial TipoSerie es la frecuencia ("Decadal" o "Multianual") y Calculo el
+    # que muestra la lista (SUM, MAX, MIN, AVG o NA); en la estandar van "Estandard" y ""
     payload = [{
         "IdParametro": var_normalizada, "Etiqueta": param_etiqueta,
         "EsEjeY1": False, "EsEjeY2": False, "EsTipoLinea": False,
-        "EsTipoBarra": False, "TipoSerie": "Estandard", "Calculo": ""
+        "EsTipoBarra": False, "TipoSerie": param.get("tipo_serie", "Estandard"), "Calculo": param.get("calculo", "")
     }]
 
-    bloques = calcular_bloques(fecha_ini, fecha_fin, inicio_serie, fin_serie,
-                               param.get("dias_bloque", DIAS_POR_BLOQUE_DEFECTO))
+    bloques = bloques_de(param, fecha_ini, fecha_fin, inicio_serie, fin_serie)
     if not bloques:
         return None, "Sin datos en el periodo pedido (la serie empieza después o termina antes)"
     bloques_sin_pedir = len(bloques)
@@ -689,6 +750,10 @@ def descargar_excel_ideam(fecha_ini, fecha_fin, token_auth, param, codigo_estaci
                         f_debug.write(datos_crudos)
                 except Exception:
                     pass
+
+            if _zip_vacio(datos_crudos):
+                diagnosticos_bloques.append(f"{etiqueta_bloque} Sin datos (el IDEAM devolvió un ZIP vacío)")
+                continue
 
             # Caso normal: llega un .xlsx (suelto o dentro de un ZIP). Se guarda
             # tal cual para fusionarlo al final conservando el formato original.
@@ -880,6 +945,11 @@ def texto_citacion(param, fecha_ini, fecha_fin, n_estaciones):
     """Contenido de CITACION.txt: la cita ya armada con la fecha real de descarga."""
     hoy = _ahora_colombia()
     cita = f"Fuente: Ideam. ({hoy.year}, {MESES[hoy.month - 1]} {hoy.day}). {PAGINA_FUENTE}. {URL_FUENTE}"
+    serie = "Estándar"
+    if param.get("especial"):
+        serie = f"Especial · {param['frecuencia']}, cálculo {param.get('calculo') or 'NA'}"
+        if param["frecuencia"] == "Multianual":
+            serie += " (mínimo, media y máximo de cada mes en el periodo)"
     return (
         "CÓMO CITAR ESTOS DATOS\n"
         "======================\n\n"
@@ -897,6 +967,7 @@ def texto_citacion(param, fecha_ini, fecha_fin, n_estaciones):
         "CONSULTA\n"
         "--------\n"
         f"Parámetro: {param.get('descripcion', '')} ({param['etiqueta']}, {param.get('unidad', '')})\n"
+        f"Serie: {serie}\n"
         f"Periodo: {fecha_ini:%d/%m/%Y} a {fecha_fin:%d/%m/%Y}\n"
         f"Estaciones: {n_estaciones}\n"
         f"Fecha de descarga: {hoy:%d/%m/%Y %H:%M} (hora de Colombia)\n\n"
@@ -932,7 +1003,6 @@ def registrar_descargas_ideam(param, cantidad, token):
 
 def plan_descarga(estaciones_df, fecha_ini, fecha_fin, param):
     """Cuantas consultas necesita cada estacion y el tiempo estimado total."""
-    dias_bloque = param.get("dias_bloque", DIAS_POR_BLOQUE_DEFECTO)
     plan = []
     for idx, row in estaciones_df.iterrows():
         codigo = codigo_de_estacion(row, idx)
@@ -945,7 +1015,7 @@ def plan_descarga(estaciones_df, fecha_ini, fecha_fin, param):
             "pct": float(row.get("Porcentaje (%)", 0) or 0),
             "inicio_serie": inicio_serie,
             "fin_serie": fin_serie,
-            "bloques": len(calcular_bloques(fecha_ini, fecha_fin, inicio_serie, fin_serie, dias_bloque)),
+            "bloques": len(bloques_de(param, fecha_ini, fecha_fin, inicio_serie, fin_serie)),
         })
     total_bloques = max(1, sum(item["bloques"] for item in plan))
     total_filas = int(pd.to_numeric(estaciones_df["Cantidad Probable"], errors="coerce").fillna(0).sum()) \
@@ -1042,7 +1112,7 @@ def procesar_descargas(estaciones_df, clasificar_en_carpetas, fecha_ini, fecha_f
     try:
         with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:
             pendientes = {lanzar(pool, item, token_auth): item for item in plan}
-            log(f"$ descargar --serie {param['etiqueta']} --desde {fecha_ini} --hasta {fecha_fin}", "d")
+            log(f"$ descargar --serie {rotulo_serie(param)} --desde {fecha_ini} --hasta {fecha_fin}", "d")
             log(f"{total_estaciones} estaciones · {total_bloques} consultas de hasta {dias_bloque} días · "
                 f"{HILOS_DESCARGA} a la vez")
             pintar(0.0, segundos_estimados)
@@ -1090,9 +1160,9 @@ def procesar_descargas(estaciones_df, clasificar_en_carpetas, fecha_ini, fecha_f
                         continue
 
                     carpeta = clase["carpeta"] + "/" if clasificar_en_carpetas else ""
-                    # El nombre lleva la etiqueta para no mezclar descargas de distintos parametros
+                    # El nombre lleva el rotulo de la serie para no mezclar descargas de distintos parametros
                     nombre_archivo = re.sub(r'[\\/:*?"<>|]+', "-", re.sub(r"\s+", "_", item["nombre"])) \
-                        + f"_{param['etiqueta']}.xlsx"
+                        + f"_{rotulo_serie(param)}.xlsx"
                     ruta_en_zip = carpeta + nombre_archivo
                     zip_file.writestr(ruta_en_zip, excel_data)
                     carpetas[ruta_en_zip] = clase["carpeta"]
@@ -1135,6 +1205,6 @@ def procesar_descargas(estaciones_df, clasificar_en_carpetas, fecha_ini, fecha_f
         "omitidas": terminadas - guardadas,
         "duracion": duracion,
         "colores": colores,
-        "etiqueta": param["etiqueta"],
+        "rotulo": rotulo_serie(param),
         "rango": (fecha_ini, fecha_fin),
     }

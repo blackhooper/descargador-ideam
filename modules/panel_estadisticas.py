@@ -21,10 +21,12 @@ def _num(n):
     return f"{n:,.0f}".replace(",", ".")
 
 
-# Tamano del ZIP: una fila del Excel del IDEAM ocupa unos 50 bytes ya comprimida (hoja con celdas combinadas por
-# fila; medido con una hoja del mismo formato) y cada Excel suma su logo, estilos y encabezado
-BYTES_POR_REGISTRO = 50
-BYTES_POR_EXCEL = 30_000
+# Tamano del ZIP: cada registro probable ocupa unos 17 bytes ya comprimido y cada Excel suma unos 33 kB de logo,
+# estilos y encabezado. Medido el 2026-10-09 con descargas reales de precipitacion diaria (PTPM_CON, 2 estaciones,
+# de 1 a 45 años, una y dos consultas por estacion): el error quedo entre -6 % y +3 % (con 50 B y 30 kB era de +26 %
+# a +178 %). Como el registro probable no descuenta los huecos, con estaciones de muchos faltantes sobreestima
+BYTES_POR_REGISTRO = 17
+BYTES_POR_EXCEL = 33_000
 
 
 def duracion_aprox(segundos):
@@ -57,22 +59,21 @@ def registros_txt(n):
     return _num(n)
 
 
-def _bloques_de(estaciones_df, fecha_ini, fecha_fin, dias_bloque):
+def _bloques_de(estaciones_df, fecha_ini, fecha_fin, param):
     """Cuantas consultas al IDEAM hacen falta para descargar esas estaciones."""
     total = 0
     for _, row in estaciones_df.iterrows():
-        total += len(ideam_downloader.calcular_bloques(
-            fecha_ini, fecha_fin,
+        total += len(ideam_downloader.bloques_de(
+            param, fecha_ini, fecha_fin,
             ideam_downloader.a_fecha(row.get("Inicio serie")),
             ideam_downloader.a_fecha(row.get("Fin serie")),
-            dias_bloque,
         ))
     return total
 
 
 def cifras_seleccion(seleccion, param, fecha_ini, fecha_fin):
     """Consultas, tiempo estimado y registros probables de la seleccion."""
-    bloques = _bloques_de(seleccion, fecha_ini, fecha_fin, param["dias_bloque"])
+    bloques = _bloques_de(seleccion, fecha_ini, fecha_fin, param)
     datos = int(seleccion["Cantidad Probable"].sum()) if len(seleccion) else 0
     return {"bloques": bloques, "datos": datos,
             "segundos": ideam_downloader.estimar_segundos(bloques, datos, len(seleccion))}
@@ -234,7 +235,9 @@ def tablero(zona, descargables, seleccion, param, cifras, dudosas=None, rango=No
         (f"≈ {tamano_txt(peso_zip(cifras['datos'], n_sel))}" if n_sel else "–", "Tamaño del ZIP",
          duracion_aprox(cifras["segundos"]) if n_sel else "",
          f"Estimación para {n_sel} {'estaciones' if n_sel != 1 else 'estación'} y {registros_txt(cifras['datos'])} "
-         f"registros probables. La descarga hace {cifras['bloques']} consultas al IDEAM de hasta {param['dias_bloque']} días."),
+         f"registros probables. La descarga hace {cifras['bloques']} consultas al IDEAM "
+         + ("(una por estación: la serie multianual se pide de una vez)." if param["frecuencia"] == "Multianual"
+            else f"de hasta {param['dias_bloque']} días.")),
     ])
 
     # Estaciones cuya altitud del catalogo no cuadra con el relieve real: una linea ambar; el detalle adentro

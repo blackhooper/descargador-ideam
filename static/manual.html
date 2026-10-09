@@ -3,631 +3,1355 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="description" content="Manual de usuario del Descargador IDEAM: consulta y descarga de series del portal DHIME por área.">
-<title>Manual Descargador IDEAM</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Figtree:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Silkscreen&display=swap">
+<meta name="description" content="Manual del Descargador IDEAM: qué es, qué limitaciones del portal del IDEAM resuelve y cómo se usa.">
+<title>Manual del Descargador IDEAM</title>
+<!-- Apariencia antes de pintar (sin destello). Manda la app: su enlace trae ?tono=claro|oscuro|sistema&alto=1|0&lite=1|0
+     (sistema y 0 = seguir al equipo). Sin parámetros, vale lo elegido aquí antes y, si no hay nada, el sistema -->
+<script>(function(){var r=document.documentElement,q=new URLSearchParams(location.search),
+g=function(k,v){try{v===null?localStorage.removeItem("ui_"+k):localStorage.setItem("ui_"+k,v)}catch(e){}},
+l=function(k){try{return localStorage.getItem("ui_"+k)}catch(e){return null}},m=function(x){return window.matchMedia&&matchMedia(x).matches};
+if(q.has("tono"))g("tono",q.get("tono")==="claro"||q.get("tono")==="oscuro"?q.get("tono"):null);
+if(q.has("alto"))g("alto",q.get("alto")==="1"?"1":null);if(q.has("lite"))g("lite",q.get("lite")==="1"?"1":null);
+var t=l("tono"),a=l("alto");r.dataset.tono=t||(m("(prefers-color-scheme: dark)")?"oscuro":"claro");
+if(a==="1"||(a===null&&m("(prefers-contrast: more)")))r.dataset.alto="1";if(l("lite")==="1")r.dataset.lite="1";})();</script>
 <style>
+/* ==========================================================================
+   LIQUID GLASS: la firma común de todas las páginas (tokens, material y componentes; cualquier framework)
+   Origen: sistema aprobado del «Descargador IDEAM». Importa ESTE archivo en todas las páginas de un producto para que
+   se vean y se sientan iguales; cambia el acento solo si la marca lo exige (y entonces en todas).
+
+   Estado en <html> (lo pone el guion de preferencias del <head>, antes de pintar, para que no haya destello):
+     data-tono="claro|oscuro"   tono vigente (elegido o el del sistema)
+     data-alto="1"              alto contraste (elegido o prefers-contrast: more)
+     data-lite="1"              modo Lite (solo por elección)
+     data-hoja="abierta"        celular: la tarjeta/hoja de la consulta está abierta (se ocultan los flotantes)
+     data-panel="cerrado"       escritorio: el panel lateral está plegado
+     data-desplazado            la página se desplazó (la barra superior se densifica)
+   Clases de material: .lg-claro (controles pequeños), .lg-regular (superficies con texto), .lg-denso (menús)
+   ========================================================================== */
+
+@import url("https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&display=swap");
+
 :root{
-  color-scheme: light;
-  --bg:#EDF1F7; --dots:#DCE3EE; --surface:#FBFCFE; --surface-2:#F3F6FB;
-  --ink:#16213A; --ink-2:#4A5673; --ink-3:#6E7996; --line:#CFD8E6; --line-2:#B8C4D8;
-  --accent:#1C6FD8; --accent-soft:rgba(28,111,216,.10);
-  --holo:linear-gradient(100deg,#C9B8FF 0%,#B8D8FF 35%,#A8F0DC 65%,#E9D5FF 100%);
-  --titulo:#16213A;
-  --alta:#0CA30C; --media:#FAB219; --baja:#EC835A; --critica:#D03B3B;
-  --aviso-bg:rgba(236,131,90,.12); --aviso-borde:#EC835A;
-  --sombra:0 1px 0 #fff inset,0 18px 40px -26px rgba(22,33,58,.35);
+  --ui-g:12px; --ui-capsula:44px; --ui-r:22px; --ui-r-tarjeta:30px; --ui-r-ctl:12px; --ui-panel-w:360px;
+  --ui-fundido:18px; --ui-dur:.32s; --ui-curva:cubic-bezier(.2,.8,.2,1);
+  /* esquina inferior derecha reservada al botón del host (p. ej. «Manage app» de Streamlit Community Cloud) */
+  --ui-reserva:0px;
+  /* zona libre del mapa: la recalcula el guion (distribuir); estos son valores de partida */
+  --ov-top:12px; --ov-izq:12px; --ov-der:68px; --ov-abajo:72px; --libre-izq:0px;
+  --ui-centro:calc(var(--libre-izq) + (100vw - var(--libre-izq)) / 2);
+  color-scheme:light dark;
+
+  /* ---- tono claro (por defecto) ---- */
+  --ui-bg:#E9EEF5; --ui-tinta:#0B1324; --ui-tinta-2:#26324A; --ui-tinta-3:#36425A;
+  --ui-linea:rgba(8,20,45,.12); --ui-linea-2:rgba(8,20,45,.24);
+  --ui-acento:#1258D6; --ui-acento-texto:#0A3F9F; --ui-acento-2:#0891B2; --ui-sobre-acento:#FFFFFF; --ui-foco:#0A3F9F;
+  --ui-alerta:#8A3208; --ui-alerta-borde:#D9692F; --ui-alerta-bg:rgba(255,237,224,.88);
+  --ui-ok:#0E6B36; --ui-ok-luz:#22C55E; --ui-peligro:#A8201A;
+  --ui-campo:rgba(255,255,255,.72); --ui-campo-borde:rgba(8,20,45,.20);
+  --ui-hover:rgba(255,255,255,.55); --ui-pista:rgba(8,20,45,.07);
+  --ui-lente:rgba(255,255,255,.94);
+  --ui-lente-sombra:inset 0 1px 0 #fff, 0 0 0 .5px rgba(8,20,45,.14), 0 4px 12px -4px rgba(8,20,45,.35);
+  --lg-claro:rgba(255,255,255,.52); --lg-regular:rgba(247,249,252,.76); --lg-denso:rgba(249,250,252,.95);
+  --lg-brillo:linear-gradient(180deg,rgba(255,255,255,.55),rgba(255,255,255,.12) 24%,rgba(255,255,255,0) 52%,rgba(255,255,255,.14));
+  --lg-borde:rgba(255,255,255,.50); --lg-luz:rgba(255,255,255,.98); --lg-filo:rgba(8,20,45,.18);
+  --lg-especular:rgba(255,255,255,.60);
+  --lg-sombra:0 24px 48px -22px rgba(5,15,35,.62), 0 3px 10px -4px rgba(5,15,35,.30);
+  --lg-filtro-claro:blur(14px) saturate(210%) brightness(1.06);
+  --lg-filtro-regular:blur(24px) saturate(185%) brightness(1.05);
+  --ui-velo:radial-gradient(120% 95% at 50% 45%,rgba(233,238,245,.30),rgba(214,224,238,.62));
+  --ui-cielo:linear-gradient(180deg,#0B1428 0%,#1C2D4F 38%,#1C2D4F 100%);  /* 3D: oscuro también en claro */
+  --ui-niebla:#1C2D4F;
+  --btn-tinte:rgba(6,58,172,.92);
+  --btn-brillo:linear-gradient(180deg,rgba(255,255,255,.38) 0%,rgba(255,255,255,.07) 40%,rgba(255,255,255,0) 50%,rgba(255,255,255,.05) 100%);
+  --btn-caustica:radial-gradient(120% 70% at 50% 130%,rgba(140,200,255,.38),transparent 60%);
+  --btn-canto:inset 0 1px 0 rgba(255,255,255,.62),inset 0 -1px 0 rgba(2,24,80,.40),inset 0 0 0 1px rgba(255,255,255,.20);
 }
-@media (prefers-color-scheme: dark){
-  :root:not([data-theme="light"]){
-    color-scheme: dark;
-    --bg:#0C1220; --dots:#18223A; --surface:#131B2E; --surface-2:#182238;
-    --ink:#E6ECF7; --ink-2:#B4C0D8; --ink-3:#8C98B4; --line:#26324D; --line-2:#34436A;
-    --accent:#6AADF7; --accent-soft:rgba(106,173,247,.14);
-    --holo:linear-gradient(100deg,#3A2C6E 0%,#1F3F73 35%,#1B5A55 65%,#4B2D6B 100%);
-    --titulo:#EEF2FA;
-    --aviso-bg:rgba(236,131,90,.14);
-    --sombra:0 1px 0 rgba(255,255,255,.04) inset,0 18px 40px -26px rgba(0,0,0,.6);
-  }
+/* ---- tono oscuro ---- */
+:root[data-tono="oscuro"]{
+  --ui-bg:#0B0E14; --ui-tinta:#F4F6FA; --ui-tinta-2:#DCE1EA; --ui-tinta-3:#C8D0DC;
+  --ui-linea:rgba(255,255,255,.12); --ui-linea-2:rgba(255,255,255,.24);
+  --ui-acento:#7DB6FF; --ui-acento-texto:#8EC0FF; --ui-acento-2:#5EE0F5; --ui-sobre-acento:#071226; --ui-foco:#9CCBFF;
+  --ui-alerta:#FFB37E; --ui-alerta-borde:#E7864E; --ui-alerta-bg:rgba(66,30,10,.88);
+  --ui-ok:#6EE0A0; --ui-ok-luz:#4ADE80; --ui-peligro:#FF9B94;
+  --ui-campo:rgba(255,255,255,.06); --ui-campo-borde:rgba(255,255,255,.22);
+  --ui-hover:rgba(255,255,255,.12); --ui-pista:rgba(0,0,0,.24);
+  --ui-lente:rgba(255,255,255,.20); --ui-lente-sombra:inset 0 1px 0 rgba(255,255,255,.35), 0 4px 12px -4px rgba(0,0,0,.6);
+  --lg-claro:rgba(30,34,42,.56); --lg-regular:rgba(22,25,32,.66); --lg-denso:rgba(20,23,29,.96);
+  --lg-brillo:linear-gradient(180deg,rgba(255,255,255,.10),rgba(255,255,255,.03) 28%,rgba(255,255,255,0) 58%,rgba(255,255,255,.04));
+  --lg-borde:rgba(255,255,255,.14); --lg-luz:rgba(255,255,255,.36); --lg-filo:rgba(0,0,0,.50);
+  --lg-especular:rgba(255,255,255,.17);
+  --lg-sombra:0 26px 50px -20px rgba(0,0,0,.82), 0 3px 10px -4px rgba(0,0,0,.45);
+  --lg-filtro-claro:blur(16px) saturate(180%) brightness(.6);
+  --lg-filtro-regular:blur(26px) saturate(160%) brightness(.55);
+  --ui-velo:radial-gradient(120% 95% at 50% 45%,rgba(8,11,17,.38),rgba(6,9,14,.74));
+  --btn-tinte:rgba(125,182,255,.88);
+  --btn-brillo:linear-gradient(180deg,rgba(255,255,255,.50) 0%,rgba(255,255,255,.14) 44%,rgba(255,255,255,0) 54%,rgba(255,255,255,.06) 100%);
+  --btn-caustica:radial-gradient(120% 70% at 50% 128%,rgba(255,255,255,.40),transparent 62%);
+  --btn-canto:inset 0 1px 0 rgba(255,255,255,.75),inset 0 -1px 0 rgba(0,20,60,.30),inset 0 0 0 1px rgba(255,255,255,.28);
 }
-:root[data-theme="dark"]{
-  color-scheme: dark;
-  --bg:#0C1220; --dots:#18223A; --surface:#131B2E; --surface-2:#182238;
-  --ink:#E6ECF7; --ink-2:#B4C0D8; --ink-3:#8C98B4; --line:#26324D; --line-2:#34436A;
-  --accent:#6AADF7; --accent-soft:rgba(106,173,247,.14);
-  --holo:linear-gradient(100deg,#3A2C6E 0%,#1F3F73 35%,#1B5A55 65%,#4B2D6B 100%);
-  --titulo:#EEF2FA;
-  --aviso-bg:rgba(236,131,90,.14);
-  --sombra:0 1px 0 rgba(255,255,255,.04) inset,0 18px 40px -26px rgba(0,0,0,.6);
+/* ---- alto contraste (sigue al tono vigente; no es el modo oscuro) ---- */
+:root[data-alto="1"]{
+  --ui-bg:#FFFFFF; --ui-tinta:#000000; --ui-tinta-2:#111111; --ui-tinta-3:#222222; --ui-linea:#3A3A3A; --ui-linea-2:#000000;
+  --ui-acento:#0037A6; --ui-acento-texto:#0037A6; --ui-sobre-acento:#FFFFFF; --ui-foco:#000000;
+  --ui-alerta:#7A2E00; --ui-alerta-borde:#7A2E00; --ui-alerta-bg:#FFF1E8; --ui-ok:#00561F; --ui-ok-luz:#00561F; --ui-peligro:#8A0000;
+  --ui-campo:#FFFFFF; --ui-campo-borde:#000000; --ui-hover:#E6E6E6; --ui-pista:#FFFFFF; --ui-lente:#000000; --ui-lente-sombra:none;
+  --lg-claro:#FFFFFF; --lg-regular:#FFFFFF; --lg-denso:#FFFFFF; --lg-brillo:none; --lg-borde:#000000; --lg-luz:transparent; --lg-filo:#000000;
+  --lg-especular:transparent; --lg-sombra:0 0 #0000; --lg-filtro-claro:none; --lg-filtro-regular:none; --ui-velo:rgba(255,255,255,.82);
+  --btn-tinte:#0037A6; --btn-brillo:none; --btn-caustica:none; --btn-canto:0 0 #0000;
+}
+:root[data-alto="1"][data-tono="oscuro"]{
+  --ui-bg:#000000; --ui-tinta:#FFFFFF; --ui-tinta-2:#F2F2F2; --ui-tinta-3:#E0E0E0; --ui-linea:#C8C8C8; --ui-linea-2:#FFFFFF;
+  --ui-acento:#9CCBFF; --ui-acento-texto:#9CCBFF; --ui-sobre-acento:#000000; --ui-foco:#FFD60A;
+  --ui-alerta:#FFB98A; --ui-alerta-borde:#FFB98A; --ui-alerta-bg:#2A1406; --ui-ok:#7CF0A8; --ui-ok-luz:#7CF0A8; --ui-peligro:#FFA3A3;
+  --ui-campo:#000000; --ui-campo-borde:#FFFFFF; --ui-hover:#262626; --ui-pista:#000000; --ui-lente:#FFFFFF;
+  --lg-claro:#000000; --lg-regular:#000000; --lg-denso:#000000; --lg-borde:#FFFFFF; --lg-filo:#FFFFFF; --ui-velo:rgba(0,0,0,.84);
+  --btn-tinte:#9CCBFF;
 }
 
-*{box-sizing:border-box}
-body{
-  background-color:var(--bg);
-  background-image:radial-gradient(circle at 1px 1px,var(--dots) 1px,transparent 0);
-  background-size:14px 14px;
-  color:var(--ink);
-  font:16px/1.65 "Figtree",system-ui,-apple-system,"Segoe UI",sans-serif;
-  padding-inline:16px; padding-block:24px 64px;
+/* ================= BASE ================= */
+html,body{margin:0;overscroll-behavior:none}   /* sin «jalar para recargar» en el celular */
+[hidden]{display:none !important}   /* que ninguna clase con display le gane al atributo */
+body{background:var(--ui-bg);color:var(--ui-tinta);font:400 14px/1.45 "Figtree",system-ui,-apple-system,"Segoe UI",sans-serif;
+  -webkit-font-smoothing:antialiased}
+a{color:var(--ui-acento-texto)}
+:is(button,a,input,select,textarea,summary,[role="radio"],[role="tab"],[tabindex]):focus-visible{
+  outline:2px solid var(--ui-foco);outline-offset:2px}
+.vh{position:absolute !important;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.num{font-variant-numeric:tabular-nums}
+
+/* ================= MATERIAL ================= */
+:where(.lg-claro,.lg-regular){position:relative}   /* peso cero: un position:fixed propio lo reemplaza */
+.lg-claro,.lg-regular{isolation:isolate;border-radius:var(--ui-r);color:var(--ui-tinta);
+  box-shadow:inset 0 1px 0 var(--lg-luz),inset 0 -1px 0 var(--lg-borde),0 0 0 .5px var(--lg-filo),var(--lg-sombra);
+  transition:box-shadow var(--ui-dur) ease}
+/* luz especular (sigue al puntero: --mx/--my los pone el guion), brillo vertical y tinte */
+.lg-claro{background:radial-gradient(240px 150px at var(--mx,22%) var(--my,-40%),var(--lg-especular),transparent 70%),var(--lg-brillo),var(--lg-claro);
+  -webkit-backdrop-filter:var(--lg-filtro-claro);backdrop-filter:var(--lg-filtro-claro)}
+.lg-regular{background:radial-gradient(240px 150px at var(--mx,22%) var(--my,-40%),var(--lg-especular),transparent 70%),var(--lg-brillo),var(--lg-regular);
+  -webkit-backdrop-filter:var(--lg-filtro-regular);backdrop-filter:var(--lg-filtro-regular)}
+/* canto de luz: degradado diagonal solo en el contorno */
+.lg-claro::after,.lg-regular::after{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;padding:1px;
+  background:linear-gradient(135deg,var(--lg-luz),transparent 30%,transparent 64%,var(--lg-borde));
+  -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;
+  mask:linear-gradient(#000 0 0) content-box exclude,linear-gradient(#000 0 0)}
+.lg-claro:hover,.lg-regular:hover{box-shadow:inset 0 1px 0 var(--lg-luz),inset 0 -1px 0 var(--lg-borde),0 0 0 .5px var(--lg-filo),var(--lg-sombra),0 0 0 1px var(--lg-borde)}
+/* menús y popovers encima de otro vidrio */
+.lg-denso{background:var(--lg-brillo),var(--lg-denso);box-shadow:inset 0 1px 0 var(--lg-luz),0 0 0 .5px var(--lg-filo),var(--lg-sombra);color:var(--ui-tinta)}
+@supports not ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){ .lg-claro,.lg-regular{background:var(--lg-denso)} }
+
+/* superficie que no cabe: el vidrio queda quieto y se desplaza su cuerpo; el borde del contenido se desvanece (simétrico) */
+.lg-tarjeta{display:flex;flex-direction:column;overflow:hidden}
+.lg-cuerpo{flex:1 1 auto;min-height:0;overflow-y:auto;overscroll-behavior:contain;scrollbar-width:thin;scrollbar-color:var(--ui-linea-2) transparent;
+  -webkit-mask-image:linear-gradient(180deg,transparent 0,#000 var(--ui-fundido),#000 calc(100% - var(--ui-fundido)),transparent 100%);
+  mask-image:linear-gradient(180deg,transparent 0,#000 var(--ui-fundido),#000 calc(100% - var(--ui-fundido)),transparent 100%)}
+
+/* barras de desplazamiento como en el celular: transparentes en reposo; visibles al desplazar o con el puntero en la barra
+   (el guion marca [data-desplaza]). El atributo repite el mismo selector para ganar en especificidad */
+@media (hover:hover) and (pointer:fine){
+  .lg-cuerpo,.menu{scrollbar-width:thin;scrollbar-color:transparent transparent;transition:scrollbar-color .35s ease}
+  .lg-cuerpo[data-desplaza],.menu[data-desplaza]{scrollbar-color:var(--ui-linea-2) transparent;transition:none}
 }
-.hoja{max-width:1140px;margin:0 auto}
-a{color:var(--accent)}
-a:focus-visible,summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:4px}
 
-/* ventana */
-.barra{display:flex;align-items:center;gap:12px;padding:10px 14px;background:var(--holo);
-  border:1px solid var(--line-2);border-radius:14px 14px 0 0}
-.puntos{display:flex;gap:7px}
-.puntos i{width:12px;height:12px;border-radius:50%;display:block;box-shadow:0 0 0 1px rgba(0,0,0,.18)}
-.puntos i:nth-child(1){background:#e0443e}.puntos i:nth-child(2){background:#f0b400}.puntos i:nth-child(3){background:#3cb83a}
-.barra .nombre{flex:1;text-align:center;font-family:"Silkscreen","Courier New",monospace;font-size:13px;letter-spacing:.08em;color:var(--titulo)}
-.barra .espacio{width:50px}
-.portada{background:var(--surface);border:1px solid var(--line-2);border-top:0;border-radius:0 0 14px 14px;
-  padding:28px clamp(18px,4vw,40px) 26px;box-shadow:var(--sombra)}
-.eyebrow{font-family:"Silkscreen",monospace;font-size:12px;letter-spacing:.1em;color:var(--accent);margin:0 0 8px}
-h1{font-family:"Silkscreen","Courier New",monospace;font-weight:400;font-size:clamp(26px,4.2vw,42px);line-height:1.1;
-  margin:0 0 12px;text-wrap:balance;letter-spacing:.01em}
-.bajada{font-size:18px;color:var(--ink-2);max-width:62ch;margin:0}
+/* ================= CONTROLES ================= */
+/* Ajustes: en TODAS las páginas, arriba a la derecha, con el mismo menú (tema, alto contraste, Lite, manual) */
+.ajustes-fijo{position:fixed;top:max(var(--ui-g),env(safe-area-inset-top));right:max(var(--ui-g),env(safe-area-inset-right));z-index:55}
+.capsula{display:inline-flex;align-items:center;gap:2px;height:var(--ui-capsula);padding:4px;border-radius:999px;box-sizing:border-box;
+  overflow:visible}  /* sin barra fantasma por un píxel de redondeo */
+.capsula.vertical{flex-direction:column;height:auto;border-radius:24px}
+.btn-ico{all:unset;box-sizing:border-box;position:relative;width:36px;height:36px;border-radius:50%;display:grid;place-items:center;cursor:pointer;
+  color:var(--ui-tinta);flex:none;transition:background var(--ui-dur),transform .12s}
+.btn-ico > svg{width:19px;height:19px}
+.btn-ico:hover{background:var(--ui-hover)}
+.btn-ico:active{transform:scale(.94)}
+/* abierto (menú u hoja) o elegido: «lente». No el botón que pliega un panel: estaría siempre resaltado */
+.btn-ico:is([data-menu],[data-hoja-btn])[aria-expanded="true"],.lente{background:var(--ui-lente);box-shadow:var(--ui-lente-sombra)}
+.btn-ico.con-texto{width:auto;display:inline-flex;gap:6px;padding:0 12px 0 9px;border-radius:999px;font:600 13.5px/1 "Figtree",sans-serif}
+.capsula > hr{width:20px;border:0;border-top:1px solid var(--ui-linea);margin:3px 0}
 
-/* pasos (misma barra que la app) */
-.pasos{display:flex;flex-wrap:wrap;gap:10px 0;align-items:center;margin-top:22px;padding:12px 14px;
-  background:var(--surface-2);border:1px solid var(--line);border-radius:12px}
-.paso{display:flex;align-items:center;gap:8px;white-space:nowrap;color:var(--ink-2);font-weight:600;font-size:14px;text-decoration:none}
-.paso .n{width:26px;height:26px;border-radius:50%;display:grid;place-items:center;font-family:"Silkscreen",monospace;font-size:12px;
-  color:#fff;background:linear-gradient(180deg,#8CC4FF 0%,#3C8CF0 48%,#1C6FD8 52%,#2A86EE 100%)}
-.paso:hover{color:var(--accent)}
-.linea{flex:1;min-width:18px;height:2px;margin:0 10px;background:repeating-linear-gradient(90deg,var(--line-2) 0 4px,transparent 4px 8px)}
+/* botón principal: vidrio líquido azul */
+.btn-prim{all:unset;box-sizing:border-box;position:relative;overflow:hidden;display:inline-flex;align-items:center;justify-content:safe center;gap:8px;
+  min-height:var(--ui-capsula);padding:0 20px;border-radius:999px;cursor:pointer;min-width:0;max-width:100%;
+  font:700 15px/1 "Figtree",sans-serif;color:var(--ui-sobre-acento);white-space:nowrap;
+  background:var(--btn-brillo),var(--btn-caustica),var(--btn-tinte);
+  -webkit-backdrop-filter:blur(10px) saturate(170%);backdrop-filter:blur(10px) saturate(170%);
+  box-shadow:var(--btn-canto),0 10px 22px -12px var(--ui-acento),0 2px 6px -3px rgba(0,0,0,.28);
+  transition:filter var(--ui-dur),transform .12s}
+.btn-prim > *{position:relative;z-index:1}
+.btn-prim .txt{overflow:hidden;text-overflow:ellipsis;min-width:0}
+.btn-prim svg{width:18px;height:18px;flex:none}
+.btn-prim:hover{filter:brightness(1.07)}
+.btn-prim:active{transform:scale(.97)}
+/* pulsado antes de tiempo: no avanza y da dos destellos rojos (nunca gris) */
+.btn-prim::after{content:"";position:absolute;inset:0;border-radius:inherit;background:var(--ui-peligro);opacity:0;pointer-events:none}
+.btn-prim.parpadeo::after{animation:ui-rojo .9s ease-in-out}
+@keyframes ui-rojo{0%,50%,100%{opacity:0}22%,72%{opacity:.95}}
+.btn-prim.ancho{display:flex;width:100%;min-height:52px;font-size:15.5px}
 
-/* cuerpo: indice + contenido */
-.cuerpo{display:grid;grid-template-columns:240px minmax(0,1fr);gap:36px;margin-top:28px;align-items:start}
-.indice{position:sticky;top:calc(env(safe-area-inset-top,0px) + 16px);font-size:14px}
-.indice p{font-family:"Silkscreen",monospace;font-size:11px;letter-spacing:.1em;color:var(--ink-3);margin:0 0 8px}
-.indice ol{list-style:none;margin:0;padding:0;display:grid;gap:2px}
-.indice a{display:block;padding:5px 10px;border-radius:8px;color:var(--ink-2);text-decoration:none}
-.indice a:hover{background:var(--accent-soft);color:var(--ink)}
-.indice-movil{display:none}
+.btn-sec{all:unset;box-sizing:border-box;display:inline-flex;align-items:center;justify-content:center;gap:8px;height:40px;padding:0 14px;border-radius:999px;
+  cursor:pointer;font:700 13.5px/1 "Figtree",sans-serif;white-space:nowrap;color:var(--ui-tinta);background:var(--ui-campo);
+  box-shadow:inset 0 0 0 1px var(--ui-campo-borde);transition:box-shadow var(--ui-dur),transform .12s}
+.btn-sec svg{width:17px;height:17px;color:var(--ui-acento-texto)}
+.btn-sec:hover{box-shadow:inset 0 0 0 1.5px var(--ui-acento)}
+.btn-sec:active{transform:scale(.96)}
+.btn-sec.peligro svg{color:var(--ui-peligro)}
 
-main{min-width:0}
-section{padding-bottom:10px;margin-bottom:34px;border-bottom:1px dashed var(--line-2);scroll-margin-top:16px}
-section:last-of-type{border-bottom:0}
-h2{font-family:"Silkscreen","Courier New",monospace;font-weight:400;font-size:clamp(19px,2.4vw,24px);line-height:1.2;
-  margin:0 0 14px;text-wrap:balance;letter-spacing:.02em}
-h2 .etiqueta{display:block;font-size:12px;letter-spacing:.12em;color:var(--accent);margin-bottom:6px}
-h3{font-size:17px;font-weight:700;margin:26px 0 8px;text-wrap:balance}
-p,li{max-width:68ch}
-p{margin:0 0 12px}
-ul,ol{padding-left:1.25em;margin:0 0 14px}
-li{margin-bottom:6px}
-li::marker{color:var(--ink-3)}
-strong{font-weight:700}
+/* segmentado (2D/3D, Claro/Oscuro): canal y opción elegida como lente */
+.segmentado{display:inline-flex;gap:2px;padding:2px;border-radius:999px;background:var(--ui-pista)}
+.segmentado button{all:unset;box-sizing:border-box;min-width:52px;height:36px;padding:0 14px;border-radius:999px;cursor:pointer;text-align:center;
+  font:600 13.5px/36px "Figtree",sans-serif;color:var(--ui-tinta)}
+.segmentado button:hover{background:var(--ui-hover)}
+.segmentado button[aria-checked="true"]{background:var(--ui-lente);box-shadow:var(--ui-lente-sombra);font-weight:700}
 
-/* nombres de botones y controles tal como aparecen en la app */
-.ui{display:inline-block;font-size:.88em;font-weight:600;line-height:1.35;padding:1px 8px;border-radius:999px;
-  border:1px solid var(--line-2);background:var(--surface);color:var(--ink);white-space:nowrap}
-.ui.primario{color:#fff;border-color:rgba(0,50,120,.35);
-  background:linear-gradient(180deg,#8CC4FF 0%,#3C8CF0 48%,#1C6FD8 52%,#2A86EE 100%)}
+/* campos dentro del vidrio: velo plano, no otro vidrio (un vidrio dentro de otro corta la luz) */
+.campo{box-sizing:border-box;width:100%;min-height:46px;padding:0 12px;border-radius:var(--ui-r-ctl);border:1px solid var(--ui-campo-borde);
+  background:var(--ui-campo);color:var(--ui-tinta);font:500 14px "Figtree",sans-serif}
+.campo:disabled{opacity:.55;cursor:not-allowed}
+.etiqueta{display:flex;align-items:center;gap:8px;font:600 13px/1.3 "Figtree",sans-serif;color:var(--ui-tinta);margin:0 0 6px}
+.etiqueta .opc{font-weight:500;color:var(--ui-tinta-3)}
 
-/* recuadros */
-.nota,.aviso{border-radius:12px;padding:12px 16px;margin:16px 0;max-width:72ch}
-.nota{background:var(--accent-soft);border:1px solid color-mix(in srgb,var(--accent) 35%,transparent)}
-.aviso{background:var(--aviso-bg);border:1px solid var(--aviso-borde)}
-.nota p:last-child,.aviso p:last-child{margin:0}
-.nota strong:first-child,.aviso strong:first-child{display:block;margin-bottom:2px}
+/* interruptor */
+.interruptor{display:flex;align-items:center;justify-content:space-between;gap:12px;font:600 13.5px "Figtree",sans-serif;cursor:pointer}
+.interruptor input{appearance:none;width:38px;height:22px;border-radius:999px;background:var(--ui-linea-2);position:relative;cursor:pointer;flex:none;
+  transition:background var(--ui-dur);margin:0}
+.interruptor input::after{content:"";position:absolute;top:3px;left:3px;width:16px;height:16px;border-radius:50%;background:#fff;
+  box-shadow:0 1px 3px rgba(0,0,0,.3);transition:transform var(--ui-dur) var(--ui-curva)}
+.interruptor input:checked{background:var(--ui-acento)}
+.interruptor input:checked::after{transform:translateX(16px)}
 
-/* tablas */
-.tabla{overflow-x:auto;margin:12px 0 18px;border:1px solid var(--line);border-radius:12px;background:var(--surface)}
-table{border-collapse:collapse;width:100%;font-size:14.5px}
-th,td{text-align:left;padding:9px 14px;border-bottom:1px solid var(--line);vertical-align:top}
-tr:last-child td{border-bottom:0}
-th{font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3);font-weight:600;background:var(--surface-2)}
-td.num{font-variant-numeric:tabular-nums;white-space:nowrap}
-code{font:14px/1.4 ui-monospace,"Cascadia Mono",Consolas,monospace;background:var(--surface-2);border:1px solid var(--line);
-  padding:1px 6px;border-radius:6px;overflow-wrap:anywhere}
+/* punto de estado: la ÚNICA señal de carga (gris que respira → azul encendido) */
+.punto{width:7px;height:7px;border-radius:50%;background:var(--ui-linea-2);flex:none}
+.punto[data-estado="cargando"]{animation:ui-respira 1.6s ease-in-out infinite}
+.punto[data-estado="listo"]{background:var(--ui-acento);box-shadow:0 0 0 2.5px color-mix(in srgb,var(--ui-acento) 24%,transparent),
+  0 0 9px 1px color-mix(in srgb,var(--ui-acento) 70%,transparent);animation:ui-enciende 1s ease-out 1}
+.punto[data-estado="error"]{background:var(--ui-peligro)}
+@keyframes ui-respira{50%{opacity:.3}}
+@keyframes ui-enciende{0%{transform:scale(.3);opacity:.4}55%{transform:scale(1.5);opacity:1}100%{transform:scale(1)}}
 
-/* clases de calidad */
-.clases{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin:14px 0 18px}
-.clase{border:1px solid var(--line);background:var(--surface);border-radius:12px;padding:12px 14px}
-.clase .punto{display:inline-block;width:12px;height:12px;border-radius:50%;margin-right:6px;vertical-align:-1px}
-.clase b{font-size:15px}
-.clase span{display:block;font-size:13px;color:var(--ink-3);font-variant-numeric:tabular-nums}
-.clase code{font-size:12px;display:inline-block;margin-top:6px}
+/* ================= MENÚS ================= */
+/* peso cero: un contenedor fijo (p. ej. .ajustes-fijo) que también es .grupo conserva su position:fixed */
+:where(.grupo){position:relative}
+.menu{position:absolute;right:calc(100% + 12px);top:-4px;min-width:240px;max-height:min(70dvh,520px);overflow-y:auto;padding:6px;border-radius:18px;
+  display:flex;flex-direction:column;gap:1px;z-index:60;background:var(--lg-brillo),var(--lg-denso);
+  box-shadow:inset 0 1px 0 var(--lg-luz),0 0 0 .5px var(--lg-filo),var(--lg-sombra);transform-origin:100% 0;animation:ui-menu .18s var(--ui-curva) both}
+.menu.abajo{right:0;top:calc(100% + 8px)}
+@keyframes ui-menu{from{opacity:0;transform:translateX(6px) scale(.97)}}
+.menu[hidden]{display:none}
+.menu .tit{font:700 11px/1.3 "Figtree",sans-serif;text-transform:uppercase;letter-spacing:.08em;color:var(--ui-tinta-3);padding:6px 10px 4px;margin:0}
+.menu hr{border:0;border-top:1px solid var(--ui-linea);margin:4px 6px}
+.menu button,.menu a{all:unset;box-sizing:border-box;display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:12px;cursor:pointer;
+  font:600 13.5px/1.25 "Figtree",sans-serif;color:var(--ui-tinta)}
+.menu :is(button,a):hover,.menu :is(button,a):focus-visible{background:var(--ui-hover)}
+.menu :is(button,a):focus-visible{outline:2px solid var(--ui-foco);outline-offset:-2px}
+.menu button[aria-disabled="true"]{cursor:not-allowed}
+.menu button[aria-disabled="true"] > span{opacity:.6}
+.menu :is(button,a) svg{width:18px;height:18px;color:var(--ui-acento-texto);flex:none}
+.menu :is(button,a) > span{display:flex;flex-direction:column;gap:1px;min-width:0}
+.menu small{font-weight:500;font-size:11.5px;color:var(--ui-tinta-3)}
+.menu [role="menuitemradio"]::after{content:"";margin-left:auto;width:16px;height:16px;flex:none}
+.menu [role="menuitemradio"][aria-checked="true"]::after{content:"✓";color:var(--ui-acento-texto);font-weight:700;text-align:center}
+.menu .peligro svg{color:var(--ui-peligro)}
+.menu .fila{padding:6px 10px}
 
-/* arbol del ZIP */
-pre{margin:12px 0 18px;overflow-x:auto;border-radius:12px}
-.arbol{font:14px/1.6 ui-monospace,"Cascadia Mono",Consolas,monospace;background:var(--surface);border:1px solid var(--line);padding:14px 16px;color:var(--ink)}
-.arbol .c{color:var(--ink-3)}
+/* ================= AVISOS Y DATOS ================= */
+/* aviso discreto: una línea con ícono y «Ver más»; el detalle al abrirlo */
+.aviso{margin:0;font-size:12.5px;line-height:1.45;color:var(--ui-tinta-2)}
+p.aviso,details.aviso > summary{display:flex;align-items:flex-start;gap:7px}
+details.aviso > summary{cursor:pointer;list-style:none;border-radius:6px}
+details.aviso > summary::-webkit-details-marker{display:none}
+.aviso svg{width:15px;height:15px;flex:none;margin-top:1px;color:var(--ui-alerta)}
+.aviso[data-tono="error"] svg{color:var(--ui-peligro)}
+.aviso[data-tono="info"] svg{color:var(--ui-acento-texto)}
+.aviso summary > span:first-of-type,p.aviso > span{flex:1 1 auto;min-width:0}
+.ver{color:var(--ui-acento-texto);font-weight:600;text-decoration:underline;text-underline-offset:2px;white-space:nowrap;flex:none}
+.ver::after{content:" ▾"}
+details[open] > summary .ver::after{content:" ▴"}
+details.aviso > div{margin:5px 0 0 22px;color:var(--ui-tinta-3)}
+
+/* píldora de advertencia flotante: mínima, centrada en la zona libre, cerrable también en el celular */
+.aviso-pildora{position:absolute;left:var(--ui-centro);top:var(--ov-top);transform:translateX(-50%);z-index:35;
+  max-width:min(340px,calc(100vw - var(--ui-g) * 4 - var(--ui-capsula) * 2));display:flex;align-items:flex-start;gap:2px;
+  border-radius:17px;background:var(--ui-alerta-bg);color:var(--ui-alerta);box-shadow:inset 0 0 0 1px var(--ui-alerta-borde),var(--lg-sombra);
+  -webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);font:600 12px/1.35 "Figtree",sans-serif}
+.aviso-pildora summary{display:flex;align-items:center;gap:6px;min-height:32px;padding:0 4px 0 11px;cursor:pointer;list-style:none}
+.aviso-pildora summary::-webkit-details-marker{display:none}
+.aviso-pildora svg{width:14px;height:14px;flex:none}
+.aviso-pildora p{margin:0;padding:0 12px 10px;font-weight:500;color:var(--ui-tinta-2)}
+.aviso-pildora .cerrar{all:unset;width:30px;height:32px;display:grid;place-items:center;cursor:pointer;border-radius:12px;flex:none}
+
+/* cifra destacada en su cápsula (p. ej. el área en km²) */
+.cifra{display:inline-flex;align-items:center;gap:6px;height:28px;padding:0 11px 0 9px;border-radius:999px;white-space:nowrap;
+  font:700 13px/1 "Figtree",sans-serif;font-variant-numeric:tabular-nums;color:var(--ui-acento-texto);
+  background:color-mix(in srgb,var(--ui-acento) 14%,var(--lg-denso));box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--ui-acento) 34%,transparent)}
+.cifra svg{width:15px;height:15px}
+/* chip corto (p. ej. la variable consultada; al pulsarlo se vuelve a cambiarla) */
+.chip{all:unset;box-sizing:border-box;display:inline-flex;align-items:center;gap:6px;min-width:0;max-width:60%;height:30px;padding:0 12px 0 8px;
+  border-radius:999px;cursor:pointer;font:600 13px/1 "Figtree",sans-serif;color:var(--ui-tinta);background:var(--ui-campo);
+  box-shadow:inset 0 0 0 1px var(--ui-campo-borde)}
+.chip span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.chip svg{width:16px;height:16px;flex:none;color:var(--ui-acento-texto)}
+.chip:hover{box-shadow:inset 0 0 0 1.5px var(--ui-acento)}
+/* sección: título en versalitas y su dato a la derecha */
+.seccion{display:flex;align-items:center;justify-content:space-between;gap:10px;min-height:30px;margin:10px 0 6px}
+.seccion .t{font:700 11.5px/1.2 "Figtree",sans-serif;text-transform:uppercase;letter-spacing:.08em;color:var(--ui-tinta-3);margin:0}
+
+/* KPI 3×1: número, etiqueta en negrita y una línea pequeña opcional (la explicación larga va en title) */
+.kpis{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+.kpi{background:var(--ui-campo);box-shadow:inset 0 0 0 1px var(--ui-campo-borde);border-radius:14px;padding:9px 10px 8px;min-width:0}
+.kpi .v{font-size:19px;font-weight:700;line-height:1.1;font-variant-numeric:tabular-nums;white-space:nowrap;letter-spacing:-.02em}
+.kpi .l{font-size:11.5px;font-weight:700;color:var(--ui-tinta-2);line-height:1.25;margin-top:4px}
+.kpi .s{font-size:11.5px;color:var(--ui-tinta-3);line-height:1.3}
+
+/* pasos del flujo: el actual resaltado */
+.pasos{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:0;padding:0;list-style:none;counter-reset:paso}
+.pasos li{display:flex;flex-direction:column;gap:4px;padding:10px 12px 11px;border-radius:16px;font-size:12.5px;line-height:1.4;color:var(--ui-tinta-3);
+  box-shadow:inset 0 0 0 1px var(--ui-linea)}
+.pasos li[aria-current]{background:var(--ui-campo);box-shadow:inset 0 0 0 1px var(--ui-campo-borde)}
+.pasos b{font-size:13px;color:var(--ui-tinta);display:flex;align-items:center;gap:7px;line-height:1.2}
+.pasos b::before{counter-increment:paso;content:counter(paso);width:20px;height:20px;border-radius:50%;flex:none;display:grid;place-items:center;
+  font-size:11px;color:var(--ui-tinta-2);box-shadow:inset 0 0 0 1.5px var(--ui-linea-2)}
+.pasos li[aria-current] b::before{background:var(--ui-acento);color:var(--ui-sobre-acento);box-shadow:none}
+
+/* leyenda: desplegable cerrado; el resumen muestra las muestras de color */
+.leyenda{position:absolute;left:var(--ov-izq);bottom:var(--ov-abajo);z-index:25;border-radius:18px;font-size:12.5px;max-width:min(300px,calc(100vw - 80px))}
+.leyenda summary{display:flex;align-items:center;gap:8px;height:36px;padding:0 12px;cursor:pointer;list-style:none;font-weight:700}
+.leyenda summary::-webkit-details-marker{display:none}
+.leyenda .muestras{display:inline-flex;gap:3px}
+.leyenda .muestras i{width:9px;height:9px;border-radius:50%}
+.leyenda ul{list-style:none;margin:0;padding:0 12px 10px;display:grid;gap:5px}
+.leyenda li{display:flex;align-items:center;gap:8px;color:var(--ui-tinta-2)}
+.leyenda li.titulo{font:700 11px/1.3 "Figtree",sans-serif;text-transform:uppercase;letter-spacing:.06em;color:var(--ui-tinta-3)}
+.leyenda .pin{width:11px;height:11px;border-radius:50%;box-shadow:0 0 0 1.5px rgba(0,0,0,.35)}
+.leyenda .linea{width:18px;border-top:3px solid}
+
+/* barra de progreso real (porcentaje + tiempo restante + cifras) */
+.barra{height:8px;border-radius:999px;background:var(--ui-pista);box-shadow:inset 0 0 0 1px var(--ui-linea);overflow:hidden}
+.barra i{display:block;height:100%;width:var(--p,0%);border-radius:inherit;background:var(--btn-brillo),var(--btn-tinte);transition:width .4s var(--ui-curva)}
+
+/* ================= PÁGINA GENERAL (sin mapa) ================= */
+/* lo que el vidrio desenfoca cuando no hay mapa: fondo fijo con halos suaves (sin animación) */
+.fondo-ambiental{position:fixed;inset:0;z-index:-1;pointer-events:none;background:
+  radial-gradient(60% 50% at 12% 8%,color-mix(in srgb,var(--ui-acento) 22%,transparent),transparent 70%),
+  radial-gradient(50% 45% at 92% 14%,color-mix(in srgb,var(--ui-acento-2) 18%,transparent),transparent 70%),
+  radial-gradient(70% 60% at 70% 105%,color-mix(in srgb,#8B5CF6 10%,transparent),transparent 70%),var(--ui-bg)}
+.contenedor{box-sizing:border-box;width:100%;max-width:1160px;margin:0 auto;
+  padding:0 max(var(--ui-g),env(safe-area-inset-right)) calc(var(--ui-g) * 3 + var(--ui-reserva)) max(var(--ui-g),env(safe-area-inset-left))}
+/* barra superior: cápsula de vidrio claro que flota sobre el contenido; se densifica al desplazar */
+.barra-superior{position:sticky;top:var(--ui-g);z-index:50;display:flex;align-items:center;gap:10px;min-height:var(--ui-capsula);box-sizing:border-box;
+  padding:4px 6px 4px 18px;margin:var(--ui-g) calc(var(--ui-capsula) + var(--ui-g)) var(--ui-g) 0;border-radius:999px;overflow:visible}
+.barra-superior .titulo{margin:0;font:700 15px/1.2 "Figtree",sans-serif;letter-spacing:-.01em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.barra-superior .derecha{margin-left:auto;display:flex;align-items:center;gap:6px}
+html[data-desplazado] .barra-superior{--lg-claro:var(--lg-regular);--lg-filtro-claro:var(--lg-filtro-regular)}
+/* encabezado de página y tarjetas */
+.antetitulo{margin:0;font:700 12px/1.3 "Figtree",sans-serif;letter-spacing:.09em;text-transform:uppercase;color:var(--ui-acento-texto)}
+.titulo-pagina{margin:6px 0 0;font:700 clamp(26px,3.4vw,40px)/1.12 "Figtree",sans-serif;letter-spacing:-.022em;color:var(--ui-tinta)}
+.bajada{margin:8px 0 0;font-size:15px;line-height:1.5;color:var(--ui-tinta-2);max-width:62ch}
+.tarjeta{padding:20px 22px;box-sizing:border-box;display:flex;flex-direction:column;gap:14px;min-width:0}
+.tarjeta.principal{border-radius:var(--ui-r-tarjeta);padding:26px 28px}
+.tarjeta > h2,.tarjeta .t2{margin:0;font:700 17px/1.25 "Figtree",sans-serif;letter-spacing:-.01em}
+/* datos legibles dentro del vidrio: velo plano, no otro vidrio */
+.superficie{background:var(--ui-campo);box-shadow:inset 0 0 0 1px var(--ui-campo-borde);border-radius:14px;padding:12px 14px}
+.rejilla{display:grid;gap:var(--ui-g)}
+.campos-fila{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+/* tabla plana: cabecera en versalitas, números tabulares a la derecha, punto de color + texto */
+.tabla{width:100%;border-collapse:collapse;font-size:13.5px}
+.tabla th{text-align:left;font:700 11.5px/1.3 "Figtree",sans-serif;text-transform:uppercase;letter-spacing:.06em;color:var(--ui-tinta-3);
+  padding:8px 10px;border-bottom:1px solid var(--ui-linea-2)}
+.tabla td{padding:9px 10px;border-bottom:1px solid var(--ui-linea);color:var(--ui-tinta)}
+.tabla tr:last-child td{border-bottom:0}
+.tabla tbody tr:hover td{background:var(--ui-hover)}
+.tabla .n{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.tabla .cat{display:inline-flex;align-items:center;gap:8px}
+.tabla .cat i{width:9px;height:9px;border-radius:50%;flex:none;box-shadow:0 0 0 1.5px rgba(0,0,0,.25)}
+/* recibo / ficha de detalle: lista de definiciones ordenada */
+.recibo{display:grid;grid-template-columns:max-content 1fr;gap:8px 18px;margin:0;font-size:13.5px}
+.recibo dt{color:var(--ui-tinta-3);font-weight:600}
+.recibo dd{margin:0;color:var(--ui-tinta);font-weight:600;min-width:0}
+.recibo dd small{display:block;font-weight:500;color:var(--ui-tinta-3)}
+.pie{font-size:12px;line-height:1.5;color:var(--ui-tinta-3);padding-top:12px;border-top:1px solid var(--ui-linea)}
+.pie summary{cursor:pointer;list-style:none;display:flex;gap:6px;flex-wrap:wrap}
+.pie summary::-webkit-details-marker{display:none}
+@media (max-width:760px){
+  .campos-fila{gap:8px}
+  .tarjeta{padding:18px}
+  .tarjeta.principal{border-radius:26px;padding:22px 18px}
+  .barra-superior{padding-left:14px}
+  .recibo{grid-template-columns:1fr;gap:2px}
+  .tabla th,.tabla td{padding-left:6px;padding-right:6px}
+  /* pasos en el celular: solo los títulos, con el número arriba (no caben en línea) */
+  .pasos{gap:6px}
+  .pasos li{padding:8px 8px 9px;font-size:11.5px}
+  .pasos li > span{display:none}
+  .pasos b{font-size:12px;flex-direction:column;align-items:flex-start;gap:5px;hyphens:auto}
+  .recibo dd{margin-bottom:8px}
+}
+
+@media (max-width:400px){
+  .kpi .v{font-size:16px}                     /* «≈ 3,4 MB» cabe en un tercio de 320 px */
+  .pasos li{padding:8px 6px 9px}.pasos b{font-size:11px}
+}
+
+/* ================= ALTO CONTRASTE / LITE / MOVIMIENTO / COLORES FORZADOS ================= */
+:root[data-alto="1"] :is(.lg-claro,.lg-regular,.lg-denso){box-shadow:0 0 0 2px var(--lg-borde) !important;background:var(--lg-regular) !important}
+:root[data-alto="1"] :is(.lg-claro,.lg-regular)::after{display:none}
+:root[data-alto="1"] :is(.kpi,.pasos li,.btn-sec,.chip,.cifra,.campo){box-shadow:inset 0 0 0 2px var(--ui-linea-2) !important}
+:root[data-alto="1"] .btn-ico:is([data-menu],[data-hoja-btn])[aria-expanded="true"],:root[data-alto="1"] .btn-ico[aria-checked="true"],
+:root[data-alto="1"] .segmentado button[aria-checked="true"]{background:var(--ui-tinta) !important;color:var(--ui-bg) !important;box-shadow:none !important}
+:root[data-alto="1"] .btn-prim{box-shadow:none}
+:root[data-alto="1"] .barra-superior{--lg-claro:var(--lg-regular)}
+:root[data-alto="1"] a,:root[data-alto="1"] .ver{text-decoration:underline}
+:root[data-alto="1"] :is(button,a,input,select,textarea,summary,[tabindex]):focus-visible{outline-width:3px;outline-offset:3px}
+:root[data-alto="1"] :is(.lg-cuerpo,.menu){scrollbar-color:var(--ui-tinta-3) transparent !important}
+:root[data-alto="1"] .escenario.velado::after{-webkit-backdrop-filter:none;backdrop-filter:none}
+:root[data-alto="1"] .fondo-ambiental{background:var(--ui-bg)}
+:root[data-alto="1"] .superficie{box-shadow:inset 0 0 0 2px var(--ui-linea-2)}
+:root[data-alto="1"] .tabla td{border-bottom-color:var(--ui-linea-2)}
+
+/* Lite: mismos controles y datos, sin desenfoque, brillos ni transiciones (variante de baja transparencia) */
+:root[data-lite="1"]{--ui-dur:0s;--lg-claro:var(--lg-denso);--lg-regular:var(--lg-denso);--lg-filtro-claro:none;--lg-filtro-regular:none;
+  --lg-brillo:none;--lg-especular:transparent;--btn-caustica:none}
+:root[data-lite="1"] .btn-prim,:root[data-lite="1"] .aviso-pildora,:root[data-lite="1"] .escenario.velado::after{-webkit-backdrop-filter:none;backdrop-filter:none}
+:root[data-lite="1"] *,:root[data-lite="1"] *::before,:root[data-lite="1"] *::after{transition-duration:0s !important;animation-duration:0s !important;
+  animation-iteration-count:1 !important}
+
+@media (prefers-reduced-motion: reduce){
+  :root{--ui-dur:0s}
+  *,*::before,*::after{transition-duration:0s !important;scroll-behavior:auto !important}
+  .menu,.punto,.lg-tarjeta{animation:none !important}
+}
+
+@media (forced-colors: active){
+  :is(.lg-claro,.lg-regular,.lg-denso,.menu){border:1px solid CanvasText;forced-color-adjust:auto}
+  :is(.lg-claro,.lg-regular)::after{display:none}
+  :is(.btn-ico,.btn-sec,.btn-prim,.chip,.cifra,.kpi,.pasos li,.campo,.segmentado button){border:1px solid ButtonText}
+  :is(.segmentado button,.menu [role="menuitemradio"],.btn-ico)[aria-checked="true"],.btn-ico:is([data-menu],[data-hoja-btn])[aria-expanded="true"]{outline:2px solid Highlight}
+  .leyenda .pin,.leyenda .muestras i,.leyenda .linea{forced-color-adjust:none}
+  .punto{forced-color-adjust:none;border:1px solid CanvasText}
+  .barra{border:1px solid CanvasText}.barra i{forced-color-adjust:none;background:Highlight}
+  :is(.lg-cuerpo,.menu){scrollbar-color:auto}
+  :is(button,a,input,select,textarea,summary,[tabindex]):focus-visible{outline:3px solid Highlight}
+}
+
+/* ===================== MANUAL: disposición de esta página =====================
+   Lo visual sale de la firma común (arriba, igual que la app). Las tarjetas del documento son contenido, no capa
+   funcional: llevan el mismo material sin desenfoque (sobre el fondo ambiental, que ya es suave, se ve igual y el
+   desplazamiento es más fluido en el celular). El desenfoque queda en lo que flota: la barra, Ajustes y los menús. */
+html{scroll-padding-top:calc(var(--ui-g) * 2 + var(--ui-capsula) + 12px)}
+@media (prefers-reduced-motion: no-preference){html:not([data-lite="1"]){scroll-behavior:smooth}}
+body{font-size:15.5px;line-height:1.6}
+.doc{-webkit-backdrop-filter:none !important;backdrop-filter:none !important}
+.barra-superior .chip{max-width:none}
+.barra-superior .chip .flecha{width:14px;height:14px;color:var(--ui-tinta-3)}
+.menu.indice{min-width:250px}
+.menu.indice a[aria-current="true"]{background:var(--ui-lente);box-shadow:var(--ui-lente-sombra)}
+.menu.indice a small{font-size:11px}
+
+/* portada */
+.portada{padding:26px 6px 8px;display:grid;gap:22px}
+.portada .titulo-pagina{font-size:clamp(32px,5vw,54px)}
+.portada .bajada{font-size:clamp(16px,1.6vw,18.5px);max-width:58ch}
+.portada .acciones{display:flex;flex-wrap:wrap;align-items:center;gap:10px 16px}
+.portada .acciones .btn-prim{padding:0 24px}
+.portada .acciones small{color:var(--ui-tinta-3);font-size:13px}
+/* el ejemplo de la portada: una tarjeta con las tres cifras (en escritorio, a la derecha del título) */
+.ejemplo{display:grid;gap:10px;padding:18px}
+.ejemplo > p{margin:0;font-size:13px;font-weight:600;color:var(--ui-tinta-2)}
+@media (min-width:1000px){
+  .portada{grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);column-gap:32px;align-items:end}
+  .portada > div:first-child{grid-column:1;grid-row:1}
+  .portada .acciones{grid-column:1;grid-row:2}
+  .portada .ejemplo{grid-column:2;grid-row:1 / span 2;align-self:end}
+}
+.kpi .v .de{color:var(--ui-tinta-3);font-weight:600}
+
+/* secciones */
+.seccion-doc{margin-top:64px}
+.seccion-doc > header{padding:0 6px;margin-bottom:18px;max-width:72ch}
+.seccion-doc h2{margin:6px 0 0;font:700 clamp(23px,2.6vw,30px)/1.18 "Figtree",sans-serif;letter-spacing:-.018em;color:var(--ui-tinta)}
+.seccion-doc header p{margin:8px 0 0;color:var(--ui-tinta-2);font-size:16px}
+.tarjeta p,.tarjeta li{max-width:68ch}
+.tarjeta p{margin:0}
+.tarjeta ul,.tarjeta ol{margin:0;padding-left:1.2em;display:grid;gap:6px}
+.tarjeta h3{margin:0;font:700 16.5px/1.3 "Figtree",sans-serif;letter-spacing:-.005em}
+.rejilla-2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:var(--ui-g)}
+.rejilla-3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:var(--ui-g)}
+strong{font-weight:700;color:var(--ui-tinta)}
+.tenue{color:var(--ui-tinta-3)}
+code{font:600 13px/1.4 ui-monospace,"Cascadia Mono",Consolas,monospace;background:var(--ui-campo);
+  box-shadow:inset 0 0 0 1px var(--ui-campo-borde);padding:1px 6px;border-radius:6px;overflow-wrap:anywhere}
+.ui{display:inline-block;font-size:.9em;font-weight:600;line-height:1.35;padding:1px 9px;border-radius:999px;white-space:nowrap;
+  background:var(--ui-campo);box-shadow:inset 0 0 0 1px var(--ui-campo-borde);color:var(--ui-tinta)}
+.ui.azul{color:var(--ui-sobre-acento);background:var(--btn-brillo),var(--btn-tinte);box-shadow:var(--btn-canto)}
+
+/* puntos clave: problema (ícono en ámbar) y solución (ícono en azul) */
+.clave{display:grid;grid-template-columns:40px minmax(0,1fr);gap:4px 14px;align-content:start;padding:18px 20px}
+.clave .ico{grid-row:span 3;width:40px;height:40px;border-radius:12px;display:grid;place-items:center}
+.clave .ico svg{width:21px;height:21px}
+.problema .ico{color:var(--ui-alerta);background:color-mix(in srgb,var(--ui-alerta-borde) 16%,transparent);
+  box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--ui-alerta-borde) 40%,transparent)}
+.solucion .ico{color:var(--ui-acento-texto);background:color-mix(in srgb,var(--ui-acento) 14%,transparent);
+  box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--ui-acento) 34%,transparent)}
+.clave h3{align-self:center}
+.clave p{color:var(--ui-tinta-2)}
+.clave .visual{margin-top:8px}
+
+/* visuales pequeños */
+.tramos{display:flex;gap:6px;flex-wrap:wrap}
+.tramos span{font:700 12px/1 "Figtree",sans-serif;font-variant-numeric:tabular-nums;padding:7px 10px;border-radius:8px;
+  color:var(--ui-alerta);background:color-mix(in srgb,var(--ui-alerta-borde) 12%,transparent);
+  box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--ui-alerta-borde) 45%,transparent)}
+.tramos.unido span{color:var(--ui-acento-texto);background:color-mix(in srgb,var(--ui-acento) 12%,transparent);
+  box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--ui-acento) 40%,transparent);flex:1;text-align:center}
+.archivo{display:inline-flex;align-items:center;gap:7px;font:600 12.5px/1.3 ui-monospace,"Cascadia Mono",Consolas,monospace;
+  padding:6px 10px;border-radius:9px;overflow-wrap:anywhere}
+.archivo svg{width:15px;height:15px;flex:none}
+.archivo.antes{color:var(--ui-alerta);background:color-mix(in srgb,var(--ui-alerta-borde) 12%,transparent);
+  box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--ui-alerta-borde) 45%,transparent)}
+.archivo.ahora{color:var(--ui-acento-texto);background:color-mix(in srgb,var(--ui-acento) 12%,transparent);
+  box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--ui-acento) 40%,transparent)}
+.tarjeta .colores{padding-left:0}
+.colores{display:flex !important;flex-wrap:wrap;gap:6px 14px;margin:0;padding:0;list-style:none;font-size:13px;color:var(--ui-tinta-2)}
+.colores li{display:inline-flex;align-items:center;gap:6px}
+.colores i,.clase-cob i{width:11px;height:11px;border-radius:50%;flex:none;box-shadow:0 0 0 1.5px rgba(0,0,0,.25)}
+.ademas{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px;padding:0 2px}
+.ademas .ui{font-weight:600}
+
+/* pasos de uso */
+.paso{padding:20px 20px 18px;gap:12px}
+.paso .num{width:30px;height:30px;border-radius:50%;display:grid;place-items:center;font:700 14px/1 "Figtree",sans-serif;
+  color:var(--ui-sobre-acento);background:var(--btn-brillo),var(--btn-tinte);box-shadow:var(--btn-canto)}
+.paso header{display:flex;align-items:center;gap:10px}
+.paso ul{color:var(--ui-tinta-2)}
+.detalle{margin-top:var(--ui-g)}
+details.mas{border-radius:16px;padding:0}
+details.mas > summary{display:flex;align-items:center;justify-content:space-between;gap:12px;cursor:pointer;list-style:none;padding:14px 18px;
+  font-weight:700;border-radius:16px}
+details.mas > summary::-webkit-details-marker{display:none}
+details.mas > summary .ver{font-size:13px}
+details.mas > .contenido{padding:0 18px 18px;display:grid;gap:12px;color:var(--ui-tinta-2)}
+details.mas h4{margin:6px 0 0;font:700 14.5px/1.3 "Figtree",sans-serif;color:var(--ui-tinta)}
+
+/* lo que recibes */
+.arbol{margin:0;font:13px/1.65 ui-monospace,"Cascadia Mono",Consolas,monospace;white-space:pre;overflow-x:auto;color:var(--ui-tinta)}
+.arbol .c{color:var(--ui-tinta-3)}
+.lista-recibe{list-style:none;padding:0 !important;margin:0;display:grid;gap:12px !important}
+.lista-recibe li{display:grid;grid-template-columns:22px minmax(0,1fr);gap:10px;color:var(--ui-tinta-2)}
+.lista-recibe svg{width:20px;height:20px;color:var(--ui-acento-texto);margin-top:1px}
+
+/* clases de cobertura */
+.clases{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}
+.clase-cob{padding:10px 12px;border-radius:14px;background:var(--ui-campo);box-shadow:inset 0 0 0 1px var(--ui-campo-borde);display:grid;gap:2px}
+.clase-cob b{display:flex;align-items:center;gap:7px;font-size:14.5px}
+.clase-cob span{font-size:12.5px;color:var(--ui-tinta-3);font-variant-numeric:tabular-nums}
+.simbolos{list-style:none;padding:0 !important;margin:0;display:grid;gap:8px !important}
+.simbolos li{display:grid;grid-template-columns:22px minmax(0,1fr);gap:10px;align-items:center;color:var(--ui-tinta-2)}
+.pin{width:13px;height:13px;border-radius:50%;justify-self:center}
+.pin.gris{background:#9AA6BC;box-shadow:inset 0 0 0 3px var(--lg-denso),0 0 0 1.5px #9AA6BC}
+.pin.fuera{background:transparent;box-shadow:inset 0 0 0 1.5px var(--ui-tinta-3);outline:1.5px dashed var(--ui-tinta-3);outline-offset:1px}
+.pin.duda{background:#0ca30c;box-shadow:0 0 0 2.5px #EC835A}
+.pin.sel{background:#0ca30c;box-shadow:0 0 0 2px var(--lg-denso),0 0 0 4px #1C6FD8}
+
+/* ten en cuenta */
+.limites{list-style:none;padding:0 !important;margin:0;display:grid;gap:10px !important}
+.limites li{display:grid;grid-template-columns:20px minmax(0,1fr);gap:10px;color:var(--ui-tinta-2)}
+.limites svg{width:18px;height:18px;margin-top:2px;color:var(--ui-alerta)}
 
 /* preguntas */
-details{border:1px solid var(--line);background:var(--surface);border-radius:12px;padding:0 16px;margin-bottom:8px;max-width:72ch}
-summary{cursor:pointer;font-weight:600;padding:12px 0;list-style-position:outside}
-details[open] summary{border-bottom:1px dashed var(--line-2);margin-bottom:10px}
-details > p:last-child,details > ul:last-child{margin-bottom:14px}
+.preguntas{display:grid;gap:8px;max-width:860px}
+.preguntas details.mas > summary{font-weight:600}
+.cita{font:600 13.5px/1.5 ui-monospace,"Cascadia Mono",Consolas,monospace;padding:12px 14px;border-radius:12px;background:var(--ui-campo);
+  box-shadow:inset 0 0 0 1px var(--ui-campo-borde);color:var(--ui-tinta);overflow-wrap:anywhere}
+.tabla-doc{overflow-x:auto}
+.glosario dt{font-weight:700;color:var(--ui-tinta)}
+.glosario dd{font-weight:400;color:var(--ui-tinta-2)}
+.final{margin:56px 0 0;padding:16px 6px 0;border-top:1px solid var(--ui-linea);font-size:13px;color:var(--ui-tinta-3);display:flex;flex-wrap:wrap;gap:6px 16px}
+.final a{font-weight:600}
 
-dl.glosario{display:grid;grid-template-columns:max-content minmax(0,1fr);gap:8px 18px;margin:0;max-width:74ch}
-dl.glosario dt{font-weight:700}
-dl.glosario dd{margin:0;color:var(--ink-2)}
-
-.pie{margin-top:10px;font-size:14px;color:var(--ink-3)}
-
-/* contacto */
-.contacto{background:var(--surface);border:1px solid var(--line-2);border-radius:14px;padding:18px 20px;max-width:72ch;box-shadow:var(--sombra)}
-.contacto .quien{font-size:17px}
-.canales{list-style:none;padding:0;margin:14px 0 0;display:grid;gap:8px}
-.canales li{display:grid;grid-template-columns:90px minmax(0,1fr);gap:12px;align-items:baseline;margin:0;max-width:none}
-.canal{font-family:"Silkscreen",monospace;font-size:11px;letter-spacing:.1em;color:var(--ink-3)}
-.canales a,.canales .dato{overflow-wrap:anywhere;font-weight:600}
-.canales .dato{user-select:all}
-
-@media (max-width:860px){
-  .cuerpo{grid-template-columns:minmax(0,1fr);gap:18px}
-  .indice{display:none}
-  .indice-movil{display:block;margin-top:18px;max-width:none}
-  .indice-movil ol{margin:0 0 12px;padding-left:1.3em}
+@media (max-width:900px){
+  .rejilla-3{grid-template-columns:minmax(0,1fr)}
   .clases{grid-template-columns:repeat(2,minmax(0,1fr))}
 }
-@media (max-width:520px){
-  .pasos .linea{display:none}
-  .pasos{gap:10px 16px}
-  dl.glosario{grid-template-columns:minmax(0,1fr)}
-  dl.glosario dd{margin-bottom:8px}
+@media (max-width:760px){
+  body{font-size:15px}
+  .rejilla-2{grid-template-columns:minmax(0,1fr)}
+  .seccion-doc{margin-top:48px}
+  .clave{padding:16px;grid-template-columns:36px minmax(0,1fr);gap:4px 12px}
+  .clave .ico{width:36px;height:36px;border-radius:11px}
+  .barra-superior .titulo .largo{display:none}
 }
-@media (prefers-reduced-motion:no-preference){html{scroll-behavior:smooth}}
+@media (min-width:761px){ .barra-superior .titulo .corto{display:none} }
+@media (max-width:400px){ .ejemplo{padding:12px} .ejemplo .kpi{padding:8px 7px 7px} }
+@media print{
+  .fondo-ambiental,.ajustes-fijo,.barra-superior,.portada .acciones{display:none !important}
+  body{background:#fff;color:#000}
+  .lg-claro,.lg-regular{background:#fff !important;box-shadow:0 0 0 1px #999 !important;-webkit-backdrop-filter:none !important;backdrop-filter:none !important}
+  .lg-claro::after,.lg-regular::after{display:none}
+  .seccion-doc,.tarjeta{break-inside:avoid}
+}
 </style>
-<style>body{margin:0}</style>
 </head>
 <body>
+<div class="fondo-ambiental" aria-hidden="true"></div>
 
-<div class="hoja"><p style="margin:0 0 12px"><a href="../../" style="display:inline-block;padding:6px 14px;border-radius:999px;border:1px solid var(--line-2);background:var(--surface);font-weight:600;font-size:14px;text-decoration:none">← Abrir el Descargador IDEAM</a></p>
-  <header>
-    <div class="barra" aria-hidden="true">
-      <div class="puntos"><i></i><i></i><i></i></div>
-      <div class="nombre">MANUAL · DESCARGADOR IDEAM</div>
-      <div class="espacio"></div>
-    </div>
-    <div class="portada">
-      <p class="eyebrow">MANUAL DE USUARIO</p>
-      <h1>Descargador IDEAM</h1>
-      <p class="bajada">Cómo descargar información meteorológica e hidrológica del IDEAM con el Descargador IDEAM. Herramienta independiente, no oficial del IDEAM.</p>
-      <nav class="pasos" aria-label="Los cuatro pasos de la app">
-        <a class="paso" href="#parametro"><span class="n">1</span>Consulta</a><span class="linea"></span>
-        <a class="paso" href="#cuenca"><span class="n">2</span>Área en el mapa</a><span class="linea"></span>
-        <a class="paso" href="#revisar"><span class="n">3</span>Estaciones</a><span class="linea"></span>
-        <a class="paso" href="#descarga"><span class="n">4</span>Exportación</a>
+<!-- Ajustes: el mismo menú que en la app (apariencia y rendimiento) y el regreso al Descargador -->
+<div class="ajustes-fijo capsula lg-claro grupo">
+  <button type="button" class="btn-ico" data-menu="ajustes" aria-haspopup="true" aria-expanded="false" aria-label="Ajustes" title="Ajustes">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 1 0 18z" fill="currentColor" stroke="none"/></svg>
+  </button>
+  <div class="menu abajo" data-menu-de="ajustes" role="group" aria-label="Ajustes" hidden>
+    <p class="tit">Apariencia</p>
+    <div class="fila"><div class="segmentado" role="radiogroup" aria-label="Tema" style="display:flex">
+      <button type="button" role="radio" data-pref="tono" value="claro" data-mantener style="flex:1">Claro</button>
+      <button type="button" role="radio" data-pref="tono" value="oscuro" data-mantener style="flex:1">Oscuro</button>
+    </div></div>
+    <label class="interruptor fila">Alto contraste<input type="checkbox" data-pref="alto"></label>
+    <hr>
+    <p class="tit">Rendimiento</p>
+    <label class="interruptor fila">Modo Lite<input type="checkbox" data-pref="lite"></label>
+    <hr>
+    <a href="../../"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2z"/><path d="M9 4v14M15 6v14"/></svg><span>Abrir el Descargador</span></a>
+  </div>
+</div>
+
+<div class="contenedor">
+  <header class="barra-superior lg-claro">
+    <p class="titulo"><span class="largo">Manual del Descargador IDEAM</span><span class="corto">Manual</span></p>
+    <div class="derecha grupo">
+      <button type="button" class="chip" data-menu="indice" aria-haspopup="menu" aria-expanded="false" aria-controls="menu-indice">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h10"/></svg><span>Índice</span>
+      </button>
+      <nav class="menu abajo indice" role="menu" id="menu-indice" data-menu-de="indice" aria-label="Índice" hidden>
+        <p class="tit" aria-hidden="true">Contenido</p>
+        <a role="menuitem" href="#que-es">Qué es el IDEAM y esta herramienta</a>
+        <a role="menuitem" href="#problemas">Lo que el portal no resuelve</a>
+        <a role="menuitem" href="#soluciones">Cómo lo resolvemos</a>
+        <a role="menuitem" href="#uso">Cómo se usa, en tres pasos</a>
+        <a role="menuitem" href="#recibes">Qué recibes</a>
+        <a role="menuitem" href="#colores">Cómo leer los colores</a>
+        <a role="menuitem" href="#tener-en-cuenta">Lo que debes tener en cuenta</a>
+        <a role="menuitem" href="#preguntas">Preguntas frecuentes</a>
+        <a role="menuitem" href="#condiciones">Uso de los datos y citación</a>
+        <a role="menuitem" href="#glosario">Glosario</a>
       </nav>
     </div>
   </header>
 
-  <div class="cuerpo">
-    <nav class="indice" aria-label="Contenido">
-      <p>CONTENIDO</p>
-      <ol>
-        <li><a href="#que-es">Qué ofrece el IDEAM</a></li>
-          <li><a href="#limitaciones">El problema</a></li>
-          <li><a href="#solucion">La solución</a></li>
-        <li><a href="#parametro">1 · Parámetro y fechas</a></li>
-        <li><a href="#cuenca">2 · Marcar el área</a></li>
-        <li><a href="#estaciones">Estaciones en el mapa</a></li>
-        <li><a href="#vista-3d">El mapa 3D y los ajustes</a></li>
-        <li><a href="#cobertura">Cobertura del periodo</a></li>
-        <li><a href="#revisar">3 · Revisar las estaciones</a></li>
-        <li><a href="#altitud">Altitud dudosa</a></li>
-        <li><a href="#descarga">4 · Exportación</a></li>
-        <li><a href="#zip">Qué trae el ZIP</a></li>
-          <li><a href="#uso-datos">Uso de los datos y citación</a></li>
-        <li><a href="#problemas">Problemas frecuentes</a></li>
-        <li><a href="#glosario">Glosario</a></li>
-      </ol>
-    </nav>
-
-    <main>
-      <details class="indice-movil">
-        <summary>Contenido del manual</summary>
-        <ol>
-          <li><a href="#que-es">Qué ofrece el IDEAM</a></li>
-          <li><a href="#limitaciones">El problema</a></li>
-          <li><a href="#solucion">La solución</a></li>
-          <li><a href="#parametro">1 · Parámetro y fechas</a></li>
-        <li><a href="#cuenca">2 · Marcar el área</a></li>
-        <li><a href="#estaciones">Estaciones en el mapa</a></li>
-        <li><a href="#vista-3d">El mapa 3D y los ajustes</a></li>
-        <li><a href="#cobertura">Cobertura del periodo</a></li>
-        <li><a href="#revisar">3 · Revisar las estaciones</a></li>
-        <li><a href="#altitud">Altitud dudosa</a></li>
-        <li><a href="#descarga">4 · Exportación</a></li>
-          <li><a href="#zip">Qué trae el ZIP</a></li>
-          <li><a href="#uso-datos">Uso de los datos y citación</a></li>
-          <li><a href="#problemas">Problemas frecuentes</a></li>
-          <li><a href="#glosario">Glosario</a></li>
-        </ol>
-      </details>
-
-      <section id="que-es">
-        <h2><span class="etiqueta">CONTEXTO</span>Qué ofrece el IDEAM</h2>
-        <p>El IDEAM publica en su portal <strong>DHIME</strong> la información de su red de estaciones en todo el país: precipitación, temperatura, caudal, nivel de los ríos, humedad, viento, radiación y otras variables. Cualquier persona puede descargarla, de la estación que necesite y para el rango de tiempo que le interese, en archivos Excel.</p>
-      </section>
-
-      <section id="limitaciones">
-        <h2><span class="etiqueta">EL PROBLEMA</span>Descargarla a mano toma horas</h2>
-        <p>Para un estudio de cuenca, con muchas estaciones y muchos años de datos, el portal se queda corto:</p>
-        <ul>
-          <li><strong>Volumen de consultas:</strong> hay un máximo de estaciones por consulta, que según el parámetro puede ser de solo 10. Una cuenca con 60 estaciones exige al menos 6 rondas de descarga.</li>
-          <li><strong>Límite de tiempo por consulta:</strong> cada consulta admite un máximo de años según la frecuencia de los datos: 10 años para datos horarios, 30 para diarios y 50 para mensuales. Quien necesite 30 años de datos horarios tiene que hacer <strong>tres descargas separadas por estación</strong>. Con 20 estaciones, son 60 descargas.</li>
-          <li><strong>Unir todo a mano:</strong> después hay que unir, estación por estación y en orden, los archivos de cada tramo de años, y renombrarlos para saber cuál es cuál.</li>
-          <li><strong>Sin saber qué esperar:</strong> hasta no descargar no se sabe si el registro de una estación alcanza a cubrir el periodo que se necesita.</li>
-        </ul>
-      </section>
-
-      <section id="solucion">
-        <h2><span class="etiqueta">LA SOLUCIÓN</span>El Descargador IDEAM lo hace por ti</h2>
-        <ul>
-          <li><strong>Todas las estaciones de tu cuenca, de una vez:</strong> dibujas tu cuenca o subes su archivo, y aparecen todas las estaciones del IDEAM que contiene, más las cercanas si quieres.</li>
-          <li><strong>Sin límite de estaciones ni de años:</strong> el Descargador divide el periodo en los tramos que permite el portal y hace todas las consultas por su cuenta.</li>
-          <li><strong>Un solo Excel por estación, ya unido:</strong> los tramos se unen automáticamente, con el formato original del IDEAM, y cada archivo lleva el nombre de su estación.</li>
-          <li><strong>Sabes qué vas a recibir antes de descargar:</strong> para cada estación ves qué parte de tu periodo cubre su registro; quitas las que no quieras y, si prefieres, las descargas ordenadas en carpetas según esa cobertura.</li>
-          <li><strong>Revisión de altitudes en 3D:</strong> un mapa 3D con el relieve real ubica cada estación y marca las que tienen la altitud mal registrada en el catálogo.</li>
-          <li><strong>Lista para citar:</strong> cada descarga incluye la cita de la fuente que exigen los términos de uso del IDEAM.</li>
-        </ul>
-        <div class="nota">
-          <strong>Ejemplo</strong>
-          <p>20 estaciones con 30 años de datos horarios: a mano son 60 descargas y 60 archivos por unir y renombrar. Con el Descargador es una sola descarga que entrega 20 Excel listos.</p>
+  <main>
+    <!-- ===================== PORTADA ===================== -->
+    <section class="portada" aria-labelledby="titulo">
+      <div>
+        <p class="antetitulo">Manual de usuario</p>
+        <h1 class="titulo-pagina" id="titulo">Descargador IDEAM</h1>
+        <p class="bajada">Los datos hidrometeorológicos del IDEAM de toda tu zona de estudio, en una sola descarga: sin tramos que unir, con cada archivo a nombre de su estación y sabiendo antes de descargar qué vas a recibir.</p>
+      </div>
+      <div class="acciones">
+        <a class="btn-prim" href="../../"><span class="txt">Abrir el Descargador</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></a>
+        <small>Gratis, en el navegador y sin instalar nada.</small>
+      </div>
+      <div class="ejemplo tarjeta lg-regular doc">
+        <p>Ejemplo: 20 estaciones con 30 años de datos horarios</p>
+        <div class="kpis">
+          <div class="kpi"><div class="v">60 <span class="de">→</span> 1</div><div class="l">Descargas</div><div class="s">en el portal, 3 por estación</div></div>
+          <div class="kpi"><div class="v">60 <span class="de">→</span> 0</div><div class="l">Archivos por unir y renombrar</div></div>
+          <div class="kpi"><div class="v">20</div><div class="l">Excel listos</div><div class="s">uno por estación, con su nombre</div></div>
         </div>
-        <h3>Requisitos</h3>
-        <ul>
-          <li>Un navegador web actualizado y conexión a internet. No hay que instalar nada.</li>
-          <li>El área de estudio (una cuenca, un municipio o cualquier zona): trazada sobre el mapa o como archivo (Shapefile, GeoJSON, KML/KMZ o GeoPackage).</li>
-        </ul>
-        <p class="pie">Si la aplicación lleva un rato sin uso, la primera carga puede tardar hasta un minuto; las siguientes son inmediatas. Arriba a la derecha, el menú <span class="ui">Ajustes</span> (el botón ◐) cambia el tema (claro u oscuro), activa el alto contraste y el modo Lite, y abre este manual (ver <a href="#vista-3d">El mapa 3D y los ajustes</a>).</p>
-      </section>
+      </div>
+    </section>
 
-      <section id="parametro">
-        <h2><span class="etiqueta">PASO 1</span>Consulta: serie, variable y fechas</h2>
-        <p>La app abre con la tarjeta <em>Consulta y descarga de datos hidrometeorológicos</em> sobre el mapa de Colombia. Mientras la llenas, el mapa y la lista de variables del IDEAM se cargan por detrás, así que al pasar al mapa no hay que esperar.</p>
-        <ol>
-          <li><span class="ui">Serie de tiempo y frecuencia</span>, como en la página del IDEAM:
+    <!-- ===================== QUÉ ES ===================== -->
+    <section class="seccion-doc" id="que-es" aria-labelledby="t-que-es">
+      <header><p class="antetitulo">Contexto</p><h2 id="t-que-es">Qué es el IDEAM y qué es esta herramienta</h2></header>
+      <div class="rejilla-2">
+        <article class="tarjeta lg-regular doc">
+          <h3>El IDEAM</h3>
+          <p>El <strong>Instituto de Hidrología, Meteorología y Estudios Ambientales</strong> es la entidad del Estado colombiano que mide el tiempo, el clima y el agua del país. Opera una red de miles de estaciones que registran lluvia, temperatura, caudal y nivel de los ríos, humedad, viento, radiación y otras variables, algunas desde hace más de medio siglo.</p>
+          <p>Publica esos registros en su portal <strong>DHIME</strong> (Atención al Ciudadano), donde cualquier persona puede descargarlos gratis para uso personal y no comercial.</p>
+        </article>
+        <article class="tarjeta lg-regular doc">
+          <h3>El Descargador IDEAM</h3>
+          <p>Es una herramienta web que toma <strong>los mismos datos del portal DHIME</strong> y los entrega como los necesita un estudio: eliges la variable y el periodo, marcas tu zona en el mapa y descargas, de una vez, todas sus estaciones en un ZIP ordenado.</p>
+          <p>No modifica los datos ni los guarda por su cuenta: hace por ti las consultas que harías a mano en el portal. Es un proyecto independiente, <strong>no oficial del IDEAM</strong>.</p>
+        </article>
+      </div>
+    </section>
+
+    <!-- ===================== PROBLEMAS ===================== -->
+    <section class="seccion-doc" id="problemas" aria-labelledby="t-problemas">
+      <header><p class="antetitulo">El problema</p><h2 id="t-problemas">Lo que el portal del IDEAM no resuelve</h2>
+        <p>Para consultar una estación, el portal funciona. Para un estudio con muchas estaciones y muchos años, se vuelve un trabajo de horas.</p></header>
+      <div class="rejilla-2">
+        <article class="tarjeta lg-regular doc clave problema">
+          <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/></svg></span>
+          <h3>Pocos años por consulta</h3>
+          <p>Si pides más años seguidos de los que admite la serie, el portal no te deja. Con datos horarios, por ejemplo, el tope es de 10 años: para 30 años tienes que descargar de 1991 a 2000, luego de 2001 a 2010, luego de 2011 a 2020, y al final juntar los tres archivos a mano.</p>
+          <div class="visual tramos" aria-hidden="true"><span>1991–2000</span><span>2001–2010</span><span>2011–2020</span></div>
+        </article>
+        <article class="tarjeta lg-regular doc clave problema">
+          <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s-6.5-5.6-6.5-11a6.5 6.5 0 0 1 13 0c0 5.4-6.5 11-6.5 11z"/><circle cx="12" cy="10" r="2.3"/></svg></span>
+          <h3>Pocas estaciones a la vez</h3>
+          <p>En algunos parámetros solo puedes pedir 10 estaciones por consulta. Una cuenca con 60 estaciones son, como mínimo, 6 rondas de descarga, y cada una se multiplica por los tramos de años.</p>
+        </article>
+        <article class="tarjeta lg-regular doc clave problema">
+          <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><path d="M10 13h.01M14 13h.01M10 17h4"/></svg></span>
+          <h3>Archivos con nombres que no dicen nada</h3>
+          <p>Cada Excel llega con un nombre hecho de números. Para saber de qué estación es hay que abrirlo, y después renombrarlo, uno por uno.</p>
+          <div class="visual"><span class="archivo antes"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></svg>48213907.xlsx <span class="tenue">(ejemplo)</span></span></div>
+        </article>
+        <article class="tarjeta lg-regular doc clave problema">
+          <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 4 3 6v14l6-2 6 2 6-2V4l-6 2z"/><path d="M9 4v14M15 6v14"/></svg></span>
+          <h3>Se busca por municipio, no por tu zona</h3>
+          <p>Las estaciones se buscan por departamento, municipio, nombre o código. Una cuenca o una zona de estudio no sigue esos límites, así que armar la lista completa, con las estaciones vecinas que sirven para comparar, es trabajo manual.</p>
+        </article>
+        <article class="tarjeta lg-regular doc clave problema">
+          <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M9.5 9a2.5 2.5 0 1 1 3.5 2.3c-.6.3-1 .9-1 1.6v.6M12 17h.01"/></svg></span>
+          <h3>No sabes qué vas a recibir</h3>
+          <p>Hasta descargar no sabes si el registro de una estación alcanza a cubrir tu periodo. Muchas descargas terminan en archivos casi vacíos.</p>
+        </article>
+        <article class="tarjeta lg-regular doc clave problema">
+          <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 20 6.5-11 4 6.5L16 12l5 8z"/><path d="M14 6h.01"/></svg></span>
+          <h3>Altitudes sin revisar</h3>
+          <p>Algunas estaciones tienen la altitud mal registrada en el catálogo, a veces por cientos de metros. El portal no lo advierte, y ese error pasa directo a tus cálculos.</p>
+        </article>
+        <article class="tarjeta lg-regular doc clave problema">
+          <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 3 8 4.5v9L12 21l-8-4.5v-9z"/><path d="m4 7.5 8 4.5 8-4.5M12 12v9"/></svg></span>
+          <h3>Sin vista en 3D</h3>
+          <p>No hay forma de ver dónde queda cada estación respecto a las montañas y los valles, algo clave para entender sus datos.</p>
+        </article>
+        <article class="tarjeta lg-regular doc clave problema">
+          <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M10 12h4"/></svg></span>
+          <h3>Todo suelto, sin orden ni cita</h3>
+          <p>Los archivos quedan sueltos en tu carpeta de descargas, y la cita de la fuente, que exigen los términos de uso del IDEAM, la armas tú.</p>
+        </article>
+      </div>
+    </section>
+
+    <!-- ===================== SOLUCIONES ===================== -->
+    <section class="seccion-doc" id="soluciones" aria-labelledby="t-soluciones">
+      <header><p class="antetitulo">La solución</p><h2 id="t-soluciones">Cómo lo resuelve el Descargador IDEAM</h2>
+        <p>Cada problema tiene su respuesta. El trabajo de horas queda en unos minutos de espera, y tú no haces nada más que elegir.</p></header>
+      <div class="rejilla-2">
+        <article class="tarjeta lg-regular doc clave solucion">
+          <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M3 10h18M8 3v4M16 3v4"/><path d="m9 15 2 2 4-4"/></svg></span>
+          <h3>Todos los años que necesites</h3>
+          <p>Pides el periodo completo. El Descargador lo parte en los tramos que permite el portal, hace todas las consultas por ti y las une, en orden, en <strong>un solo Excel por estación</strong>.</p>
+          <div class="visual tramos unido" aria-hidden="true"><span>1991–2020 · un solo archivo</span></div>
+        </article>
+        <article class="tarjeta lg-regular doc clave solucion">
+          <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21s-6.5-5.6-6.5-11a6.5 6.5 0 0 1 13 0c0 5.4-6.5 11-6.5 11z"/><path d="m9.5 10 1.8 1.8 3.2-3.3"/></svg></span>
+          <h3>Todas las estaciones, en una sola descarga</h3>
+          <p>No hay tope de estaciones: todas las de tu zona salen en el mismo ZIP, sin rondas.</p>
+        </article>
+        <article class="tarjeta lg-regular doc clave solucion">
+          <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><path d="m9 14 2 2 4-4"/></svg></span>
+          <h3>Cada Excel con el nombre de su estación</h3>
+          <p>El archivo dice qué es desde el nombre: la estación, su código y la serie. Por dentro conserva el formato original del IDEAM.</p>
+          <div class="visual"><span class="archivo ahora"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></svg>JARDIN_BOTANICO_[21205710]_PTPM_CON.xlsx</span></div>
+        </article>
+        <article class="tarjeta lg-regular doc clave solucion">
+          <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8V5a1 1 0 0 1 1-1h3M16 4h3a1 1 0 0 1 1 1v3M20 16v3a1 1 0 0 1-1 1h-3M8 20H5a1 1 0 0 1-1-1v-3"/><circle cx="12" cy="12" r="2.5"/></svg></span>
+          <h3>Tu zona, no un municipio</h3>
+          <p>Dibujas un rectángulo, usas lo que ves en pantalla o subes el contorno de tu cuenca (Shapefile, GeoJSON, KML/KMZ o GeoPackage). Con el <strong>buffer</strong> sumas las estaciones vecinas, a la distancia que elijas.</p>
+        </article>
+        <article class="tarjeta lg-regular doc clave solucion">
+          <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg></span>
+          <h3>Sabes qué vas a recibir antes de descargar</h3>
+          <p>Cada estación aparece en el mapa con un color según qué parte de tu periodo cubre su registro. Ves el tamaño aproximado del ZIP y el tiempo de descarga, filtras por cobertura y quitas las que no te sirvan.</p>
+          <ul class="visual colores" aria-label="Clases de cobertura">
+            <li><i style="background:#0ca30c"></i>Alta</li><li><i style="background:#fab219"></i>Media</li><li><i style="background:#ec835a"></i>Baja</li><li><i style="background:#d03b3b"></i>Crítica</li>
+          </ul>
+        </article>
+        <article class="tarjeta lg-regular doc clave solucion">
+          <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 20 6.5-11 4 6.5L16 12l5 8z"/><path d="m15 5 1.5 1.5L19 4"/></svg></span>
+          <h3>Altitudes revisadas</h3>
+          <p>Compara la altitud del catálogo con el relieve real en el punto de cada estación y marca las que se alejan más de 200 m. Además te dice si lo errado parece ser la altitud o las coordenadas.</p>
+        </article>
+        <article class="tarjeta lg-regular doc clave solucion">
+          <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m12 3 8 4.5v9L12 21l-8-4.5v-9z"/><path d="m4 7.5 8 4.5 8-4.5M12 12v9"/></svg></span>
+          <h3>Vista 3D del relieve</h3>
+          <p>Con un clic pasas a 3D: el relieve real con la foto satelital y cada estación sobre el terreno. Ves de inmediato cuáles están en el valle, en la ladera o en la cima.</p>
+        </article>
+        <article class="tarjeta lg-regular doc clave solucion">
+          <span class="ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="m9.5 13 1.8 1.8 3.2-3.3"/></svg></span>
+          <h3>Todo ordenado y listo para citar</h3>
+          <p>Si quieres, el ZIP separa los Excel en carpetas por cobertura. Trae un resumen de lo que se guardó y la cita de la fuente ya armada, con la fecha real de tu descarga.</p>
+        </article>
+      </div>
+      <div class="ademas" aria-label="Además">
+        <span class="ui">Sin pantallas de espera</span><span class="ui">Funciona en el celular</span><span class="ui">Tema claro, oscuro y alto contraste</span><span class="ui">Modo Lite para equipos modestos</span>
+      </div>
+    </section>
+
+    <!-- ===================== USO ===================== -->
+    <section class="seccion-doc" id="uso" aria-labelledby="t-uso">
+      <header><p class="antetitulo">Paso a paso</p><h2 id="t-uso">Cómo se usa, en tres pasos</h2>
+        <p>Solo necesitas un navegador actualizado y conexión a internet.</p></header>
+      <div class="rejilla-3">
+        <article class="tarjeta lg-regular doc paso">
+          <header><span class="num">1</span><h3>Establecer parámetros</h3></header>
+          <ul>
+            <li>Elige la serie: <span class="ui">Estándar</span> o <span class="ui">Especial</span>, como en el portal.</li>
+            <li>Escribe o busca la <strong>variable</strong> y el <strong>parámetro</strong>.</li>
+            <li>Indica el periodo con <strong>Desde</strong> y <strong>Hasta</strong>.</li>
+            <li>Pulsa <span class="ui azul">Seleccionar área en el mapa</span>.</li>
+          </ul>
+        </article>
+        <article class="tarjeta lg-regular doc paso">
+          <header><span class="num">2</span><h3>Delimitar el área de análisis</h3></header>
+          <ul>
+            <li>Con el lápiz, dibuja un rectángulo, usa la zona visible o sube tu archivo.</li>
+            <li>Ajusta el buffer si quieres sumar estaciones vecinas.</li>
+            <li>Revisa los colores, las tres cifras y la lista; quita las estaciones que no quieras.</li>
+            <li>Si quieres, mira tu zona en <span class="ui">3D</span>.</li>
+          </ul>
+        </article>
+        <article class="tarjeta lg-regular doc paso">
+          <header><span class="num">3</span><h3>Preparar la descarga</h3></header>
+          <ul>
+            <li>Pulsa <span class="ui azul">Preparar descarga</span> y sigue el avance real.</li>
+            <li>Revisa el recibo: qué pediste y qué trae el ZIP.</li>
+            <li>Ponle nombre al ZIP y decide si va en carpetas por cobertura.</li>
+            <li>Pulsa <span class="ui azul">Descargar el ZIP</span>.</li>
+          </ul>
+        </article>
+      </div>
+
+      <div class="detalle">
+        <details class="mas lg-regular doc">
+          <summary><span>Detalles del paso 1: serie, variable y periodo</span><span class="ver">Ver más</span></summary>
+          <div class="contenido">
+            <p>Mientras llenas la tarjeta, el mapa y la lista de variables del IDEAM cargan por detrás. No hay pantallas de espera: un punto pequeño junto a <strong>Variable</strong> se enciende en azul cuando la lista está lista. Si pulsas el botón antes de tiempo, no avanza y da dos destellos rojos.</p>
+            <h4>Estándar o Especial</h4>
+            <p><strong>Estándar</strong> son las series que mide la estación: diarias, mensuales, anuales, horarias y de alta frecuencia. Eliges la variable y luego el parámetro; en <em>Precipitación</em>, por ejemplo, <em>Día pluviométrico</em>, <em>Total mensual</em> o <em>Total anual</em>.</p>
+            <p><strong>Especial</strong> son cálculos del IDEAM sobre una de esas series: <strong>decadal</strong> (un dato por cada década del mes: del 1 al 10, del 11 al 20 y del 21 al fin de mes) o <strong>multianual</strong> (el mínimo, la media y el máximo de cada mes del año en todo tu periodo). El parámetro trae su cálculo y su código, como en el portal: <code>Día pluviométrico |SUM [PTPM_CON]</code>.</p>
+            <h4>El periodo</h4>
+            <p>Puedes pedir los años que quieras: el Descargador hace los tramos por ti. Solo hay dos casos en que la tarjeta te pide acortarlo: cuando un Excel por estación pasaría del millón de filas que admite Excel (pasa con series de alta frecuencia y periodos largos) y en la serie multianual, que el IDEAM calcula de una sola vez.</p>
+            <div class="superficie tabla-doc">
+              <table class="tabla">
+                <thead><tr><th>Datos</th><th class="n">Años por consulta en el portal</th></tr></thead>
+                <tbody>
+                  <tr><td>Mensuales y anuales</td><td class="n">50 años</td></tr>
+                  <tr><td>Diarios</td><td class="n">30 años</td></tr>
+                  <tr><td>Horarios</td><td class="n">10 años</td></tr>
+                  <tr><td>Cada 2, 5 o 10 minutos</td><td class="n">1 mes</td></tr>
+                </tbody>
+              </table>
+            </div>
+            <p class="tenue">Con los datos cada pocos minutos, 10 años son 120 consultas por estación: funcionan, pero conviene usar periodos cortos y pocas estaciones.</p>
+          </div>
+        </details>
+      </div>
+      <div class="detalle">
+        <details class="mas lg-regular doc">
+          <summary><span>Detalles del paso 2: el mapa, el buffer y el 3D</span><span class="ver">Ver más</span></summary>
+          <div class="contenido">
+            <h4>Tres formas de marcar el área</h4>
             <ul>
-              <li><span class="ui">Estándar</span> (por defecto): series diarias, mensuales, anuales, horarias y de alta frecuencia. Eliges la <span class="ui">Variable</span> y luego el <span class="ui">Parámetro</span>. Por ejemplo, en <em>Precipitación</em> el IDEAM ofrece <em>Día pluviométrico (convencional)</em>, <em>Precipitación total mensual</em> y <em>Precipitación total anual</em>.</li>
-              <li><span class="ui">Especial</span>: series que el IDEAM calcula a partir de otra. Eliges la <span class="ui">Frecuencia</span> (<em>Decadal</em> o <em>Multianual</em>), la <span class="ui">Variable</span> y el <span class="ui">Parámetro</span>, que trae su cálculo y su código, como en la página del IDEAM: <em>Día pluviométrico |SUM [PTPM_CON]</em> o <em>Precipitación máxima diaria |MAX [PT_10_MX_D]</em> (ver <a href="#serie-especial">La serie especial</a>).</li>
+              <li><strong>Dibujar un rectángulo:</strong> en el lápiz de la cápsula de herramientas, arrastra de una esquina a la opuesta (en el celular, con un dedo). Después puedes <em>Redibujar</em>, <em>Ajustar</em> las esquinas o <em>Borrar</em>; al borrar, el mapa se queda donde estaba.</li>
+              <li><strong>Usar el área visible:</strong> acércate a tu zona y la parte del mapa que ves se vuelve el área.</li>
+              <li><strong>Subir un archivo</strong> con el contorno, de cualquier forma: Shapefile en ZIP (con .shp, .shx, .dbf y .prj) o suelto, GeoJSON, KML/KMZ de Google Earth o GeoPackage. Debe traer polígonos y su sistema de coordenadas.</li>
             </ul>
-          </li>
-          <li><span class="ui">Variable</span> y <span class="ui">Parámetro</span>: solo aparecen las variables que tienen series en la opción elegida. Puedes abrir cada lista o <strong>escribir</strong> para buscar. Mientras la lista del IDEAM carga, los desplegables están en gris; un punto pequeño junto a la palabra «Variable» se enciende en azul cuando ya cargó.</li>
-          <li><span class="ui">Desde</span> y <span class="ui">Hasta</span>: el periodo, en formato día/mes/año (por defecto del 01/01/2000 al 31/12/2020). La fecha inicial debe ser anterior a la final. Si con esa frecuencia el periodo daría más de un millón de filas por estación, más de lo que admite Excel, la tarjeta te pide acortarlo.</li>
-        </ol>
-        <p>Cuando el mapa y los datos de la variable elegida terminaron de cargar, <span class="ui primario">Seleccionar área en el mapa</span> te lleva al mapa sin esperas. Si lo pulsas antes, no avanza y da dos destellos rojos: espera a que el punto de «Variable» se encienda. Debajo, tres pasos resumen el recorrido: <em>Establecer parámetros</em>, <em>Delimitar el área de análisis</em> y <em>Preparar la descarga</em>.</p>
-        <p>El IDEAM entrega un número limitado de años por consulta. La app divide tu periodo en bloques de ese tamaño y después los une en un solo Excel:</p>
-        <div class="tabla">
-          <table>
-            <thead><tr><th>Frecuencia</th><th>Años por consulta (aprox.)</th></tr></thead>
-            <tbody>
-              <tr><td>Mensual y Anual</td><td class="num">50 años</td></tr>
-              <tr><td>Diario</td><td class="num">30 años</td></tr>
-              <tr><td>Horario</td><td class="num">10 años</td></tr>
-              <tr><td>Cada 2, 5 o 10 minutos</td><td class="num">1 mes</td></tr>
-            </tbody>
-          </table>
-        </div>
-        <h3 id="serie-especial">La serie especial</h3>
-        <p>Son cálculos del IDEAM sobre una serie base (la del código entre corchetes). Las estaciones y su cobertura son las de esa serie base.</p>
-        <ul>
-          <li><strong>Decadal</strong>: un dato por década, es decir, por cada tramo del 1 al 10, del 11 al 20 y del 21 al fin de mes (36 por año). El cálculo dice qué se hace con los datos de cada década: <code>SUM</code> los suma, <code>MAX</code> toma el máximo, <code>MIN</code> el mínimo y <code>AVG</code> el promedio. Si el periodo pasa el límite de la serie base, la app lo parte en bloques que terminan a fin de mes, así ninguna década queda partida.</li>
-          <li><strong>Multianual</strong>: siempre 36 filas por estación, el mínimo, la media y el máximo de cada mes del año en todo tu periodo (por ejemplo, el enero más seco, el promedio de los eneros y el enero más lluvioso). Se calcula de una sola vez, así que el periodo no puede pasar el límite de la serie base (50 años para las mensuales); si lo pasa, la tarjeta te pide acortarlo.</li>
-          <li>Si el IDEAM no tiene datos para un cálculo en una estación, la estación queda omitida y el motivo va en <code>resumen_descarga.csv</code>.</li>
-        </ul>
-        <h3>Series de alta frecuencia</h3>
-        <p>En <span class="ui">Estándar</span>, las series cada 10, 5 o 2 minutos se usan con cuidado: el IDEAM las entrega de a <strong>un mes por consulta</strong>, así que 10 años son 120 consultas por estación y cada Excel puede tener cientos de miles de filas. Usa periodos cortos y pocas estaciones. La tarjeta lo recuerda con una nota breve (<span class="ui">Ver más</span>).</p>
-        <p>Al pie de la tarjeta puedes leer las condiciones de uso de los datos y abrir este manual. El <strong>modo Lite</strong> está en el menú <span class="ui">Ajustes</span> (ver <a href="#vista-3d">El mapa 3D y los ajustes</a>).</p>
-      </section>
+            <h4>El buffer</h4>
+            <p>Una franja alrededor del área, de 0,5 a 15 km (2 km por defecto), para sumar estaciones cercanas: suelen servir para comparar y rellenar datos. Cada estación queda marcada como del área o del buffer, también en el ZIP.</p>
+            <h4>Revisar y elegir</h4>
+            <ul>
+              <li><strong>Las tres cifras:</strong> estaciones encontradas (y cuántas no tienen información), cobertura media del periodo y tamaño aproximado del ZIP con el tiempo de descarga.</li>
+              <li><strong>La lista:</strong> de la mejor cobertura a la peor; desmarca las que no quieras. Con el botón de filtro, arriba a la izquierda, dejas solo un rango de cobertura.</li>
+              <li><strong>La ficha:</strong> al elegir una estación aparece una píldora con su nombre; al abrirla ves su código, altitud, cobertura y años de registro.</li>
+            </ul>
+            <h4>El 3D</h4>
+            <p>El selector <span class="ui">2D</span> <span class="ui">3D</span> de abajo cambia la vista. Te mueves como en cualquier mapa: arrastras para moverte, mantienes el clic derecho para girar e inclinar y usas la rueda para acercar; en el celular, con uno y dos dedos. El menú <strong>Cámara</strong> tiene los mismos controles en botones. El relieve se dibuja alrededor de tu zona y, a lo lejos, se funde en una neblina oscura.</p>
+          </div>
+        </details>
+      </div>
+      <div class="detalle">
+        <details class="mas lg-regular doc">
+          <summary><span>Detalles del paso 3: el avance, la fila y el ZIP</span><span class="ver">Ver más</span></summary>
+          <div class="contenido">
+            <ul>
+              <li><strong>Avance real:</strong> porcentaje, barra y tiempo que falta, con cuántas estaciones van, cuántas se guardaron y cuántas se omitieron. <em>Detener la descarga</em> la corta; luego puedes reintentar o volver al mapa.</li>
+              <li><strong>Turnos:</strong> para no saturar al IDEAM, el servidor hace como máximo 4 descargas a la vez entre todos los usuarios. Si están ocupadas, ves tu puesto en la fila y la tuya empieza sola.</li>
+              <li><strong>No cierres ni recargues la pestaña</strong> mientras descarga: se perdería el avance. Por eso, durante la descarga, el menú de Ajustes queda bloqueado.</li>
+              <li><strong>Nombre y carpetas:</strong> el ZIP trae un nombre sugerido, como <code>IDEAM_PTPM_CON_20000101-20201231</code>, que puedes cambiar. Las carpetas por cobertura vienen marcadas; si las desmarcas, los Excel quedan juntos. Puedes cambiar ambas cosas sin volver a descargar.</li>
+              <li><strong>Después:</strong> <em>Volver al mapa</em> conserva tu área para otra descarga; <em>Nueva consulta</em> empieza de cero.</li>
+            </ul>
+          </div>
+        </details>
+      </div>
+    </section>
 
-      <section id="cuenca">
-        <h2><span class="etiqueta">PASO 2</span>Marcar el área en el mapa</h2>
-        <p>El mapa ocupa toda la pantalla. En el computador, el panel <strong>Consulta</strong> llega cerrado para que veas el mapa entero: ábrelo con el botón <span class="ui">Consulta</span> de arriba a la izquierda. Arriba a la derecha está el menú <span class="ui">Ajustes</span> y, debajo, la cápsula de herramientas del mapa; abajo, el selector <span class="ui">2D</span> <span class="ui">3D</span> y el botón <span class="ui primario">Preparar descarga</span>. En la sección <em>Calidad de los datos</em> del panel, el nombre de tu variable (por ejemplo <span class="ui">‹ Precipitación</span>) te devuelve a la tarjeta del paso 1 para cambiar la variable o el periodo; el área y lo demás se conservan.</p>
-        <p>En el <strong>celular</strong>, el panel es una tarjeta que se abre y se cierra con el botón <span class="ui">Consulta</span> de la barra de abajo (o con la ✕ de la tarjeta, o tocando el mapa). Mientras está abierta se apartan las herramientas, la leyenda y la escala del mapa; al cerrarla vuelven.</p>
-        <p>Puedes marcar el área de tres formas, todas desde el lápiz de la cápsula de herramientas: dibujar un rectángulo, usar la zona que ves en el mapa o subir el contorno de tu área (puede tener cualquier forma).</p>
-
-        <h3>Opción A: dibujarla en el mapa</h3>
-        <ol>
-          <li>Acércate a tu zona con la rueda del mouse, con dos dedos en el celular o con los botones <span class="ui">+</span> y <span class="ui">−</span> de la cápsula de herramientas.</li>
-          <li>Pulsa el lápiz de la cápsula de herramientas, luego <span class="ui">Dibujar un rectángulo</span>, y arrastra de una esquina a la opuesta (en el celular, con un dedo).</li>
-        </ol>
-        <p>Apenas sueltas el rectángulo, un escáner recorre la zona mientras la app busca las estaciones que caen adentro; cuando termina, las estaciones aparecen de norte a sur. Solo hay un área a la vez: si dibujas otra, reemplaza a la anterior. En el panel, junto al título <em>Área de estudio</em>, aparece su tamaño en km², y debajo tres botones para corregirla:</p>
-        <ul>
-          <li><span class="ui">Redibujar</span>: dibuja otro rectángulo.</li>
-          <li><span class="ui">Ajustar</span>: arrastra las esquinas a su nuevo lugar y pulsa <span class="ui">Guardar</span> (junto a la cápsula de herramientas), o <span class="ui">Cancelar</span> para deshacer.</li>
-          <li><span class="ui">Borrar</span>: quita el área; el mapa se queda donde estaba, con el mismo zoom.</li>
-        </ul>
-        <p>Las mismas acciones, y la de subir un archivo, están en el menú del lápiz de la cápsula de herramientas.</p>
-
-        <h3>Opción B: usar la zona que ves</h3>
-        <p>Acerca el mapa a tu zona y elige <span class="ui">Usar el área visible</span> en el menú del lápiz: el área será la parte del mapa que ves, sin los bordes que tapan los paneles. Se activa cuando el mapa está lo bastante cerca (nivel de zoom 10 o más). Es también la forma de marcar el área solo con el teclado: lleva el foco al mapa, muévete con las flechas, acerca con la tecla <span class="ui">+</span> y usa esa opción.</p>
-
-        <h3>Opción C: subir un archivo</h3>
-        <ol>
-          <li>Pulsa <span class="ui">Subir un archivo</span> en el menú del lápiz. Se abre una ventana.</li>
-          <li>Pulsa <span class="ui">Elegir archivos</span> o arrastra tu archivo al recuadro. Si todo está bien verás <em>Archivo válido: 1 polígono</em>.</li>
-          <li>Pulsa <span class="ui primario">Usar esta área</span>.</li>
-        </ol>
-        <div class="tabla">
-          <table>
-            <thead><tr><th>Formato</th><th>Qué subir</th></tr></thead>
-            <tbody>
-              <tr><td>Shapefile en ZIP</td><td>Un <code>.zip</code> con el <code>.shp</code>, <code>.shx</code>, <code>.dbf</code> y <code>.prj</code>. Lo más cómodo. Puede tener subcarpetas.</td></tr>
-              <tr><td>Shapefile suelto</td><td>Selecciona a la vez <code>.shp</code>, <code>.shx</code> y <code>.dbf</code> (y el <code>.prj</code> si lo tienes). Con solo el <code>.shp</code> no funciona.</td></tr>
-              <tr><td>GeoJSON</td><td>Un archivo <code>.geojson</code> o <code>.json</code>.</td></tr>
-              <tr><td>KML / KMZ</td><td>El archivo exportado de Google Earth.</td></tr>
-              <tr><td>GeoPackage</td><td>Un <code>.gpkg</code>. Si trae varias capas, se usa la de polígonos.</td></tr>
-            </tbody>
-          </table>
-        </div>
-        <div class="aviso">
-          <strong>El archivo debe traer polígonos y su sistema de coordenadas</strong>
-          <p>Si el shapefile no trae <code>.prj</code> y sus coordenadas están en metros, la app te avisa en lugar de ubicar el área en un lugar equivocado. Si el archivo solo tiene puntos o líneas, también lo rechaza: necesita el contorno cerrado del área. Un área subida también se puede ajustar después.</p>
-        </div>
-
-        <h3>El buffer</h3>
-        <p>Las estaciones cercanas al límite del área suelen ser útiles para la interpolación y el relleno de datos, aunque estén por fuera. Para incluirlas se usa el <strong>buffer</strong>: una franja alrededor del contorno, dibujada en naranja punteado. En el panel es una píldora pequeña, <span class="ui">Buffer · 2 km</span>; al pulsarla se abre su ajuste:</p>
-        <ul>
-          <li>El interruptor <span class="ui">Incluir estaciones cercanas</span> viene encendido. Apagado, la píldora dice <span class="ui">Sin buffer</span>.</li>
-          <li><span class="ui">Ancho del buffer (km)</span> va de 0,5 a 15 km (2 km por defecto); los botones <span class="ui">−</span> y <span class="ui">+</span> lo cambian de 0,5 en 0,5 km.</li>
-          <li>Cada estación queda marcada como <em>en el área</em> o <em>en el buffer</em>, y el ZIP mantiene esa información.</li>
-        </ul>
-      </section>
-
-      <section id="estaciones">
-        <h2><span class="etiqueta">EL MAPA</span>Estaciones en el mapa</h2>
-        <p>Todo se recalcula solo cuando cambias algo: el área, el buffer o las estaciones que incluyes. En el computador, el botón de la esquina del panel lo oculta para ver más mapa; <span class="ui">Consulta</span>, arriba a la izquierda, lo vuelve a mostrar.</p>
-        <h3>Filtrar por cobertura</h3>
-        <p>Con el área ya evaluada aparece, arriba a la izquierda del mapa, un botón redondo de <strong>filtro</strong>. Ábrelo y mueve los dos extremos del rango de <em>Cobertura del periodo</em> (de 5 en 5 %): las estaciones que quedan fuera dejan de verse en el mapa y en la lista, y no se descargan. Con el filtro activo, el botón muestra el rango (por ejemplo <span class="ui">50–100 %</span>); <span class="ui">Quitar el filtro</span> vuelve a mostrarlas todas.</p>
-        <h3>Qué significa cada punto</h3>
-        <p>El color de cada estación indica su clase de cobertura del periodo consultado (ver <a href="#cobertura">Cobertura del periodo</a>):</p>
-        <div class="clases" aria-label="Colores de las estaciones">
-          <div class="clase"><span class="punto" style="background:var(--alta)"></span><b>Alta</b><span>70–100 %</span></div>
-          <div class="clase"><span class="punto" style="background:var(--media)"></span><b>Media</b><span>50–70 %</span></div>
-          <div class="clase"><span class="punto" style="background:var(--baja)"></span><b>Baja</b><span>25–50 %</span></div>
-          <div class="clase"><span class="punto" style="background:var(--critica)"></span><b>Crítica</b><span>0–25 %</span></div>
-        </div>
-        <ul>
-          <li><strong>Puntos grises y huecos:</strong> estaciones sin datos de esa variable en tu periodo. No se pueden descargar.</li>
-          <li><strong>Punto hueco con borde punteado:</strong> una estación que quitaste de la descarga (ver <a href="#revisar">Revisar las estaciones</a>).</li>
-          <li><strong>Borde naranja:</strong> la altitud que dice el catálogo no coincide con el terreno (ver <a href="#altitud">Altitud dudosa</a>).</li>
-          <li><strong>Anillo azul:</strong> la estación que tienes seleccionada.</li>
-        </ul>
-        <h3>Moverte por el mapa 2D</h3>
-        <ul>
-          <li><strong>Pasa el cursor</strong> sobre una estación para ver su ficha: nombre, código, altitud, cantidad probable, años de la serie y si está en el área o en el buffer.</li>
-          <li><strong>Haz clic</strong> en una estación para seleccionarla. Arriba a la derecha (en el celular, arriba) aparece una píldora con su nombre: púlsala para desplegar la ficha (ver <a href="#revisar">La ficha de la estación</a>).</li>
-          <li>La <strong>leyenda</strong> (abajo a la izquierda) explica los colores y las líneas. Está plegada: púlsala para abrirla. Los colores muestran la <em>disponibilidad estimada de datos en el periodo</em>.</li>
-          <li>El botón de <strong>capas</strong> de la cápsula de herramientas cambia el mapa base: <em>Satélite con nombres</em> (el predeterminado: la foto satelital con los nombres de lugares y los límites), <em>Satélite</em>, <em>Relieve</em>, <em>Calles</em> y <em>Satélite de noche</em>. Este último muestra las luces de pueblos y ciudades vistas por la NASA, y de cerca se ve borroso.</li>
-          <li>Cualquier menú desplegado (capas, lápiz, leyenda, ficha, buffer, Ajustes) se cierra al tocar fuera de él.</li>
-        </ul>
-      </section>
-
-      <section id="vista-3d">
-        <h2><span class="etiqueta">VISTA 3D</span>El mapa 3D</h2>
-        <p>Abajo a la izquierda está el selector <span class="ui">2D</span> <span class="ui">3D</span> (en el celular, elegir uno cierra la consulta para que veas el mapa). La vista 3D muestra el <strong>relieve real</strong> con la foto satelital. En la cápsula de la derecha, el botón de capas abre <span class="ui">Textura del relieve</span>: <em>Satélite</em>, <em>Topográfico</em> o <em>Altura</em>; esta última colorea el relieve según la altitud, con la escala de la zona o la de todo Colombia.</p>
-        <ul>
-          <li><strong>Animación de entrada:</strong> la primera vez que abres el 3D con un área, una animación satelital cubre la pantalla mientras el relieve se carga por detrás. Puedes saltarla con <span class="ui">Saltar animación</span> o la tecla <span class="ui">Esc</span>, y verla otra vez con el botón ↻ junto al selector 2D/3D. No se reproduce en el celular ni en modo Lite. Si tu equipo pide reducir el movimiento, no se reproduce sola, pero el botón ↻ la muestra si quieres verla.</li>
-          <li>El relieve está <strong>exagerado ×2</strong> para que los desniveles se noten. Cada pin se apoya en el terreno real.</li>
-          <li>En 3D solo aparecen las estaciones que tienen serie de la variable elegida.</li>
-          <li><strong>Vuelta de cámara:</strong> al abrir el 3D, la cámara da una vuelta lenta alrededor del centro de las estaciones, para que veas dónde queda cada una respecto a las montañas. Si eliges una estación, la vuelta es alrededor de ella. Cualquier interacción con el mapa la detiene.</li>
-          <li><strong>Moverte, girar e inclinar</strong> como en cualquier mapa: en el computador, arrastra para moverte, mantén el <strong>clic derecho</strong> y arrastra para girar e inclinar, y usa la rueda para acercar. En el celular, arrastra con un dedo para moverte; con dos dedos gira, desliza arriba o abajo para inclinar y pellizca para acercar.</li>
-          <li>El menú <span class="ui">Cámara</span> de la cápsula de la derecha reúne todos los controles de cámara sin gestos: una cruceta (arriba y abajo inclinan, a los lados gira y al centro una brújula que vuelve al norte), los botones <span class="ui">+</span> y <span class="ui">−</span>, una línea con el rumbo y la inclinación y un dibujo de los gestos del mouse o de los dedos. Sigue abierto para pulsar varias veces.</li>
-          <li>Para que se mueva con fluidez, el relieve se dibuja solo alrededor de tu área. Donde termina, a lo lejos, se funde en una <strong>neblina</strong> oscura; de cerca no la verás. La animación de entrada deja la cámara a unos 45° y a mano puedes inclinarla hasta 70°.</li>
-          <li><strong>Clic en un pin</strong> para seleccionar la estación (aparece la píldora con su nombre). Pasa el cursor para ver su ficha.</li>
-        </ul>
-        <div class="nota">
-          <strong>El 3D pide más al equipo</strong>
-          <p>El detalle del relieve se ajusta a la distancia, y en el celular el 3D usa siempre la versión liviana. Si aun así el navegador se queda sin memoria gráfica, aparece un aviso con <span class="ui primario">Activar Lite y reintentar</span> (vuelve a cargar la vista en modo Lite, con la misma cámara), <span class="ui">Seguir intentando</span> y <span class="ui">Ver en 2D</span>. Si lo que falla es la descarga del relieve o del mapa base, el aviso lo dice: es un problema de red, no de tu equipo. La app nunca cambia de modo por su cuenta.</p>
-        </div>
-        <h3>Ajustes y modo Lite</h3>
-        <p>El menú <span class="ui">Ajustes</span> (arriba a la derecha, en todas las pantallas) tiene el tema <em>Claro</em> u <em>Oscuro</em>, el <em>Alto contraste</em> (superficies opacas, bordes nítidos y foco más grueso), el <em>Modo Lite</em> y este manual. Sin elegir nada, el tema y el contraste siguen la configuración de tu equipo.</p>
-        <p>El <strong>modo Lite</strong> quita el desenfoque, los brillos y las animaciones, y usa un 3D más liviano. Los datos, los controles y las funciones son los mismos. Cuando está activo, junto al botón de Ajustes aparece la marca <span class="ui">Lite</span>. Es independiente de la opción del sistema para reducir el movimiento.</p>
-      </section>
-
-      <section id="cobertura">
-        <h2><span class="etiqueta">CÓMO SE CALCULA</span>Cobertura del periodo</h2>
-        <p>Antes de descargar nada, la app consulta al IDEAM la información de la serie de cada estación y calcula su <strong>cantidad probable</strong>:</p>
-        <div class="nota">
-          <strong>Cantidad probable</strong>
-          <p>El IDEAM calcula, para cada estación, cuántos datos cabrían entre la primera y la última fecha con registro dentro de tu periodo, según la frecuencia de la serie. El cálculo no descuenta los datos faltantes: una serie con huecos internos cuenta igual que una continua.</p>
-          <p>La app expresa ese número como porcentaje del total que tendría una serie ininterrumpida en todo tu periodo. Así que el porcentaje te dice cuánto de tu periodo alcanza a cubrir el registro de la estación, no qué tan densa es la serie por dentro. Una estación con 100 % puede tener vacíos importantes: significa que su registro empieza antes y termina después de tu periodo.</p>
-          <p>Sirve para descartar estaciones cuyo registro no llega a tu periodo. Los huecos reales se revisan en los Excel descargados.</p>
-        </div>
-        <p>Con ese porcentaje, cada estación cae en una clase de <strong>cobertura</strong> del periodo consultado. Si dejas marcada la opción de carpetas (al final, antes de descargar el ZIP), cada Excel va en la carpeta de su clase:</p>
-        <div class="clases">
-          <div class="clase"><span class="punto" style="background:var(--alta)"></span><b>Alta</b><span>70–100 %</span><code>1_Cobertura_Alta_70_100</code></div>
-          <div class="clase"><span class="punto" style="background:var(--media)"></span><b>Media</b><span>50–70 %</span><code>2_Cobertura_Media_50_70</code></div>
-          <div class="clase"><span class="punto" style="background:var(--baja)"></span><b>Baja</b><span>25–50 %</span><code>3_Cobertura_Baja_25_50</code></div>
-          <div class="clase"><span class="punto" style="background:var(--critica)"></span><b>Crítica</b><span>0–25 %</span><code>4_Cobertura_Critica_0_25</code></div>
-        </div>
-      </section>
-
-      <section id="revisar">
-        <h2><span class="etiqueta">PASO 3</span>Revisar y elegir las estaciones</h2>
-        <p>La sección <strong>Calidad de los datos</strong> del panel te dice qué vas a descargar antes de hacerlo.</p>
-        <h3>Las tres cifras</h3>
-        <div class="tabla">
-          <table>
-            <thead><tr><th>Cifra</th><th>Qué dice</th></tr></thead>
-            <tbody>
-              <tr><td><strong>Estaciones encontradas</strong></td><td>Cuántas estaciones del IDEAM hay en el área y el buffer, y cuántas de ellas no tienen información de esa variable en tu periodo.</td></tr>
-              <tr><td><strong>Cobertura media del periodo</strong></td><td>El promedio de la cantidad probable de las estaciones marcadas: qué parte del periodo cubren sus registros.</td></tr>
-              <tr><td><strong>Tamaño del ZIP</strong></td><td>El peso aproximado del archivo que vas a descargar y cuánto tardaría la descarga (por ejemplo, <em>3 min 20 s aprox.</em>). Es una estimación hecha con los registros probables, que no descuentan los faltantes. Pasa el cursor para ver cuántos registros y consultas al IDEAM implica.</td></tr>
-            </tbody>
-          </table>
-        </div>
-        <h3>La lista con casillas</h3>
-        <ul>
-          <li>Están todas las estaciones que se pueden descargar, de la mejor cobertura a la peor, con un punto del color de su clase y su porcentaje. El ⚠ señala altitud dudosa.</li>
-          <li><strong>Las marcadas se descargan.</strong> Todas vienen marcadas: desmarca las que no quieras (en el mapa quedan huecas, con borde punteado). La casilla de arriba marca o desmarca todas.</li>
-          <li>Haz clic en el nombre de una estación para seleccionarla: el mapa viaja hasta ella y aparece su ficha.</li>
-          <li>Debajo, cuántas están en el área y cuántas en el buffer, y cuántas tienen datos del último año.</li>
-        </ul>
-        <p>Una nota breve al final recuerda que los datos recientes pueden ser preliminares; <span class="ui">Ver más</span> lo explica (ver <a href="#aprobacion">Niveles de aprobación</a>).</p>
-        <h3>La ficha de la estación seleccionada</h3>
-        <p>Al seleccionar una estación (en la lista o en el mapa) aparece una píldora con su nombre, plegada para no tapar el mapa. Al pulsarla se despliega la ficha: código, altitud, si está en el área o en el buffer, cobertura y años de la serie. Si no tiene datos de la variable, lo dice: <em>Sin serie de esta variable en DHIME</em>. El interruptor <span class="ui">Incluir en la descarga</span> la quita o la vuelve a poner, <span class="ui">Ver en 3D</span> la muestra en el relieve y <span class="ui">Quitar selección</span> (o la ✕ de la píldora) deja de seleccionarla. Tocar fuera de la ficha la vuelve a plegar.</p>
-      </section>
-
-      <section id="altitud">
-        <h2><span class="etiqueta">REVISIÓN AUTOMÁTICA</span>Altitud dudosa</h2>
-        <p>La app compara la altitud que dice el catálogo del IDEAM con la altura real del terreno en el punto de la estación, según un modelo de elevación. Si se alejan <strong>más de 200 m</strong>, la estación queda marcada.</p>
-        <ul>
-          <li>En el panel aparece una línea discreta: <span class="ui">⚠ N estaciones con altitud dudosa</span>. Al abrirla ves la explicación y la lista con la altitud del catálogo, la del relieve y la diferencia. Elige una y el mapa pasa a 3D para mostrarla.</li>
-          <li>En la ficha de la estación, <span class="ui">⚠ Altitud dudosa · Ver detalles</span> explica el caso, y <span class="ui">Ver en 3D</span> la muestra en el relieve.</li>
-          <li>En 3D, un <strong>círculo naranja</strong> unido por una línea al pin marca dónde quedaría la estación con la altitud del catálogo. Se ve aunque quede "bajo tierra".</li>
-        </ul>
-        <div class="nota">
-          <strong>¿La altitud está mal, o las coordenadas?</strong>
-          <p>Cuando la altitud del catálogo es imposible en toda la zona (por ejemplo 3 m en la sabana de Bogotá), el error está en la altitud. Cuando esa altitud sí existe cerca pero no en el punto exacto, puede que la altitud esté bien y lo errado sean las coordenadas. La app te dice cuál de los dos casos es. Los datos se descargan igual: el aviso es para que lo tengas en cuenta en tu análisis.</p>
-        </div>
-      </section>
-
-      <section id="descarga">
-        <h2><span class="etiqueta">PASO 4</span>Exportación</h2>
-        <ol>
-          <li>Pulsa <span class="ui primario">Preparar descarga</span>, abajo a la derecha. Si está gris, pasa el cursor sobre el botón: dice qué falta (por ejemplo, delimitar el área o seleccionar al menos una estación).</li>
-          <li>El mapa queda detrás y aparece una tarjeta con el <strong>avance real</strong>: el porcentaje, una barra y el tiempo que falta, más cuántas estaciones van, cuántas se guardaron y cuántas se omitieron.</li>
-          <li>A la derecha (en el celular, debajo) está el <strong>recibo</strong> de lo que pediste: variable y frecuencia, periodo, número de estaciones (en el área y en el buffer), la lista de lo que trae el ZIP (un Excel por estación, las carpetas por cobertura si las elegiste, <code>resumen_descarga.csv</code> y <code>CITACION.txt</code>) y la fuente. Debajo, las condiciones de uso de los datos (ver <a href="#uso-datos">Uso de los datos y citación</a>).</li>
-          <li>Al terminar, la tarjeta muestra un resumen: cuántas estaciones se guardaron y cómo se reparten por cobertura.</li>
-        </ol>
-        <h3>Detener o esperar turno</h3>
-        <ul>
-          <li><span class="ui">Detener la descarga</span> la corta a mitad de camino. Luego puedes <span class="ui primario">Reintentar</span> o <span class="ui">Volver al mapa</span>.</li>
-          <li>Para no saturar al IDEAM, el servidor hace <strong>máximo 4 descargas a la vez</strong> entre todos los usuarios. Si están ocupadas, tu descarga espera turno: verás tu puesto en la fila y un tiempo estimado, y empieza sola apenas se libere uno.</li>
-          <li>Mientras descarga, el menú de Ajustes queda bloqueado. No cierres ni recargues la pestaña: se perdería el avance.</li>
-        </ul>
-        <h3>Guardar el ZIP</h3>
-        <ol>
-          <li><span class="ui">Separar en carpetas por cobertura</span> (marcado por defecto): cada Excel va dentro de la carpeta de su clase de cobertura (ver <a href="#cobertura">Cobertura del periodo</a>). Si lo desmarcas, todos quedan juntos. Puedes cambiarlo sin volver a descargar; el recibo de la derecha lo refleja.</li>
-          <li>En <span class="ui">Nombre del archivo ZIP</span> viene un nombre sugerido, como <code>IDEAM_PTPM_CON_20000101-20201231</code> (en la serie especial lleva también la frecuencia y el cálculo: <code>IDEAM_PTPM_CON_Decadal_SUM_…</code>). Si quieres otro (por ejemplo <em>descarga 1</em>), escríbelo; el <code>.zip</code> se agrega solo.</li>
-          <li>Pulsa <span class="ui primario">Descargar el ZIP</span>.</li>
-          <li>Con <span class="ui">Volver al mapa</span> ajustas y descargas otra vez (desde ahí, el nombre de la variable en el panel te lleva a cambiar la variable o el periodo); con <span class="ui">Nueva consulta</span> empiezas de cero.</li>
-        </ol>
-      </section>
-
-      <section id="zip">
-        <h2><span class="etiqueta">RESULTADO</span>Qué trae el ZIP</h2>
-        <p class="pie">Ejemplo con precipitación diaria en Bogotá y carpetas por cobertura:</p>
-<pre class="arbol" aria-label="Ejemplo de contenido del ZIP">IDEAM_PTPM_CON_20000101-20201231.zip
+    <!-- ===================== QUÉ RECIBES ===================== -->
+    <section class="seccion-doc" id="recibes" aria-labelledby="t-recibes">
+      <header><p class="antetitulo">El resultado</p><h2 id="t-recibes">Qué recibes</h2>
+        <p>Un ZIP listo para trabajar. Ejemplo con precipitación diaria y carpetas por cobertura:</p></header>
+      <div class="rejilla-2">
+        <article class="tarjeta lg-regular doc">
+          <div class="superficie"><pre class="arbol">IDEAM_PTPM_CON_20000101-20201231.zip
 ├── 1_Cobertura_Alta_70_100/
 │   ├── JARDIN_BOTANICO_[21205710]_PTPM_CON.xlsx
 │   └── ENMANUEL_D'_ALZON_[21201230]_PTPM_CON.xlsx
 ├── 2_Cobertura_Media_50_70/
 │   └── …
-├── resumen_descarga.csv   <span class="c">← qué se guardó y qué no, estación por estación</span>
-└── CITACION.txt           <span class="c">← la cita de la fuente, lista para copiar</span></pre>
-        <h3>Cada Excel</h3>
-        <ul>
-          <li>Es <strong>el mismo formato que entrega el portal del IDEAM</strong>: filas 1 a 8 con el título, el logo y los metadatos de la estación; desde la fila 9, los datos.</li>
-          <li>Si tu rango necesitó varias consultas, los bloques ya vienen <strong>unidos en una sola tabla</strong>, en orden.</li>
-          <li>La celda de <em>Fecha consulta</em> refleja el rango completo que pediste.</li>
-          <li>El nombre del archivo es el nombre de la estación seguido del código de la serie.</li>
-          <li>Junto a cada dato viene su <strong>nivel de aprobación</strong> (columna «Nivel de Aprobación»; ver abajo).</li>
+├── resumen_descarga.csv  <span class="c">← qué se guardó y qué no</span>
+└── CITACION.txt          <span class="c">← la cita, lista para copiar</span></pre></div>
+        </article>
+        <article class="tarjeta lg-regular doc">
+          <ul class="lista-recibe">
+            <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><path d="M9 12l4 5M13 12l-4 5"/></svg><span><strong>Un Excel por estación</strong>, en el mismo formato del portal: el encabezado con los datos de la estación y, debajo, todos los años en una sola tabla, en orden.</span></li>
+            <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="m8.5 12 2.5 2.5 4.5-5"/></svg><span><strong>El nivel de aprobación de cada dato</strong>, en la columna «Nivel de Aprobación»: preliminar (900), en revisión (1100) o definitivo (1200).</span></li>
+            <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="4" width="16" height="16" rx="2"/><path d="M4 10h16M4 15h16M10 4v16"/></svg><span><strong><code>resumen_descarga.csv</code></strong>: una fila por estación con su cobertura, si quedó guardada u omitida, dónde está en el ZIP y el detalle de cada consulta.</span></li>
+            <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/><path d="M9 13h6M9 17h4"/></svg><span><strong><code>CITACION.txt</code></strong>: la cita de la fuente con la fecha real de tu descarga, como la exigen los términos de uso del IDEAM.</span></li>
+          </ul>
+        </article>
+      </div>
+    </section>
+
+    <!-- ===================== COLORES ===================== -->
+    <section class="seccion-doc" id="colores" aria-labelledby="t-colores">
+      <header><p class="antetitulo">En el mapa</p><h2 id="t-colores">Cómo leer los colores</h2>
+        <p>El color de cada estación dice qué parte de tu periodo alcanza a cubrir su registro.</p></header>
+      <div class="rejilla-2">
+        <article class="tarjeta lg-regular doc">
+          <div class="clases">
+            <div class="clase-cob"><b><i style="background:#0ca30c"></i>Alta</b><span>70–100 %</span></div>
+            <div class="clase-cob"><b><i style="background:#fab219"></i>Media</b><span>50–70 %</span></div>
+            <div class="clase-cob"><b><i style="background:#ec835a"></i>Baja</b><span>25–50 %</span></div>
+            <div class="clase-cob"><b><i style="background:#d03b3b"></i>Crítica</b><span>0–25 %</span></div>
+          </div>
+          <p>El porcentaje sale de la <strong>cantidad probable</strong> que calcula el IDEAM: cuántos datos cabrían entre el primer y el último registro de la estación dentro de tu periodo. Sirve para descartar estaciones que no llegan a tu periodo.</p>
+          <details class="aviso" data-tono="info"><summary><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></svg><span>No mide los huecos internos de la serie.</span><span class="ver">Ver más</span></summary>
+            <div>Una estación con 100 % puede tener vacíos: significa que su registro empieza antes y termina después de tu periodo. Los huecos reales se revisan en los Excel descargados.</div></details>
+        </article>
+        <article class="tarjeta lg-regular doc">
+          <h3>Otros símbolos</h3>
+          <ul class="simbolos">
+            <li><span class="pin gris" aria-hidden="true"></span><span><strong>Gris y hueco:</strong> sin datos de esa variable en tu periodo. No se puede descargar.</span></li>
+            <li><span class="pin fuera" aria-hidden="true"></span><span><strong>Hueco con borde punteado:</strong> una estación que quitaste de la descarga.</span></li>
+            <li><span class="pin duda" aria-hidden="true"></span><span><strong>Borde naranja:</strong> altitud dudosa; el catálogo no coincide con el terreno.</span></li>
+            <li><span class="pin sel" aria-hidden="true"></span><span><strong>Anillo azul:</strong> la estación que tienes seleccionada.</span></li>
+          </ul>
+          <p class="tenue">En 3D, un círculo naranja unido al pin marca dónde quedaría la estación con la altitud del catálogo.</p>
+        </article>
+      </div>
+    </section>
+
+    <!-- ===================== TENER EN CUENTA ===================== -->
+    <section class="seccion-doc" id="tener-en-cuenta" aria-labelledby="t-cuenta">
+      <header><p class="antetitulo">Límites</p><h2 id="t-cuenta">Lo que debes tener en cuenta</h2>
+        <p>Algunas cosas no dependen de la herramienta, sino del IDEAM o de tu equipo.</p></header>
+      <article class="tarjeta lg-regular doc">
+        <ul class="limites">
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4M12 17h.01"/></svg><span><strong>Los datos recientes pueden ser preliminares</strong> y cambiar. Si los usas en un estudio formal, revisa la columna «Nivel de Aprobación».</span></li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4M12 17h.01"/></svg><span><strong>La velocidad la pone el servidor del IDEAM.</strong> A veces responde lento; las series cada pocos minutos, que van de a un mes por consulta, son las que más tardan.</span></li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4M12 17h.01"/></svg><span><strong>Si la herramienta lleva un rato sin uso,</strong> la primera carga puede tardar hasta un minuto; después todo es inmediato.</span></li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4M12 17h.01"/></svg><span><strong>El 3D pide más a tu equipo.</strong> Si el navegador se queda sin memoria gráfica, la herramienta te ofrece el modo Lite, que muestra lo mismo con menos efectos. Nunca cambia de modo por su cuenta.</span></li>
+          <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4M12 17h.01"/></svg><span><strong>Algunos navegadores alteran las imágenes</strong> para proteger tu privacidad (Brave con escudos, Safari en modo privado), y el relieve 3D sale con picos falsos. La herramienta lo detecta y te avisa.</span></li>
         </ul>
-        <h3 id="aprobacion">Niveles de aprobación del dato</h3>
-        <p>El IDEAM clasifica cada dato en tres niveles:</p>
-        <div class="tabla">
-          <table>
-            <thead><tr><th>Nivel</th><th>Código</th><th>Qué significa</th></tr></thead>
-            <tbody>
-              <tr><td><strong>Preliminar</strong></td><td class="num">900</td><td>Dato crudo de campo o de sensor automático, sujeto a cambios o reemplazo.</td></tr>
-              <tr><td><strong>En revisión</strong></td><td class="num">1100</td><td>Superó la evaluación preliminar y sigue en verificación.</td></tr>
-              <tr><td><strong>Definitivo</strong></td><td class="num">1200</td><td>Revisado, aprobado y considerado confiable.</td></tr>
-            </tbody>
-          </table>
-        </div>
-        <p>Buena parte de los datos recientes suele estar en nivel preliminar. Si usas los datos en un estudio formal, revisa esta columna antes de tu análisis.</p>
-        <h3>El archivo resumen_descarga.csv</h3>
-        <p>Una fila por estación con su nombre, cantidad probable, clase de cobertura, si quedó <em>Guardada</em> u <em>Omitida</em>, dónde quedó en el ZIP y el detalle de cada bloque consultado. Ábrelo con Excel.</p>
-      </section>
+      </article>
+    </section>
 
-      <section id="uso-datos">
-        <h2><span class="etiqueta">CONDICIONES</span>Uso de los datos y citación</h2>
-        <p>Los datos provienen del IDEAM y su descarga está autorizada para uso personal, privado y no comercial. No pueden comercializarse ni venderse. El IDEAM no se hace responsable del uso de los datos ni de las interpretaciones o inferencias derivadas de ellos.</p>
-        <p>Los términos de uso del portal exigen citar la fuente en todo trabajo que use los datos, con este formato:</p>
-        <div class="nota">
-          <p><code>Fuente: Ideam. (Año, mes y día). Nombre de la página. URL.</code></p>
-        </div>
-        <p>El ZIP incluye el archivo <code>CITACION.txt</code> con la cita ya armada con la fecha real de tu descarga, por ejemplo:</p>
-        <div class="nota">
-          <p>Fuente: Ideam. (2026, septiembre 23). DHIME – Portal Atención al Ciudadano. http://dhime.ideam.gov.co/atencionciudadano/</p>
-        </div>
-        <p>El Descargador IDEAM es una herramienta independiente: no es un producto oficial del IDEAM ni cuenta con su respaldo.</p>
-        <h3>Fuentes de los mapas</h3>
-        <p>Las capas de mapa no son del IDEAM y pertenecen a sus proveedores. Sus créditos aparecen en el borde de cada mapa y al final del panel del mapa:</p>
-        <ul>
-          <li><strong>Satélite, Satélite con nombres y Relieve:</strong> Esri (Maxar, Earthstar Geographics, HERE, Garmin, FAO, NOAA, USGS, OpenStreetMap y la comunidad de usuarios de GIS).</li>
-          <li><strong>Calles:</strong> © colaboradores de OpenStreetMap.</li>
-          <li><strong>Satélite de noche:</strong> NASA EOSDIS GIBS.</li>
-          <li><strong>Relieve 3D:</strong> modelo de elevación Terrarium (Mapzen, AWS Open Data), construido con datos SRTM y GMTED2010, cortesía del U.S. Geological Survey, entre otras fuentes.</li>
-        </ul>
-      </section>
+    <!-- ===================== PREGUNTAS ===================== -->
+    <section class="seccion-doc" id="preguntas" aria-labelledby="t-preguntas">
+      <header><p class="antetitulo">Ayuda</p><h2 id="t-preguntas">Preguntas frecuentes</h2></header>
+      <div class="preguntas">
+        <details class="mas lg-regular doc"><summary><span>No aparece ninguna estación en mi área</span><span class="ver">Ver más</span></summary>
+          <div class="contenido"><p>Puede que en esa área no haya estaciones del IDEAM. Enciende el buffer o aumenta su ancho para incluir las cercanas.</p></div></details>
+        <details class="mas lg-regular doc"><summary><span>Hay estaciones, pero ninguna para descargar</span><span class="ver">Ver más</span></summary>
+          <div class="contenido"><ul>
+            <li>Revisa la lista: puede que las hayas desmarcado todas, o que el filtro de cobertura las deje por fuera.</li>
+            <li>Cambia el periodo: muchas estaciones solo tienen datos de ciertas décadas. El nombre de la variable, en el panel, te devuelve al paso 1 sin perder el área.</li>
+            <li>Revisa la variable: una estación puede medir lluvia pero no temperatura. Su ficha lo dice: <em>Sin serie de esta variable en DHIME</em>.</li>
+          </ul></div></details>
+        <details class="mas lg-regular doc"><summary><span>Mi archivo de la cuenca no carga</span><span class="ver">Ver más</span></summary>
+          <div class="contenido"><ul>
+            <li>Súbelo en un ZIP con el .shp, .shx, .dbf y .prj.</li>
+            <li>Sin el .prj la herramienta no sabe dónde está en el mundo: expórtalo de nuevo desde tu SIG con su sistema de coordenadas.</li>
+            <li>Debe ser un polígono: puntos o líneas no sirven como área.</li>
+          </ul></div></details>
+        <details class="mas lg-regular doc"><summary><span>La descarga tarda más de lo estimado</span><span class="ver">Ver más</span></summary>
+          <div class="contenido"><p>El tiempo depende de qué tan rápido responda el servidor del IDEAM, que a veces está lento. Si tu descarga espera turno, es porque ya hay otras cuatro en curso.</p></div></details>
+        <details class="mas lg-regular doc"><summary><span>Una estación salió «Omitida»</span><span class="ver">Ver más</span></summary>
+          <div class="contenido"><p>El IDEAM no devolvió datos para ese rango, aunque su catálogo indicara que la serie existe. Suele pasar con estaciones históricas o suspendidas. El motivo de cada consulta está en la columna «Detalle» de <code>resumen_descarga.csv</code>.</p></div></details>
+        <details class="mas lg-regular doc"><summary><span>El 3D se ve en blanco o se borra al girar</span><span class="ver">Ver más</span></summary>
+          <div class="contenido"><p>El navegador se quedó sin memoria gráfica. Usa <span class="ui azul">Activar Lite y reintentar</span> en el aviso: carga una versión más liviana con la misma cámara. Si vuelve a pasar, cierra pestañas que no uses o trabaja en 2D.</p></div></details>
+        <details class="mas lg-regular doc"><summary><span>El relieve 3D sale lleno de picos falsos</span><span class="ver">Ver más</span></summary>
+          <div class="contenido"><p>Tu navegador altera las imágenes para proteger tu privacidad, y el relieve viene codificado en ellas. Ábrelo en una ventana normal, desactiva esa protección para el sitio (en Brave, los escudos) o usa otro navegador, como Chrome.</p></div></details>
+        <details class="mas lg-regular doc"><summary><span>No veo la animación al pasar a 3D</span><span class="ver">Ver más</span></summary>
+          <div class="contenido"><p>Se reproduce una vez por área; el botón ↻, junto al selector 2D/3D, la repite. No se reproduce en el celular, en modo Lite ni si tu equipo pide reducir el movimiento (ahí el botón ↻ la muestra igual).</p></div></details>
+      </div>
+    </section>
 
-      <section id="problemas">
-        <h2><span class="etiqueta">AYUDA</span>Problemas frecuentes</h2>
-        <details>
-          <summary>No aparece ninguna estación en mi área</summary>
-          <p>Puede que en esa área no haya estaciones del IDEAM. Enciende el buffer o aumenta su distancia para incluir las cercanas.</p>
-        </details>
-        <details>
-          <summary>Hay estaciones, pero ninguna queda para descargar</summary>
-          <ul>
-            <li>Revisa la lista del panel: puede que hayas desmarcado todas. Marca al menos una.</li>
-            <li>Cambia el periodo (con el nombre de la variable, en el panel): muchas estaciones solo tienen datos de ciertas décadas.</li>
-            <li>Revisa la variable: una estación puede tener precipitación pero no temperatura. En la ficha lo verás como <em>Sin serie de esta variable en DHIME</em>.</li>
-          </ul>
-        </details>
-        <details>
-          <summary>Mi shapefile no carga</summary>
-          <ul>
-            <li>Súbelo en un ZIP con <code>.shp</code>, <code>.shx</code>, <code>.dbf</code> y <code>.prj</code>.</li>
-            <li>Sin <code>.prj</code> la app no sabe dónde está en el mundo. Expórtalo de nuevo desde tu SIG con el sistema de coordenadas.</li>
-            <li>Debe ser un polígono: un shapefile de puntos o líneas no sirve como área.</li>
-          </ul>
-        </details>
-        <details>
-          <summary>La descarga tarda más de lo estimado</summary>
-          <p>El tiempo depende de qué tan rápido responda el servidor del IDEAM, que a veces está lento. Si tu descarga espera turno, es porque ya hay otras cuatro en curso.</p>
-        </details>
-        <details>
-          <summary>Una estación salió "Omitida"</summary>
-          <p>El IDEAM no devolvió datos para ese rango, aunque el catálogo indicara que la serie existe. Suele pasar con estaciones históricas o suspendidas. El motivo exacto de cada bloque está en la columna «Detalle» de <code>resumen_descarga.csv</code>. El portal limita cada archivo a 5 MB, pero los bloques que pide la herramienta quedan muy por debajo de ese tamaño, así que no es la causa habitual.</p>
-        </details>
-        <details>
-          <summary>El 3D se ve en blanco o se borra al girar</summary>
-          <p>El navegador se quedó sin memoria gráfica. Usa <span class="ui primario">Activar Lite y reintentar</span> en el aviso, que carga una versión más liviana con la misma cámara. Si vuelve a pasar, cierra pestañas y programas que no uses, o trabaja en la vista 2D.</p>
-        </details>
-        <details>
-          <summary>En el celular el relieve 3D sale lleno de picos falsos</summary>
-          <p>Algunos navegadores alteran las imágenes a propósito para proteger tu privacidad: Safari en modo privado o con protección contra rastreo, y Brave. El relieve viene codificado en esas imágenes, y la alteración se ve como picos falsos. La app lo detecta y muestra arriba un aviso pequeño, <span class="ui">Tu navegador altera el relieve</span>: tócalo para leer la explicación o ciérralo con la ✕. Ábrela en una ventana normal, desactiva esa protección para el sitio (en Brave, los escudos) o usa otro navegador, como Chrome.</p>
-        </details>
-        <details>
-          <summary>No veo la animación al pasar a 3D</summary>
-          <ul>
-            <li>Se reproduce una sola vez por área: para verla otra vez, usa el botón ↻ junto al selector 2D/3D.</li>
-            <li>No se reproduce en modo Lite ni en el celular. Revisa si junto a Ajustes aparece la marca <span class="ui">Lite</span>.</li>
-            <li>Si tu equipo pide reducir el movimiento (en Windows: <em>Efectos de animación</em> desactivados), no se reproduce sola; el botón ↻ la muestra igual.</li>
-          </ul>
-        </details>
-      </section>
+    <!-- ===================== CONDICIONES ===================== -->
+    <section class="seccion-doc" id="condiciones" aria-labelledby="t-condiciones">
+      <header><p class="antetitulo">Condiciones</p><h2 id="t-condiciones">Uso de los datos y citación</h2></header>
+      <div class="rejilla-2">
+        <article class="tarjeta lg-regular doc">
+          <p>Los datos son del IDEAM y su descarga está autorizada para <strong>uso personal, privado y no comercial</strong>: no pueden venderse ni comercializarse. El IDEAM no se hace responsable del uso que se les dé ni de las conclusiones que se saquen de ellos.</p>
+          <p>Todo trabajo que los use debe citar la fuente. El ZIP trae la cita armada en <code>CITACION.txt</code>, por ejemplo:</p>
+          <p class="cita">Fuente: Ideam. (2026, septiembre 23). DHIME – Portal Atención al Ciudadano. http://dhime.ideam.gov.co/atencionciudadano/</p>
+        </article>
+        <article class="tarjeta lg-regular doc">
+          <p>El Descargador IDEAM es una herramienta independiente: no es un producto oficial del IDEAM ni cuenta con su respaldo. Hace las mismas consultas que cualquiera puede hacer en el portal DHIME y no almacena ni redistribuye los datos.</p>
+          <p>Como hace el portal, cada descarga se registra en las estadísticas del IDEAM, sin ningún dato tuyo.</p>
+          <details class="aviso" data-tono="info"><summary><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 8h.01"/></svg><span>Los mapas son de otros proveedores.</span><span class="ver">Ver créditos</span></summary>
+            <div>Satélite, Satélite con nombres y Relieve: Esri (Maxar, Earthstar Geographics, HERE, Garmin, FAO, NOAA, USGS, OpenStreetMap y la comunidad de usuarios de GIS). Calles: © colaboradores de OpenStreetMap. Satélite de noche: NASA EOSDIS GIBS. Relieve 3D: modelo de elevación Terrarium (Mapzen, AWS Open Data), construido con datos SRTM y GMTED2010, cortesía del U.S. Geological Survey, entre otras fuentes. Estas capas no están respaldadas por el IDEAM.</div></details>
+        </article>
+      </div>
+    </section>
 
-      <section id="glosario">
-        <h2><span class="etiqueta">REFERENCIA</span>Glosario</h2>
-        <dl class="glosario">
-          <dt>DHIME</dt><dd>El sistema del IDEAM con las series históricas de sus estaciones hidrometeorológicas. De ahí salen todos los datos.</dd>
-          <dt>Serie</dt><dd>La secuencia de datos de un parámetro en una estación. El IDEAM la identifica con un código, como <code>PTPM_CON</code>, que va en el nombre de cada Excel (en la serie especial, con la frecuencia y el cálculo: <code>PTPM_CON_Decadal_SUM</code>).</dd>
-          <dt>Cantidad probable</dt><dd>Cuántos datos cabrían entre la primera y la última fecha con registro de la estación dentro de tu rango, según la frecuencia. No descuenta los datos faltantes. La app la muestra como porcentaje de tu periodo.</dd>
-          <dt>Cobertura</dt><dd>Qué parte del periodo consultado abarca el registro de la estación. No mide la densidad de la serie ni sus huecos internos.</dd>
-          <dt>Nivel de aprobación</dt><dd>Estado de revisión de cada dato: preliminar (900), en revisión (1100) o definitivo (1200).</dd>
+    <!-- ===================== GLOSARIO ===================== -->
+    <section class="seccion-doc" id="glosario" aria-labelledby="t-glosario">
+      <header><p class="antetitulo">Referencia</p><h2 id="t-glosario">Glosario</h2></header>
+      <article class="tarjeta lg-regular doc">
+        <dl class="recibo glosario">
+          <dt>DHIME</dt><dd>El sistema del IDEAM con las series históricas de sus estaciones. De ahí salen todos los datos.</dd>
+          <dt>Serie</dt><dd>Los datos de un parámetro en una estación. El IDEAM la identifica con un código, como <code>PTPM_CON</code>, que va en el nombre de cada Excel.</dd>
+          <dt>Cantidad probable</dt><dd>Cuántos datos cabrían entre el primer y el último registro de la estación dentro de tu periodo. No descuenta los faltantes.</dd>
+          <dt>Cobertura</dt><dd>La cantidad probable como porcentaje de tu periodo: qué parte de él abarca el registro de la estación.</dd>
           <dt>Buffer</dt><dd>Franja alrededor del área, de 0,5 a 15 km, para incluir estaciones cercanas.</dd>
-          <dt>Bloque</dt><dd>Cada tramo de años que el IDEAM entrega por consulta. La app los pide todos y los une.</dd>
-          <dt>Estación activa</dt><dd>La que tiene datos del último año. Las demás son históricas.</dd>
+          <dt>Tramo</dt><dd>Cada grupo de años que el portal entrega por consulta. El Descargador los pide todos y los une.</dd>
+          <dt>Nivel de aprobación</dt><dd>Estado de revisión de cada dato: preliminar (900), en revisión (1100) o definitivo (1200).</dd>
           <dt>Altitud dudosa</dt><dd>Cuando la altitud del catálogo se aleja más de 200 m del terreno real en el punto de la estación.</dd>
         </dl>
-        <p class="pie">Los datos son del IDEAM y están protegidos por derechos de autor. Su descarga está autorizada para uso personal, privado y no comercial, y todo trabajo que los utilice debe citar la fuente. El Descargador IDEAM automatiza consultas que cualquiera puede hacer en el portal DHIME y no almacena ni redistribuye los datos por su cuenta.</p>
-      </section>
-    </main>
-  </div>
+      </article>
+    </section>
+  </main>
+
+  <footer class="final">
+    <span>Descargador IDEAM · versión 2.0 · herramienta independiente, no oficial del IDEAM</span>
+    <a href="../../">Abrir el Descargador</a>
+  </footer>
 </div>
 
+<script>
+/* ==========================================================================
+   INTERFAZ GLASS: el comportamiento común de todas las páginas (sin dependencias)
+   Acompaña a liquid-glass.css. Uso en cualquier página:
+     <script src="interfaz-glass.js"><\/script>
+     <script>InterfazGlass.instalar();<\/script>
+   Con un mapa o contenido a pantalla completa, indica qué ocupa cada borde para calcular la zona libre (--ov-*):
+     InterfazGlass.instalar({ zonas: {izq: [".panel"], der: [".ajustes", ".herr"], arriba: [".abrir-panel"], abajo: [".dock > *"]} });
+
+   En el <head>, ANTES del CSS, pon el resolvedor de preferencias (evita el destello de tema):
+     <script>(function(){var r=document.documentElement,l=function(k){try{return localStorage.getItem("ui_"+k)}catch(e){return null}},
+       m=function(q){return window.matchMedia&&matchMedia(q).matches},t=l("tono"),a=l("alto");
+       r.dataset.tono=t||(m("(prefers-color-scheme: dark)")?"oscuro":"claro");
+       if(a==="1"||(a===null&&m("(prefers-contrast: more)")))r.dataset.alto="1";if(l("lite")==="1")r.dataset.lite="1";})();<\/script>
+
+   Marcado que entiende:
+     [data-menu="id"]            botón que abre/cierra el menú [data-menu-de="id"] (aria-expanded automático)
+     [data-mantener]             opción de menú que NO cierra el menú (p. ej. botones de cámara)
+     details[data-cierra-fuera]  desplegable que se cierra con un toque fuera (leyenda, avisos, fichas)
+     [data-hoja-btn]             celular: abre/cierra la hoja/tarjeta (html[data-hoja]); [data-hoja-cerrar] la cierra
+     [data-panel-btn]            escritorio: pliega/despliega el panel (html[data-panel], recordado)
+     [data-requiere-listo]       botón principal: si aria-disabled="true", no avanza y parpadea en rojo
+     [data-pref="tono|alto|lite"] controles de Ajustes (radios/checkbox) enlazados a las preferencias
+   ========================================================================== */
+(function () {
+  "use strict";
+  var w = window, d = document, raiz = d.documentElement;
+  var MOVIL = "(max-width: 760px)";
+  var VIDRIO = ".lg-claro,.lg-regular";
+  var DESPLAZABLES = ".lg-cuerpo,.menu";
+  var G = 12;
+
+  var leer = function (k) { try { return w.localStorage.getItem("ui_" + k); } catch (e) { return null; } };
+  var guardar = function (k, v) { try { if (v === null) w.localStorage.removeItem("ui_" + k); else w.localStorage.setItem("ui_" + k, v); } catch (e) {} };
+  var media = function (q) { return !!(w.matchMedia && w.matchMedia(q).matches); };
+  var esMovil = function () { return media(MOVIL); };
+  var esLite = function () { return raiz.getAttribute("data-lite") === "1"; };
+  var menosMovimiento = function () { return media("(prefers-reduced-motion: reduce)"); };
+
+  // ---------- preferencias: tono, alto contraste y Lite (ejes independientes) ----------
+  function aplicarPreferencias() {
+    var t = leer("tono"), a = leer("alto");
+    raiz.setAttribute("data-tono", t || (media("(prefers-color-scheme: dark)") ? "oscuro" : "claro"));
+    if (a === "1" || (a === null && media("(prefers-contrast: more)"))) raiz.setAttribute("data-alto", "1"); else raiz.removeAttribute("data-alto");
+    if (leer("lite") === "1") raiz.setAttribute("data-lite", "1"); else raiz.removeAttribute("data-lite");
+    reflejarPreferencias();
+  }
+  function ponerPreferencia(clave, valor) {   // valor null = volver a seguir al sistema
+    guardar(clave, valor); aplicarPreferencias();
+    d.dispatchEvent(new CustomEvent("ui:preferencias", {detail: {clave: clave, valor: valor}}));
+  }
+  function reflejarPreferencias() {
+    d.querySelectorAll('[data-pref="tono"]').forEach(function (b) {
+      b.setAttribute("aria-checked", b.value === raiz.getAttribute("data-tono") ? "true" : "false");
+    });
+    d.querySelectorAll('input[data-pref="alto"]').forEach(function (i) { i.checked = raiz.getAttribute("data-alto") === "1"; });
+    d.querySelectorAll('input[data-pref="lite"]').forEach(function (i) { i.checked = esLite(); });
+  }
+  ["(prefers-color-scheme: dark)", "(prefers-contrast: more)"].forEach(function (q) {
+    if (!w.matchMedia) return;
+    var m = w.matchMedia(q);
+    (m.addEventListener ? m.addEventListener.bind(m, "change") : m.addListener.bind(m))(aplicarPreferencias);
+  });
+
+  // ---------- luz especular: sigue al puntero del ratón (no en Lite ni con movimiento reducido) ----------
+  var luz = null, luzPedida = false;
+  function especular(ev) {
+    if (ev.pointerType && ev.pointerType !== "mouse") return;
+    if (esLite() || menosMovimiento()) return;
+    var el = ev.target && ev.target.closest ? ev.target.closest(VIDRIO) : null;
+    if (!el) return;
+    luz = {el: el, x: ev.clientX, y: ev.clientY};
+    if (luzPedida) return;
+    luzPedida = true;
+    w.requestAnimationFrame(function () {
+      luzPedida = false;
+      if (!luz) return;
+      var r = luz.el.getBoundingClientRect();   // relativa al vidrio, que no se desplaza
+      luz.el.style.setProperty("--mx", Math.round(luz.x - r.left) + "px");
+      luz.el.style.setProperty("--my", Math.round(luz.y - r.top) + "px");
+    });
+  }
+
+  // ---------- barras de desplazamiento superpuestas (escritorio) ----------
+  function marcarDesplaza(e, ms) {
+    if (!e.hasAttribute("data-desplaza")) e.setAttribute("data-desplaza", "");
+    clearTimeout(e.__desplaza);
+    e.__desplaza = setTimeout(function () { e.removeAttribute("data-desplaza"); }, ms);
+  }
+  // la página se desplazó: la barra superior se densifica (contenido debajo = más legibilidad)
+  var desplazadoPedido = false;
+  function alDesplazarPagina() {
+    if (desplazadoPedido) return;
+    desplazadoPedido = true;
+    w.requestAnimationFrame(function () {
+      desplazadoPedido = false;
+      var y = w.scrollY > 8;
+      if (raiz.hasAttribute("data-desplazado") !== y) { if (y) raiz.setAttribute("data-desplazado", ""); else raiz.removeAttribute("data-desplazado"); }
+    });
+  }
+  function alDesplazar(ev) {
+    var e = ev.target;
+    if (e && e.nodeType === 1 && e.matches && e.matches(DESPLAZABLES)) marcarDesplaza(e, 900);
+  }
+  function barraBajoPuntero(ev) {
+    if (ev.pointerType && ev.pointerType !== "mouse") return;
+    var e = ev.target && ev.target.closest ? ev.target.closest(DESPLAZABLES) : null;
+    if (!e || e.scrollHeight <= e.clientHeight + 1) return;
+    if (ev.clientX > e.getBoundingClientRect().right - 14) marcarDesplaza(e, 700);
+  }
+
+  // ---------- menús: abrir/cerrar, clic fuera, Escape y flechas ----------
+  function menuDe(b) { return d.querySelector('[data-menu-de="' + b.getAttribute("data-menu") + '"]'); }
+  function cerrarMenus(excepto) {
+    d.querySelectorAll("[data-menu]").forEach(function (b) {
+      if (b === excepto) return;
+      var m = menuDe(b);
+      if (m && !m.hidden) { m.hidden = true; b.setAttribute("aria-expanded", "false"); }
+    });
+  }
+  function alternarMenu(b, enfocar) {
+    var m = menuDe(b);
+    if (!m) return;
+    var abrir = m.hidden;
+    cerrarMenus(b);
+    m.hidden = !abrir; b.setAttribute("aria-expanded", abrir ? "true" : "false");
+    if (abrir && enfocar) {
+      var p = m.querySelector('button:not([aria-disabled="true"]),a');
+      if (p) try { p.focus({preventScroll: true}); } catch (e) {}
+    }
+  }
+  // un toque fuera cierra cualquier desplegable (menús propios y <details data-cierra-fuera>)
+  function cerrarFuera(t) {
+    d.querySelectorAll("details[data-cierra-fuera][open]").forEach(function (det) { if (!t || !det.contains(t)) det.open = false; });
+    if (!t || !t.closest(".grupo")) cerrarMenus(null);
+  }
+  function alPulsar(ev) { cerrarFuera(ev.target && ev.target.closest ? ev.target : null); }
+  // los toques dentro de un iframe (p. ej. el mapa de Leaflet) no llegan a la página: se reenvían
+  function reenviarToques(iframe) {
+    try {
+      var doc = iframe.contentWindow.document;
+      if (doc.__reenvio) return;
+      doc.__reenvio = true;
+      doc.addEventListener("pointerdown", function () {
+        cerrarFuera(null);
+        // popovers de frameworks (p. ej. Streamlit) se cierran con un clic sintético en el body
+        d.body.dispatchEvent(new w.MouseEvent("click", {bubbles: true}));
+      }, true);
+    } catch (e) { /* iframe de otro origen: no se puede */ }
+  }
+
+  // ---------- hoja/tarjeta del celular y panel de escritorio ----------
+  function hojaAbierta() { return raiz.getAttribute("data-hoja") === "abierta"; }
+  function ponerHoja(abierta) {
+    raiz.setAttribute("data-hoja", abierta ? "abierta" : "cerrada");
+    d.querySelectorAll("[data-hoja-btn]").forEach(function (b) { b.setAttribute("aria-expanded", abierta ? "true" : "false"); });
+    sincronizarInerte(); distribuir(); setTimeout(distribuir, 380);
+  }
+  function ponerPanel(v) {
+    raiz.setAttribute("data-panel", v); guardar("panel", v);
+    d.querySelectorAll("[data-panel-btn]").forEach(function (b) {
+      var txt = v === "abierto" ? "Ocultar el panel" : "Mostrar el panel";
+      b.setAttribute("aria-expanded", v === "abierto" ? "true" : "false"); b.setAttribute("aria-label", txt); b.title = txt;
+    });
+    sincronizarInerte(); distribuir(); setTimeout(distribuir, 380);
+  }
+  // lo cerrado no recibe foco ni toques (inert): algunos frameworks fuerzan visibles elementos invisibles
+  function sincronizarInerte() {
+    d.querySelectorAll("[data-panel-cuerpo]").forEach(function (p) {
+      var inerte = esMovil() ? !hojaAbierta() : raiz.getAttribute("data-panel") === "cerrado";
+      if (p.inert !== inerte) p.inert = inerte;
+    });
+  }
+
+  // ---------- botón principal: nunca gris; si no está listo, dos destellos rojos ----------
+  function parpadear(b) {
+    b.classList.remove("parpadeo"); void b.offsetWidth; b.classList.add("parpadeo");
+    clearTimeout(b.__parpadeo);
+    b.__parpadeo = setTimeout(function () { b.classList.remove("parpadeo"); }, 950);
+  }
+  function marcarListo(b, listo) { b.setAttribute("aria-disabled", listo ? "false" : "true"); }
+
+  // ---------- clics (delegados, en captura) ----------
+  function alClic(ev) {
+    var t = ev.target && ev.target.closest ? ev.target : null;
+    if (!t) return;
+    var cta = t.closest("[data-requiere-listo]");
+    if (cta && cta.getAttribute("aria-disabled") === "true") { ev.preventDefault(); ev.stopPropagation(); parpadear(cta); return; }
+    if (t.closest(".capa-cierre")) { ev.preventDefault(); ponerHoja(false); return; }
+    var b = t.closest("[data-menu],[data-hoja-btn],[data-hoja-cerrar],[data-panel-btn],[data-pref]");
+    if (!t.closest(".grupo")) cerrarMenus(null);
+    // una opción de menú lo cierra, salvo las que se pulsan varias veces seguidas
+    var opcion = t.closest(".menu button,.menu a");
+    if (opcion && !opcion.hasAttribute("data-mantener") && !b) setTimeout(function () { cerrarMenus(null); }, 0);
+    if (!b) return;
+    if (b.hasAttribute("data-menu")) { alternarMenu(b, ev.detail === 0); return; }
+    if (b.hasAttribute("data-hoja-btn")) ponerHoja(!hojaAbierta());
+    else if (b.hasAttribute("data-hoja-cerrar")) { ponerHoja(false); var c = d.querySelector("[data-hoja-btn]"); if (c) c.focus(); }
+    else if (b.hasAttribute("data-panel-btn")) ponerPanel(raiz.getAttribute("data-panel") === "cerrado" ? "abierto" : "cerrado");
+    else if (b.getAttribute("data-pref") === "tono") ponerPreferencia("tono", b.value);
+  }
+  function alCambiar(ev) {
+    var i = ev.target;
+    if (i && i.matches && i.matches('input[data-pref="alto"]')) ponerPreferencia("alto", i.checked ? "1" : "0");
+    if (i && i.matches && i.matches('input[data-pref="lite"]')) ponerPreferencia("lite", i.checked ? "1" : null);
+  }
+  function alTecla(ev) {
+    var menu = ev.target && ev.target.closest ? ev.target.closest(".menu") : null;
+    if (ev.key === "Escape") {
+      var abierto = d.querySelector(".menu:not([hidden])");
+      if (abierto) {
+        var dueno = d.querySelector('[data-menu="' + abierto.getAttribute("data-menu-de") + '"]');
+        cerrarMenus(null); if (dueno) dueno.focus(); ev.preventDefault(); return;
+      }
+      if (esMovil() && hojaAbierta()) { ponerHoja(false); var c = d.querySelector("[data-hoja-btn]"); if (c) c.focus(); ev.preventDefault(); return; }
+      d.querySelectorAll("details[data-cierra-fuera][open]").forEach(function (det) { det.open = false; });
+    }
+    if (menu && /^(ArrowDown|ArrowUp|Home|End)$/.test(ev.key)) {
+      var items = Array.prototype.slice.call(menu.querySelectorAll("button,a"));
+      var i = items.indexOf(d.activeElement);
+      var j = ev.key === "Home" ? 0 : ev.key === "End" ? items.length - 1 : (i + (ev.key === "ArrowDown" ? 1 : -1) + items.length) % items.length;
+      if (items[j]) items[j].focus();
+      ev.preventDefault();
+    }
+  }
+
+  // ---------- reparto del espacio: la zona libre del mapa como variables CSS ----------
+  // zonas: selectores de lo que ocupa cada borde. abajo: las piezas visibles de la barra inferior (no su contenedor)
+  var zonas = {izq: [], der: [], arriba: [], abajo: []}, ultimo = "";
+  function caja(el) {
+    var cs = w.getComputedStyle(el);
+    if (cs.display === "none" || cs.visibility === "hidden" || +cs.opacity === 0) return null;
+    var r = el.getBoundingClientRect();
+    return r.width && r.height ? r : null;
+  }
+  function cajas(selectores) {
+    var r = [];
+    selectores.forEach(function (s) { d.querySelectorAll(s).forEach(function (e) { var c = caja(e); if (c) r.push(c); }); });
+    return r;
+  }
+  function distribuir() {
+    var W = w.innerWidth, H = w.innerHeight;
+    // con la hoja abierta (celular) se reparte como si estuviera cerrada: al cerrarla nada salta
+    var izq = cajas(esMovil() ? [] : zonas.izq), der = cajas(zonas.der), arr = cajas(zonas.arriba), abj = cajas(zonas.abajo);
+    var vIzq = izq.length ? Math.max.apply(null, izq.map(function (r) { return r.right; })) + G : G;
+    var vDer = der.length ? W - Math.min.apply(null, der.map(function (r) { return r.left; })) + G : G;
+    var vArr = arr.length ? Math.max.apply(null, arr.map(function (r) { return r.bottom; })) + G : G;
+    var vAbj = abj.length ? H - Math.min.apply(null, abj.map(function (r) { return r.top; })) + G : G;
+    // franja de abajo: espacio libre a la izquierda de lo que hay abajo a la derecha (para créditos y escala)
+    var vAbjDer = abj.length ? W - Math.min.apply(null, abj.map(function (r) { return r.left; })) + G : G;
+    var clave = [W, H, vIzq, vDer, vArr, vAbj, vAbjDer].join("|");
+    if (clave === ultimo) return;   // solo escribe si cambió (evita relayouts en bucle)
+    ultimo = clave;
+    var s = raiz.style;
+    s.setProperty("--ov-izq", Math.round(vIzq) + "px"); s.setProperty("--ov-der", Math.round(vDer) + "px");
+    s.setProperty("--ov-top", Math.round(vArr) + "px"); s.setProperty("--ov-abajo", Math.round(vAbj) + "px");
+    s.setProperty("--libre-izq", (izq.length ? Math.round(vIzq - G) : 0) + "px");
+    s.setProperty("--abajo-der", Math.round(vAbjDer) + "px");
+    d.dispatchEvent(new CustomEvent("ui:zona-libre", {detail: {izq: vIzq, der: vDer, arriba: vArr, abajo: vAbj}}));
+  }
+
+  function instalar(opciones) {
+    opciones = opciones || {};
+    if (opciones.zonas) Object.keys(opciones.zonas).forEach(function (k) { zonas[k] = opciones.zonas[k]; });
+    if (opciones.vidrio) VIDRIO = opciones.vidrio;
+    if (opciones.desplazables) DESPLAZABLES = opciones.desplazables;
+    aplicarPreferencias();
+    if (!raiz.hasAttribute("data-panel")) raiz.setAttribute("data-panel", leer("panel") === "cerrado" || opciones.panelCerrado ? "cerrado" : "abierto");
+    if (!raiz.hasAttribute("data-hoja")) raiz.setAttribute("data-hoja", "cerrada");
+    if (!d.querySelector(".capa-cierre")) {   // celular: tocar el mapa con la hoja abierta la cierra
+      var c = d.createElement("div"); c.className = "capa-cierre"; c.setAttribute("aria-hidden", "true");
+      c.style.cssText = "display:none;position:fixed;inset:0;z-index:39;-webkit-tap-highlight-color:transparent";
+      d.body.appendChild(c);
+      var est = d.createElement("style");
+      est.textContent = '@media ' + MOVIL + '{html[data-hoja="abierta"] .capa-cierre{display:block !important}}';
+      d.head.appendChild(est);
+    }
+    d.addEventListener("click", alClic, true);
+    d.addEventListener("change", alCambiar, true);
+    d.addEventListener("pointerdown", alPulsar, true);
+    d.addEventListener("pointermove", function (ev) { especular(ev); barraBajoPuntero(ev); }, true);
+    d.addEventListener("keydown", alTecla, true);
+    d.addEventListener("scroll", alDesplazar, true);
+    w.addEventListener("scroll", alDesplazarPagina, {passive: true});
+    w.addEventListener("resize", function () { sincronizarInerte(); distribuir(); });
+    var pendiente = false;
+    new MutationObserver(function () {
+      if (pendiente) return;
+      pendiente = true;
+      w.requestAnimationFrame(function () { pendiente = false; reflejarPreferencias(); sincronizarInerte(); distribuir(); });
+    }).observe(d.body, {childList: true, subtree: true});
+    // red de seguridad barata: lo que se mueve sin mutar el DOM (variables CSS, fuentes que llegan tarde)
+    setInterval(distribuir, 500);
+    ponerPanel(raiz.getAttribute("data-panel"));
+    ponerHoja(false);
+  }
+
+  w.InterfazGlass = {
+    instalar: instalar, distribuir: distribuir, cerrarMenus: cerrarMenus, ponerHoja: ponerHoja, ponerPanel: ponerPanel,
+    ponerPreferencia: ponerPreferencia, marcarListo: marcarListo, parpadear: parpadear, reenviarToques: reenviarToques,
+    esMovil: esMovil, esLite: esLite
+  };
+})();
+</script>
+<script>
+(function () {
+  window.InterfazGlass.instalar();
+  // Índice: marca la sección que se está leyendo (sin animaciones ni recalculos de más)
+  var enlaces = Array.prototype.slice.call(document.querySelectorAll(".menu.indice a"));
+  var secciones = enlaces.map(function (a) { return document.querySelector(a.getAttribute("href")); }).filter(Boolean);
+  if ("IntersectionObserver" in window) {
+    var visibles = {};
+    var obs = new IntersectionObserver(function (entradas) {
+      entradas.forEach(function (e) { visibles[e.target.id] = e.isIntersecting; });
+      var actual = secciones.find(function (s) { return visibles[s.id]; });
+      enlaces.forEach(function (a) {
+        var v = actual && a.getAttribute("href") === "#" + actual.id ? "true" : "false";
+        if (a.getAttribute("aria-current") !== v) a.setAttribute("aria-current", v);
+      });
+    }, {rootMargin: "-30% 0px -60% 0px"});
+    secciones.forEach(function (s) { obs.observe(s); });
+  }
+  // Al imprimir se abren todos los desplegables (y se cierran después)
+  var abiertos = [];
+  window.addEventListener("beforeprint", function () {
+    abiertos = Array.prototype.filter.call(document.querySelectorAll("details"), function (d) { return !d.open; });
+    abiertos.forEach(function (d) { d.open = true; });
+  });
+  window.addEventListener("afterprint", function () { abiertos.forEach(function (d) { d.open = false; }); });
+})();
+</script>
 </body>
 </html>

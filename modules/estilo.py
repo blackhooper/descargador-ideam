@@ -1146,6 +1146,15 @@ def _query(clave, valor, defecto):
         st.query_params[clave] = valor
 
 
+def url_manual():
+    """Enlace al manual con la apariencia vigente: abre con el mismo tema, contraste y modo Lite que la app
+    ("sistema" y 0 le dicen que siga al equipo). Va dentro de un atributo HTML, por eso el &amp;."""
+    ss = st.session_state
+    tema = ss.get("tema") if ss.get("tema") in ("claro", "oscuro") else "sistema"
+    return (f"app/static/manual.html?tono={tema}&amp;alto={1 if ss.get('contraste') == 'alto' else 0}"
+            f"&amp;lite={1 if ss.get('lite') else 0}")
+
+
 def poner_lite(valor):
     st.session_state.lite = bool(valor)
     _query("lite", "1" if valor else "0", "0")
@@ -1193,7 +1202,7 @@ def ajustes(bloqueado=False):
                            "se aplica solo.")
             md('<p class="y2k-menu-tit">Rendimiento</p>')
             toggle_lite("lite_menu")
-            md(f'<a class="y2k-enlace" href="app/static/manual.html" target="_blank" rel="noopener">{ICONOS["manual"]}'
+            md(f'<a class="y2k-enlace" href="{url_manual()}" target="_blank" rel="noopener">{ICONOS["manual"]}'
                'Manual de usuario<span class="y2k-vh"> (se abre en otra pestaña)</span></a>')
             st.markdown('<p class="y2k-hint">Las animaciones respetan la opción de reducir el movimiento de tu equipo.</p>',
                         unsafe_allow_html=True)
@@ -2182,7 +2191,7 @@ def pie_inicio(texto_legal):
        f'<details class="y2k-det"><summary><span>Datos del IDEAM: uso personal y no comercial; cita la fuente.</span>'
        f'<span class="ver">Ver condiciones</span></summary><div><p>{texto_legal}</p></div></details>'
        '<p>Herramienta independiente, no oficial del IDEAM · '
-       '<a href="app/static/manual.html" target="_blank" rel="noopener">Manual de usuario</a></p></footer>')
+       f'<a href="{url_manual()}" target="_blank" rel="noopener">Manual de usuario</a></p></footer>')
 
 
 # ---------------------------------------------------------------------------
@@ -2392,7 +2401,7 @@ def pie():
        f'<p>Datos: <b>{f["nombre"]}</b> · <a href="{f["url"]}" target="_blank" rel="noopener">Instituto de Hidrología, '
        'Meteorología y Estudios Ambientales</a></p>'
        '<p>Uso personal, privado y no comercial; cita la fuente. Herramienta independiente, no oficial del IDEAM.</p>'
-       f'<p><a href="app/static/manual.html" target="_blank" rel="noopener">Manual de usuario</a> · versión {f["version"]}</p>'
+       f'<p><a href="{url_manual()}" target="_blank" rel="noopener">Manual de usuario</a> · versión {f["version"]}</p>'
        f'<details class="y2k-det"><summary><span class="ver">Fuentes y créditos de los mapas</span></summary>'
        f'<div><p>{CREDITOS_MAPAS}</p></div></details>'
        '</footer>')

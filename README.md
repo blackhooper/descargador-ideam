@@ -74,7 +74,7 @@ La estructura y la estética se conectan solo por **nombres**: las claves de los
 | `modules/calidad.py` | Lógica | Clases de cobertura (alta ≥ 70 %, media ≥ 50 %, baja ≥ 25 %, crítica) y sus colores |
 | `modules/geo_input.py`, `geo_utils.py` | Lógica | Lectura de archivos, buffer y filtro espacial |
 | `static/intro_satelital/` | Estructura | Intro satelital (del mapa 2D al 3D): escena Three.js, reproductor, mosaico de satélite |
-| `static/manual.html` | Documento aparte | Manual de usuario, servido en `app/static/manual.html` (tiene su propio CSS) |
+| `static/manual.html` | Documento aparte | Manual de usuario, servido en `app/static/manual.html` (un solo archivo con su CSS y su guion, con la misma firma visual que la app) |
 | `.streamlit/config.toml` | Estética | Colores de los widgets de Streamlit en claro y oscuro (deben coincidir con los tokens) |
 
 ## Pantallas
@@ -243,7 +243,20 @@ En el celular la tarjeta flota abajo, con margen, y las dos columnas van una deb
 
 ### Manual
 
-`static/manual.html` es una página aparte, con su propio CSS. Describe la interfaz con los nombres de sus botones: si cambias textos visibles de la app, revísalo.
+`static/manual.html` es una página aparte, en un solo archivo, con la misma firma visual que la app: los mismos tokens claro/oscuro/alto contraste, el vidrio, el menú de Ajustes arriba a la derecha (tema, alto contraste, Lite y el regreso al Descargador), un fondo ambiental y una barra superior con el **Índice** desplegable, que marca la sección que se está leyendo.
+
+- **Contenido, en este orden:**
+  1. qué es el IDEAM y qué es esta herramienta;
+  2. lo que el portal no resuelve (años y estaciones por consulta, nombres de archivo, búsqueda por municipio, cobertura desconocida, altitudes, 3D, orden y cita);
+  3. cómo lo resuelve el Descargador, punto por punto;
+  4. cómo se usa en tres pasos, con los detalles plegados;
+  5. qué recibes;
+  6. cómo leer los colores;
+  7. lo que hay que tener en cuenta;
+  8. preguntas frecuentes, condiciones y glosario.
+- **Abre con la apariencia de la app.** `estilo.url_manual()` arma el enlace (en Ajustes y en los pies de página) con `?tono=claro|oscuro|sistema&alto=1|0&lite=1|0`, y un guion en el `<head>` del manual lo aplica antes de pintar. «sistema» y 0 significan «seguir al equipo». Sin parámetros, vale lo último elegido en el manual (`localStorage`, claves `ui_*`).
+- **Las tarjetas del documento usan el material sin desenfoque** (están sobre un fondo suave, que ya se ve igual). El desenfoque queda en lo que flota (barra, Ajustes, menús), así el desplazamiento es fluido en el celular.
+- **Describe la interfaz con los nombres de sus botones** y cifras reales (años por consulta, umbral de altitud de 200 m, buffer de 0,5 a 15 km, 4 descargas a la vez). Si cambias textos o límites de la app, revísalo.
 
 ## Cómo se arma la página en cada corrida
 
@@ -302,7 +315,7 @@ Todo lo visual de la app sale de `modules/estilo.py`. Este es el mapa del archiv
 
 1. **Colores y materiales**: edita `TOKENS` (claro y oscuro) y `TOKENS_ALTO` (alto contraste). Cada token es una variable CSS (`--y2k-…` o `--lg-…`); ningún componente debería tener colores propios.
 2. **Medidas y movimiento**: al principio de `CSS`, en `:root`: `--y2k-g` (margen entre piezas flotantes), `--y2k-panel-w` (ancho del panel), `--y2k-capsula` (alto de las cápsulas), `--y2k-r` y `--y2k-r-ctl` (radios), `--y2k-dur` y `--y2k-curva` (transiciones).
-3. **Tipografía**: el `@import` de Google Fonts y la regla `font-family` al principio de `CSS` (hoy, Figtree). El manual tiene la suya.
+3. **Tipografía**: el `@import` de Google Fonts y la regla `font-family` al principio de `CSS` (hoy, Figtree). El manual repite tokens y fuente en su propio `<style>`: si cambias la estética de la app, cámbiala también allí.
 4. **Forma de los componentes**: las reglas de `CSS` y de los bloques por tamaño. Están agrupadas por zona y comentadas (material, escenario, Ajustes, pantalla 1, pantalla 2: panel, tablero, herramientas, píldoras y ficha; pantalla 3: avance, recibo y resumen; cambio de pantalla).
 5. **Colores que no son CSS**: `PALETAS` (gráficas y 3D) y `.streamlit/config.toml` (widgets de Streamlit: listas, deslizadores, fechas). Deben coincidir con los tokens.
 6. **Controles de Leaflet**: `CSS_IFRAME`, dentro de `_UI`. Vive en el iframe del mapa, que no hereda las variables de la página: sus colores están escritos a mano para cada caso (clases `y2k-oscuro`, `y2k-alto`, `y2k-lite`, `y2k-bajo` que el guion pone en el `<html>` del iframe).

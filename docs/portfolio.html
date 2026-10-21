@@ -117,6 +117,11 @@ footer { border-top: 1px solid var(--rule); padding-top: 20px; color: var(--mute
 <section>
   <h2><span class="n">03</span>IDEAM Station Data Downloader</h2>
   <div class="note">Individual project, designed and developed by me. Public release is pending authorization from IDEAM. It is not an official IDEAM product.</div>
+  <div class="meta">
+    <a href="https://github.com/blackhooper/descargador-ideam" target="_blank" rel="noopener">Source code (GitHub)</a>
+    <a href="http://dhime.ideam.gov.co/atencionciudadano/" target="_blank" rel="noopener">IDEAM DHIME data portal (official)</a>
+    <a href="https://www.ideam.gov.co" target="_blank" rel="noopener">IDEAM website</a>
+  </div>
   <div class="prose">
     <p><strong>Problem.</strong> IDEAM, Colombia's national institute for hydrology and meteorology, publishes its station records through the DHIME portal, which returns data for one station and one query at a time. A watershed study may require dozens or hundreds of stations, each downloaded and merged by hand.</p>
     <p><strong>Solution.</strong> A web application in which the user defines a study area on a map. The application identifies every station within it, estimates the data coverage of each station for the requested period, and returns a single organized package with merged spreadsheets, a summary table and the source citation.</p>

@@ -1,0 +1,209 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="Juan Real, GIS & Spatial Data Analyst in Bogotá: watershed analysis in ArcGIS and the IDEAM station data downloader.">
+<title>Juan Real · GIS Portfolio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Serif:wght@500;600&family=IBM+Plex+Mono:wght@400&display=swap">
+<style>
+/* Layout: a formal one-column document, organized by the five questions of the application. */
+:root {
+  --page: #ffffff;
+  --band: #f4f6f8;
+  --ink: #17212b;
+  --muted: #55626e;
+  --rule: #d9dfe4;
+  --accent: #1d4e74;
+  --serif: "IBM Plex Serif", Georgia, "Times New Roman", serif;
+  --sans: "IBM Plex Sans", "Segoe UI", Helvetica, Arial, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --page: #11181f; --band: #18212a; --ink: #e5ebf0; --muted: #a3b0bb; --rule: #2c3944; --accent: #8fbbe0;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --page: #11181f; --band: #18212a; --ink: #e5ebf0; --muted: #a3b0bb; --rule: #2c3944; --accent: #8fbbe0;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--page); color: var(--ink);
+  font: 400 16.5px/1.65 var(--sans);
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+.doc { max-width: 780px; margin: 0 auto; padding-block: 56px 72px; display: grid; gap: 52px; }
+h1, h2, h3 { margin: 0; text-wrap: balance; }
+h1 { font: 600 clamp(1.9rem, 4.6vw, 2.5rem)/1.15 var(--serif); }
+h2 { font: 600 1.35rem/1.25 var(--serif); }
+h3 { font: 600 1rem/1.4 var(--sans); }
+p { margin: 0; }
+a { color: var(--accent); text-underline-offset: 3px; overflow-wrap: anywhere; }
+a:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+section { display: grid; gap: 16px; }
+.prose { display: grid; gap: 12px; max-width: 68ch; }
+.muted { color: var(--muted); }
+
+header { display: grid; gap: 12px; padding-bottom: 28px; border-bottom: 2px solid var(--ink); }
+.kicker { font: 400 0.8rem/1 var(--mono); letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.role { font: 500 1.1rem/1.4 var(--sans); color: var(--accent); }
+.links { display: flex; flex-wrap: wrap; gap: 6px 22px; font-size: 0.95rem; }
+
+.qhead { display: grid; gap: 8px; padding-bottom: 12px; border-bottom: 1px solid var(--rule); }
+.qnum { font: 400 0.8rem/1 var(--mono); letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+.question { font-style: italic; color: var(--muted); max-width: 68ch; }
+
+.note { background: var(--band); border-left: 3px solid var(--accent); padding: 14px 16px; font-size: 0.95rem; max-width: 68ch; }
+
+ul.list { margin: 0; padding-left: 1.2em; display: grid; gap: 8px; max-width: 68ch; }
+ul.list li::marker { color: var(--muted); }
+
+.table-wrap { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; min-width: 600px; font-size: 0.94rem; }
+th, td { text-align: left; vertical-align: top; padding: 10px 14px 10px 0; border-bottom: 1px solid var(--rule); }
+th { font: 600 0.78rem/1.3 var(--sans); letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); border-bottom: 1px solid var(--ink); }
+td:first-child { font-weight: 600; width: 30%; }
+code { font: 400 0.88em var(--mono); }
+
+footer { border-top: 1px solid var(--rule); padding-top: 20px; color: var(--muted); font-size: 0.88rem; }
+
+@media (max-width: 520px) {
+  body { font-size: 16px; }
+  .doc { padding-block: 32px 56px; gap: 44px; }
+}
+</style>
+</head>
+<body>
+<div class="doc">
+
+<header>
+  <span class="kicker">Portfolio · GIS &amp; Land Feasibility Analyst application</span>
+  <h1>Juan Real</h1>
+  <p class="role">GIS &amp; Spatial Data Analyst · Bogotá, Colombia</p>
+  <div class="links">
+    <a href="https://descargador-ideam.streamlit.app/?tema=oscuro" target="_blank" rel="noopener">IDEAM Downloader (live app)</a>
+    <a href="https://github.com/blackhooper/descargador-ideam" target="_blank" rel="noopener">Source code (GitHub)</a>
+  </div>
+</header>
+
+<section>
+  <div class="prose">
+    <p>This page answers the five questions of your application with my own work: a watershed study I did in ArcGIS, and the tool I built afterwards to solve the data problem I ran into while doing it.</p>
+  </div>
+</section>
+
+<section>
+  <div class="qhead">
+    <span class="qnum">1 · GIS experience</span>
+    <h2>ArcGIS for watershed analysis, Python for spatial processing</h2>
+    <p class="question">What GIS tools have you used, and what types of projects have you worked on?</p>
+  </div>
+  <div class="prose">
+    <p>I have used ArcGIS, mainly the Spatial Analyst hydrology tools, for watershed analysis. For the Sucre watershed I produced:</p>
+  </div>
+  <ul class="list">
+    <li>A slope classification map</li>
+    <li>A shaded relief (hillshade) map</li>
+    <li>Contour lines</li>
+    <li>The drainage network</li>
+    <li>A map of the precipitation stations, with a color gradient showing how far each station's rainfall is from the basin's mean</li>
+  </ul>
+  <div class="prose">
+    <p>To make that last map I had to download rainfall records from IDEAM, Colombia's national hydrology and weather institute, one station at a time. It took hours, so I built my own tool to do it. That tool is my main project and the subject of the next answers. I built it in Python with GeoPandas and Shapely for the spatial work, and it runs as a web app that also works on a phone.</p>
+  </div>
+</section>
+
+<section>
+  <div class="qhead">
+    <span class="qnum">2 · Spatial analysis</span>
+    <h2>Selecting stations by area, buffer and data coverage</h2>
+    <p class="question">Can you describe a project where you combined geographic data layers, used buffers or drive-time analysis, or filtered locations based on specific criteria?</p>
+  </div>
+  <div class="prose">
+    <p>In the IDEAM Downloader, the user defines a study area and the app returns the stations worth using inside it. These are the steps, and what each one solved:</p>
+  </div>
+  <ul class="list">
+    <li><strong>Study area.</strong> Drawn on the map, or uploaded as a Shapefile, GeoJSON, KML or GeoPackage. Many real files arrived with self-intersecting polygons or no coordinate system, so the app repairs the geometry and refuses files whose coordinates it cannot place, instead of guessing.</li>
+    <li><strong>Buffer.</strong> Stations just outside a watershed are often still useful, so the user can add a buffer. I compute it in a metric projection for Colombia (MAGNA-SIRGAS, <code>EPSG:3116</code>) so that 2 km really means 2 km.</li>
+    <li><strong>Spatial join.</strong> A point-in-polygon join between the national station catalog and the area plus buffer. Users can also select stations by department, municipality and station code, like in the official portal.</li>
+    <li><strong>Filter by criteria.</strong> Each station gets an estimate of how much of the requested period its records cover, classified as high (70% or more), medium, low or critical. The map can be filtered by that range before downloading.</li>
+    <li><strong>Cross-check.</strong> I found stations whose altitude in the catalog did not match the terrain. The app now compares each one against an elevation model and flags the ones that disagree, so they are reviewed instead of trusted.</li>
+  </ul>
+  <div class="prose">
+    <p>I have not done drive-time analysis yet. For truck-stop screening I would follow the same pattern: buffers or drive-time areas around interchanges, a join with competitors, traffic and parcels, and flags for anything that needs a closer look.</p>
+  </div>
+</section>
+
+<section>
+  <div class="qhead">
+    <span class="qnum">3 · Data research</span>
+    <h2>Combining public sources that were not made to work together</h2>
+    <p class="question">Have you collected or consolidated data from multiple websites, public databases, or other sources? What tools or methods did you use?</p>
+  </div>
+  <div class="prose">
+    <p>The downloader combines these sources:</p>
+  </div>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>Source</th><th>What I use it for</th></tr></thead>
+      <tbody>
+        <tr><td><a href="http://dhime.ideam.gov.co/atencionciudadano/" target="_blank" rel="noopener">IDEAM DHIME portal</a></td><td>Time series of every station: precipitation, temperature, river levels and other variables</td></tr>
+        <tr><td>IDEAM national station catalog</td><td>Location, altitude, municipality and status of each station</td></tr>
+        <tr><td>Terrain model (SRTM-based elevation tiles)</td><td>Checking station altitudes and drawing the 3D relief</td></tr>
+        <tr><td>Esri satellite and relief, OpenStreetMap, NASA night imagery</td><td>Basemaps to locate the study area</td></tr>
+        <tr><td>User files (Shapefile, GeoJSON, KML, GeoPackage)</td><td>The study area itself</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <div class="prose">
+    <p>The DHIME portal has no public documentation for its data service, so I studied how the portal requests the data and automated it in Python. Long periods are split into blocks of years, the spreadsheets that come back are merged into one file per station, and the app limits itself to four downloads at a time so it does not overload the public server.</p>
+  </div>
+</section>
+
+<section>
+  <div class="qhead">
+    <span class="qnum">4 · Decision-ready deliverables</span>
+    <h2>A package that shows which data is worth using</h2>
+    <p class="question">Can you share an example of a map, spreadsheet, dashboard, or report you created to support a business decision? What was your personal contribution?</p>
+  </div>
+  <div class="prose">
+    <p>The decision the downloader supports is which stations to use in a study, before spending time on them. The map shows each station colored by data coverage, and the final download is one ZIP with:</p>
+  </div>
+  <ul class="list">
+    <li>One Excel file per station, already merged, in IDEAM's original format</li>
+    <li>A summary table with one row per station and its coverage</li>
+    <li>Optional folders by coverage class, so the best data is easy to find</li>
+    <li>A citation file with the source in the format IDEAM requires</li>
+  </ul>
+  <div class="prose">
+    <p>Before downloading, the app also estimates the size and time of the download. I checked that estimate against real downloads and it stays within a few percent.</p>
+    <p>My contribution: the whole project is mine. I designed it, wrote the code, built the interface and wrote the user manual. The Sucre watershed maps are also my own work.</p>
+  </div>
+  <div class="note">Individual project. Its public release is pending authorization from IDEAM, and it is not an official IDEAM product. The station data belongs to IDEAM and is cited in every download.</div>
+</section>
+
+<section>
+  <div class="qhead">
+    <span class="qnum">5 · Availability</span>
+    <h2>Based in Bogotá, available during Arizona business hours</h2>
+    <p class="question">Are you currently based in Latin America, and would you be able to work part-time during the client's business hours (9 AM–5 PM Arizona time, UTC-7)?</p>
+  </div>
+  <div class="prose">
+    <p>Yes. I live in Bogotá, Colombia (UTC-5). 9 AM–5 PM in Arizona is 11 AM–7 PM for me, all year, because neither place changes its clocks. I can work part-time in that window.</p>
+  </div>
+</section>
+
+<footer>
+  <p>Links: <a href="https://descargador-ideam.streamlit.app/?tema=oscuro" target="_blank" rel="noopener">live app</a> · <a href="https://github.com/blackhooper/descargador-ideam" target="_blank" rel="noopener">source code</a> · <a href="http://dhime.ideam.gov.co/atencionciudadano/" target="_blank" rel="noopener">IDEAM DHIME portal</a> · <a href="https://www.ideam.gov.co" target="_blank" rel="noopener">IDEAM</a></p>
+</footer>
+
+</div>
+
+</body>
+</html>

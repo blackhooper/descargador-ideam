@@ -4,6 +4,9 @@ from html import escape
 import streamlit as st
 import streamlit.components.v1 as components
 
+from modules import idioma
+from modules.idioma import tr
+
 # ===========================================================================
 # DISENO: TRES PANTALLAS SOBRE UN MISMO MAPA, CON CONTROLES DE VIDRIO LIQUIDO
 # El mapa 2D ocupa siempre la ventana (escenario) y no se vuelve a cargar al
@@ -19,8 +22,8 @@ import streamlit.components.v1 as components
 #      estacion elegida.
 #   3. Exportacion: el mapa velado otra vez y una tarjeta con el avance real,
 #      el recibo de la descarga, el nombre del ZIP y las condiciones de uso.
-# Arriba a la derecha, en todas: un unico menu de Ajustes (tema, alto
-# contraste, modo Lite y manual).
+# Arriba a la derecha, en todas: el boton de idioma (espanol o ingles) y un
+# unico menu de Ajustes (tema, alto contraste, modo Lite y manual).
 # El vidrio deja ver el mapa (desenfoque y saturacion del fondo), tiene brillo
 # especular que sigue al puntero, canto de luz y sombra de profundidad. Ninguna
 # superficie de vidrio se desplaza: si el contenido no cabe, se desplaza un
@@ -365,6 +368,9 @@ a{color:var(--y2k-accent-texto)}
 :is(.st-key-y2k_ajustes,.st-key-y2k_filtro:not(:has(.y2k-filtro-on))) .stPopover button{position:relative !important}
 :is(.st-key-y2k_ajustes,.st-key-y2k_filtro:not(:has(.y2k-filtro-on))) .stPopover button [data-testid="stIconMaterial"]{
   position:absolute !important;left:50% !important;top:50% !important;transform:translate(-50%,-50%);margin:0 !important}
+.st-key-y2k_idioma button{min-width:36px;height:36px;min-height:36px;padding:0 8px !important;border-radius:999px;
+  font:700 12px/1 "Figtree",sans-serif !important;letter-spacing:.06em;color:var(--y2k-ink) !important}
+.st-key-y2k_idioma button p{font:inherit !important}
 .y2k-lite-chip{display:inline-flex;align-items:center;height:28px;padding:0 10px 0 8px;border-radius:999px;font:700 12px/1 "Figtree",sans-serif;
   letter-spacing:.04em;color:var(--y2k-sobre-acento);background:var(--y2k-accent);gap:4px}
 .y2k-lite-chip svg{width:13px;height:13px}
@@ -1173,37 +1179,50 @@ def _cambiar_contraste():
     _query("contraste", st.session_state.contraste, "sistema")
 
 
-def toggle_lite(clave, etiqueta="Modo Lite", ayuda=None, disabled=False):
+def _cambiar_idioma():
+    """Boton de idioma: pasa de espanol a ingles o al reves. El mapa 2D se monta de nuevo para que los textos de su
+    barra de dibujo (Leaflet.draw) salgan en el idioma nuevo."""
+    ss = st.session_state
+    ss.idioma = "es" if idioma.actual() == "en" else "en"
+    _query("lang", ss.idioma, "es")
+    ss.version_mapa = ss.get("version_mapa", 0) + 1
+
+
+def toggle_lite(clave, etiqueta=None, ayuda=None, disabled=False):
     """Interruptor del modo Lite (en Ajustes); lee y escribe ss.lite."""
     ss = st.session_state
     ss[clave] = bool(ss.get("lite", False))
-    st.toggle(etiqueta, key=clave, on_change=_cambiar_lite, args=(clave,), disabled=disabled,
-              help=ayuda or ("Menos efectos visuales (sin desenfoque ni animaciones) y un 3D más liviano. "
-                             "Los datos y las funciones son los mismos."))
+    st.toggle(etiqueta or tr("Modo Lite"), key=clave, on_change=_cambiar_lite, args=(clave,), disabled=disabled,
+              help=ayuda or tr("Menos efectos visuales (sin desenfoque ni animaciones) y un 3D más liviano. "
+                               "Los datos y las funciones son los mismos."))
 
 
 def ajustes(bloqueado=False):
-    """Menu de Ajustes (arriba a la derecha). `bloqueado` lo desactiva mientras corre una descarga: cambiar algo
-    recargaria la pagina y la detendria."""
+    """Boton de idioma y menu de Ajustes (arriba a la derecha). `bloqueado` los desactiva mientras corre una
+    descarga: cambiar algo recargaria la pagina y la detendria."""
     ss = st.session_state
     with st.container(key="y2k_ajustes", horizontal=True, gap=None, wrap=False, vertical_alignment="center"):
         if ss.get("lite"):
-            md(f'<span class="y2k-lite-chip" title="Modo Lite activado">{ICONOS["rayo"]}Lite</span>')
-        with st.popover("Ajustes", icon=":material/contrast:", disabled=bloqueado,
-                        help="Durante la descarga los ajustes quedan bloqueados" if bloqueado else None):
-            md('<p class="y2k-menu-tit">Apariencia</p>')
+            md(f'<span class="y2k-lite-chip" title="{tr("Modo Lite activado")}">{ICONOS["rayo"]}Lite</span>')
+        # muestra el idioma al que se cambia: "EN" en espanol, "ES" en ingles
+        en = idioma.actual() == "en"
+        st.button("ES" if en else "EN", key="y2k_idioma", type="tertiary", on_click=_cambiar_idioma,
+                  disabled=bloqueado, help="Ver en español" if en else "View in English")
+        with st.popover(tr("Ajustes"), icon=":material/contrast:", disabled=bloqueado,
+                        help=tr("Durante la descarga los ajustes quedan bloqueados") if bloqueado else None):
+            md(f'<p class="y2k-menu-tit">{tr("Apariencia")}</p>')
             ss.pref_tono = "Oscuro" if tono(ss.get("tema", "sistema")) == "oscuro" else "Claro"
-            st.segmented_control("Tema", ["Claro", "Oscuro"], key="pref_tono", on_change=_cambiar_tema, required=True,
-                                 width="stretch")
+            st.segmented_control(tr("Tema"), ["Claro", "Oscuro"], key="pref_tono", on_change=_cambiar_tema,
+                                 required=True, width="stretch", format_func=tr)
             ss.pref_alto = ss.get("contraste") == "alto"
-            st.toggle("Alto contraste", key="pref_alto", on_change=_cambiar_contraste,
-                      help="Superficies opacas, bordes nítidos y foco más grueso. Si tu equipo pide más contraste, "
-                           "se aplica solo.")
-            md('<p class="y2k-menu-tit">Rendimiento</p>')
+            st.toggle(tr("Alto contraste"), key="pref_alto", on_change=_cambiar_contraste,
+                      help=tr("Superficies opacas, bordes nítidos y foco más grueso. Si tu equipo pide más contraste, "
+                              "se aplica solo."))
+            md(f'<p class="y2k-menu-tit">{tr("Rendimiento")}</p>')
             toggle_lite("lite_menu")
             md(f'<a class="y2k-enlace" href="app/static/manual.html" target="_blank" rel="noopener">{ICONOS["manual"]}'
-               'Manual de usuario<span class="y2k-vh"> (se abre en otra pestaña)</span></a>')
-            st.markdown('<p class="y2k-hint">Las animaciones respetan la opción de reducir el movimiento de tu equipo.</p>',
+               f'{tr("Manual de usuario")}<span class="y2k-vh"> ({tr("se abre en otra pestaña")})</span></a>')
+            st.markdown(f'<p class="y2k-hint">{tr("Las animaciones respetan la opción de reducir el movimiento de tu equipo.")}</p>',
                         unsafe_allow_html=True)
 
 
@@ -2152,7 +2171,9 @@ _UI = r"""
 
 def instalar_ui():
     """Inyecta el guion de la interfaz en la pagina principal (sobrevive a las recargas de Streamlit)."""
-    codigo = (_UI.replace("__V__", "36").replace("__ICONO_ALERTA__", json.dumps(ICONOS["alerta"]))
+    # la version lleva el idioma: al cambiarlo, el guion se instala de nuevo con sus textos
+    codigo = (idioma.traducir_js(_UI).replace("__V__", "36-" + idioma.actual())
+              .replace("__ICONO_ALERTA__", json.dumps(ICONOS["alerta"]))
               .replace("__MOVIL__", json.dumps(MOVIL)).replace("__VIDRIO__", json.dumps(VIDRIO)))
     cuerpo = ("(function(){var w=window.parent;var s=w.document.createElement('script');"
               f"s.textContent={json.dumps(codigo)};w.document.head.appendChild(s);s.remove();}})();")
@@ -2164,18 +2185,19 @@ def instalar_ui():
 # ---------------------------------------------------------------------------
 def cabecera_inicio():
     md('<header class="y2k-cab-inicio"><p class="eyebrow">IDEAM</p>'
-       '<h1>Consulta y descarga de datos hidrometeorológicos</h1></header>')
+       f'<h1>{tr("Consulta y descarga de datos hidrometeorológicos")}</h1></header>')
 
 
 def etiqueta(texto, punto=None, opcional=False):
     """Etiqueta visible de un campo (la del widget queda oculta pero accesible). `punto`: estado de la lista de
     variables del IDEAM ("cargando", "listo" o "error"): un punto pequeno que se enciende cuando esta lista. Es la
     unica senal de la carga (sin textos)."""
-    titulos = {"cargando": "Lista de variables del IDEAM: pendiente", "listo": "Lista de variables del IDEAM: disponible",
-               "error": "Lista de variables del IDEAM: no disponible"}
+    titulos = {"cargando": tr("Lista de variables del IDEAM: pendiente"),
+               "listo": tr("Lista de variables del IDEAM: disponible"),
+               "error": tr("Lista de variables del IDEAM: no disponible")}
     pt = (f'<span class="y2k-punto" data-estado="{punto}" role="img" aria-label="{titulos[punto]}"></span>') if punto else ""
     md(f'<p class="y2k-etq"><span aria-hidden="true">{texto}</span>'
-       f'{"<span class=opc aria-hidden=true>· opcional</span>" if opcional else ""}{pt}</p>')
+       f'{"<span class=opc aria-hidden=true>· " + tr("opcional") + "</span>" if opcional else ""}{pt}</p>')
 
 
 def marca_listo(listo):
@@ -2189,25 +2211,25 @@ def aviso(resumen, detalle="", tono="alerta"):
     rol = ' role="alert"' if tono == "error" else ""
     if detalle:
         md(f'<details class="y2k-aviso" data-tono="{tono}"{rol}><summary>{icono}<span>{escape(resumen)}</span>'
-           f'<span class="ver">Ver más</span></summary><div><p>{escape(detalle)}</p></div></details>')
+           f'<span class="ver">{tr("Ver más")}</span></summary><div><p>{escape(detalle)}</p></div></details>')
     else:
         md(f'<p class="y2k-aviso" data-tono="{tono}"{rol}>{icono}<span>{escape(resumen)}</span></p>')
 
 
 def como_funciona():
     """Pasos de la consulta (el actual resaltado). En el celular solo los titulos."""
-    md('<ol class="y2k-como" aria-label="Pasos de la consulta">'
-       '<li aria-current="step"><b>Establecer parámetros</b><span>Serie, variable y periodo.</span></li>'
-       '<li><b>Delimitar el área de análisis</b><span>Zona de estudio y cobertura de cada estación.</span></li>'
-       '<li><b>Preparar la descarga</b><span>Nombre del ZIP y organización de los archivos.</span></li></ol>')
+    md(f'<ol class="y2k-como" aria-label="{tr("Pasos de la consulta")}">'
+       f'<li aria-current="step"><b>{tr("Establecer parámetros")}</b><span>{tr("Serie, variable y periodo.")}</span></li>'
+       f'<li><b>{tr("Delimitar el área de análisis")}</b><span>{tr("Zona de estudio y cobertura de cada estación.")}</span></li>'
+       f'<li><b>{tr("Preparar la descarga")}</b><span>{tr("Nombre del ZIP y organización de los archivos.")}</span></li></ol>')
 
 
 def pie_inicio(texto_legal):
     md('<footer class="y2k-pie-inicio">'
-       f'<details class="y2k-det"><summary><span>Datos del IDEAM: uso personal y no comercial; cita la fuente.</span>'
-       f'<span class="ver">Ver condiciones</span></summary><div><p>{texto_legal}</p></div></details>'
-       '<p>Herramienta independiente, no oficial del IDEAM · '
-       '<a href="app/static/manual.html" target="_blank" rel="noopener">Manual de usuario</a></p></footer>')
+       f'<details class="y2k-det"><summary><span>{tr("Datos del IDEAM: uso personal y no comercial; cita la fuente.")}</span>'
+       f'<span class="ver">{tr("Ver condiciones")}</span></summary><div><p>{texto_legal}</p></div></details>'
+       f'<p>{tr("Herramienta independiente, no oficial del IDEAM")} · '
+       f'<a href="app/static/manual.html" target="_blank" rel="noopener">{tr("Manual de usuario")}</a></p></footer>')
 
 
 # ---------------------------------------------------------------------------
@@ -2215,23 +2237,23 @@ def pie_inicio(texto_legal):
 # ---------------------------------------------------------------------------
 def cabecera_panel():
     """Titulo del panel de la consulta y su boton: plegar (escritorio) o cerrar la tarjeta (celular)."""
-    md('<div class="y2k-panel-cab" id="y2k-panel"><p class="t" role="heading" aria-level="1">Consulta</p><div>'
-       f'<button type="button" class="y2k-ico y2k-panel-cerrar" data-y2k-panel-btn aria-expanded="true" aria-label="Ocultar la consulta" '
-       f'title="Ocultar la consulta">{ICONOS["panel"]}</button>'
-       f'<button type="button" class="y2k-ico y2k-hoja-cerrar" data-y2k-hoja-cerrar aria-label="Cerrar la consulta" '
-       f'title="Cerrar">{ICONOS["cerrar"]}</button></div></div>')
+    md(f'<div class="y2k-panel-cab" id="y2k-panel"><p class="t" role="heading" aria-level="1">{tr("Consulta")}</p><div>'
+       f'<button type="button" class="y2k-ico y2k-panel-cerrar" data-y2k-panel-btn aria-expanded="true" '
+       f'aria-label="{tr("Ocultar la consulta")}" title="{tr("Ocultar la consulta")}">{ICONOS["panel"]}</button>'
+       f'<button type="button" class="y2k-ico y2k-hoja-cerrar" data-y2k-hoja-cerrar aria-label="{tr("Cerrar la consulta")}" '
+       f'title="{tr("Cerrar")}">{ICONOS["cerrar"]}</button></div></div>')
 
 
 def boton_consulta():
     """Boton "Consulta" de la barra de abajo (solo en el celular): abre y cierra la tarjeta de la consulta."""
     md(f'<button type="button" class="y2k-ico con-texto y2k-consulta" data-y2k-consulta aria-expanded="false" '
-       f'aria-controls="y2k-panel">{ICONOS["consulta"]}Consulta</button>')
+       f'aria-controls="y2k-panel">{ICONOS["consulta"]}{tr("Consulta")}</button>')
 
 
 def boton_abrir_panel():
     """Boton para volver a mostrar el panel cuando esta plegado (escritorio; va en el contenedor y2k_abrir)."""
-    md(f'<button type="button" class="y2k-ico con-texto" data-y2k-panel-btn aria-expanded="false" aria-label="Mostrar la consulta">'
-       f'{ICONOS["panel_abrir"]}Consulta</button>')
+    md(f'<button type="button" class="y2k-ico con-texto" data-y2k-panel-btn aria-expanded="false" '
+       f'aria-label="{tr("Mostrar la consulta")}">{ICONOS["panel_abrir"]}{tr("Consulta")}</button>')
 
 
 def seccion(titulo, valor="", capsula=None, chip=None):
@@ -2243,7 +2265,7 @@ def seccion(titulo, valor="", capsula=None, chip=None):
     elif chip:
         texto, ayuda = chip
         extra = (f'<button type="button" class="y2k-chip" data-y2k-pulsar="chip_param" title="{escape(ayuda)}" '
-                 f'aria-label="Variable: {escape(texto)}. Cambiar la variable o el periodo">{ICONOS["volver"]}'
+                 f'aria-label="{tr("Variable")}: {escape(texto)}. {tr("Cambiar la variable o el periodo")}">{ICONOS["volver"]}'
                  f'<span>{escape(texto)}</span></button>')
     elif valor:
         extra = f'<span class="valor">{escape(valor)}</span>'
@@ -2253,15 +2275,19 @@ def seccion(titulo, valor="", capsula=None, chip=None):
 def acciones_area(hay_cuenca, vista="2D"):
     """Formas de marcar o cambiar el area (botones que maneja el guion de la interfaz, sin recargar)."""
     if vista == "3D":
-        md('<p class="y2k-hint">Para cambiar el área, vuelve a la vista 2D.</p>'
-           f'<div class="y2k-acciones"><button type="button" class="y2k-boton sec" data-y2k-2d>{ICONOS["mapa2d"]}Ver en 2D</button></div>')
+        md(f'<p class="y2k-hint">{tr("Para cambiar el área, vuelve a la vista 2D.")}</p>'
+           f'<div class="y2k-acciones"><button type="button" class="y2k-boton sec" data-y2k-2d>{ICONOS["mapa2d"]}'
+           f'{tr("Ver en 2D")}</button></div>')
         return
     if not hay_cuenca:
         return   # dibujar o subir el area se hace desde la capsula de herramientas (lapiz), sin repetirlo aqui
     md('<div class="y2k-acciones fichas">'
-       f'<button type="button" class="y2k-boton sec" data-y2k-dibujar title="Dibujar otro rectángulo">{ICONOS["dibujar"]}Redibujar</button>'
-       f'<button type="button" class="y2k-boton sec" data-y2k-editar title="Ajustar las esquinas">{ICONOS["ajustar"]}Ajustar</button>'
-       f'<button type="button" class="y2k-boton sec peligro" data-y2k-borrar title="Borrar el área">{ICONOS["borrar"]}Borrar</button>'
+       f'<button type="button" class="y2k-boton sec" data-y2k-dibujar title="{tr("Dibujar otro rectángulo")}">'
+       f'{ICONOS["dibujar"]}{tr("Redibujar")}</button>'
+       f'<button type="button" class="y2k-boton sec" data-y2k-editar title="{tr("Ajustar las esquinas")}">'
+       f'{ICONOS["ajustar"]}{tr("Ajustar")}</button>'
+       f'<button type="button" class="y2k-boton sec peligro" data-y2k-borrar title="{tr("Borrar el área")}">'
+       f'{ICONOS["borrar"]}{tr("Borrar")}</button>'
        '</div>')
 
 
@@ -2270,7 +2296,7 @@ def ubicacion_elegida(texto):
     (pulsa el boton oculto y2k_quitar_ubicacion; vuelve al modo area)."""
     md(f'<p class="y2k-hint y2k-ubic">{ICONOS["estacion"]}<span>{escape(texto)}</span></p>'
        '<div class="y2k-acciones"><button type="button" class="y2k-boton sec" data-y2k-pulsar="y2k_quitar_ubicacion" '
-       f'title="Elegir las estaciones con un área del mapa">{ICONOS["cerrar"]}Quitar filtro</button></div>')
+       f'title="{tr("Elegir las estaciones con un área del mapa")}">{ICONOS["cerrar"]}{tr("Quitar filtro")}</button></div>')
 
 
 def kpis(items):
@@ -2288,34 +2314,36 @@ CAPAS_2D = ("Satélite con nombres", "Satélite", "Relieve", "Calles", "Satélit
 
 def herramientas_2d(hay_cuenca):
     """Capsula de herramientas del mapa 2D (va en el contenedor y2k_herr): menu de dibujo, menu de capas y zoom."""
-    extra = (f'<hr><button type="button" role="menuitem" data-y2k-editar>{ICONOS["ajustar"]}<span>Ajustar las esquinas'
-             '<small>Arrastra los vértices y pulsa «Guardar»</small></span></button>'
-             f'<button type="button" role="menuitem" class="peligro" data-y2k-borrar>{ICONOS["borrar"]}<span>Borrar el área</span></button>'
+    extra = (f'<hr><button type="button" role="menuitem" data-y2k-editar>{ICONOS["ajustar"]}<span>{tr("Ajustar las esquinas")}'
+             f'<small>{tr("Arrastra los vértices y pulsa «Guardar»")}</small></span></button>'
+             f'<button type="button" role="menuitem" class="peligro" data-y2k-borrar>{ICONOS["borrar"]}'
+             f'<span>{tr("Borrar el área")}</span></button>'
              ) if hay_cuenca else ""
     capas = "".join(f'<button type="button" role="menuitemradio" aria-checked="{"true" if i == 0 else "false"}" '
-                    f'data-y2k-capa="{n}"><span>{n}</span></button>'
+                    f'data-y2k-capa="{n}"><span>{tr(n)}</span></button>'
                     for i, n in enumerate(CAPAS_2D))
-    md('<div class="y2k-herr" role="toolbar" aria-orientation="vertical" aria-label="Herramientas del mapa">'
+    md(f'<div class="y2k-herr" role="toolbar" aria-orientation="vertical" aria-label="{tr("Herramientas del mapa")}">'
        '<div class="y2k-grupo">'
        f'<button type="button" class="h" data-y2k-menu="dibujo" aria-haspopup="menu" aria-expanded="false" '
-       f'aria-label="Dibujo del área" title="Dibujo del área">{ICONOS["lapiz"]}</button>'
-       '<div class="y2k-menu" role="menu" data-y2k-menu-de="dibujo" aria-label="Dibujo del área" hidden>'
-       '<p class="tit" aria-hidden="true">Área de estudio</p>'
+       f'aria-label="{tr("Dibujo del área")}" title="{tr("Dibujo del área")}">{ICONOS["lapiz"]}</button>'
+       f'<div class="y2k-menu" role="menu" data-y2k-menu-de="dibujo" aria-label="{tr("Dibujo del área")}" hidden>'
+       f'<p class="tit" aria-hidden="true">{tr("Área de estudio")}</p>'
        f'<button type="button" role="menuitem" data-y2k-dibujar>{ICONOS["dibujar"]}<span>'
-       f'{"Dibujar otro rectángulo" if hay_cuenca else "Dibujar un rectángulo"}<small>Haz clic y arrastra sobre el mapa</small></span></button>'
-       f'<button type="button" role="menuitem" data-y2k-area aria-disabled="true">{ICONOS["area"]}<span>Usar el área visible'
-       '<small>Primero acércate a tu zona</small></span></button>'
-       f'<button type="button" role="menuitem" data-y2k-subir>{ICONOS["archivo"]}<span>Subir un archivo'
-       '<small>SHP, GeoJSON, KML, KMZ o GPKG</small></span></button>'
+       f'{tr("Dibujar otro rectángulo") if hay_cuenca else tr("Dibujar un rectángulo")}'
+       f'<small>{tr("Haz clic y arrastra sobre el mapa")}</small></span></button>'
+       f'<button type="button" role="menuitem" data-y2k-area aria-disabled="true">{ICONOS["area"]}<span>'
+       f'{tr("Usar el área visible")}<small>{tr("Primero acércate a tu zona")}</small></span></button>'
+       f'<button type="button" role="menuitem" data-y2k-subir>{ICONOS["archivo"]}<span>{tr("Subir un archivo")}'
+       f'<small>{tr("SHP, GeoJSON, KML, KMZ o GPKG")}</small></span></button>'
        f'{extra}</div></div>'
        '<div class="y2k-grupo">'
        f'<button type="button" class="h" data-y2k-menu="capas" aria-haspopup="menu" aria-expanded="false" '
-       f'aria-label="Mapa base" title="Mapa base">{ICONOS["capas"]}</button>'
-       '<div class="y2k-menu" role="menu" data-y2k-menu-de="capas" aria-label="Mapa base" hidden>'
-       f'<p class="tit" aria-hidden="true">Mapa base</p>{capas}</div></div>'
+       f'aria-label="{tr("Mapa base")}" title="{tr("Mapa base")}">{ICONOS["capas"]}</button>'
+       f'<div class="y2k-menu" role="menu" data-y2k-menu-de="capas" aria-label="{tr("Mapa base")}" hidden>'
+       f'<p class="tit" aria-hidden="true">{tr("Mapa base")}</p>{capas}</div></div>'
        '<hr>'
-       f'<button type="button" class="h" data-y2k-zoom="mas" aria-label="Acercar" title="Acercar">{ICONOS["mas"]}</button>'
-       f'<button type="button" class="h" data-y2k-zoom="menos" aria-label="Alejar" title="Alejar">{ICONOS["menos"]}</button>'
+       f'<button type="button" class="h" data-y2k-zoom="mas" aria-label="{tr("Acercar")}" title="{tr("Acercar")}">{ICONOS["mas"]}</button>'
+       f'<button type="button" class="h" data-y2k-zoom="menos" aria-label="{tr("Alejar")}" title="{tr("Alejar")}">{ICONOS["menos"]}</button>'
        '</div>')
 
 
@@ -2326,8 +2354,8 @@ def _guia_gestos():
              ("raton", "raton_rueda", "Rueda", "Acercar o alejar"),
              ("tactil", "un_dedo", "Un dedo", "Mover el mapa"),
              ("tactil", "dos_dedos", "Dos dedos", "Girar; deslizar arriba o abajo inclina; pellizcar acerca"))
-    return ('<div class="y2k-guia" role="note" aria-label="Gestos del mapa 3D">' + "".join(
-        f'<div class="{c}">{ICONOS[i]}<span><b>{g}</b>{t}</span></div>' for c, i, g, t in filas) + '</div>')
+    return (f'<div class="y2k-guia" role="note" aria-label="{tr("Gestos del mapa 3D")}">' + "".join(
+        f'<div class="{c}">{ICONOS[i]}<span><b>{tr(g)}</b>{tr(t)}</span></div>' for c, i, g, t in filas) + '</div>')
 
 
 def herramientas_3d(textura, escala):
@@ -2335,32 +2363,33 @@ def herramientas_3d(textura, escala):
     relieve y, con Altura, su escala). La camara agrupa en un solo desplegable una cruceta (arriba y abajo inclinan, a
     los lados gira, al centro una brujula que vuelve al norte), el zoom y la guia de gestos del raton o tactiles; es la
     alternativa a los gestos. Las opciones de capas pulsan botones ocultos (y2k_tex_<n>, y2k_esc_<n>)."""
-    cruz = "".join(f'<button type="button" data-y2k-cam="{c}" aria-label="{t}" title="{t}">{ICONOS[i]}</button>'
+    cruz = "".join(f'<button type="button" data-y2k-cam="{c}" aria-label="{tr(t)}" title="{tr(t)}">{ICONOS[i]}</button>'
                    for c, i, t in (("subir", "inclinar_mas", "Inclinar más"), ("izq", "girar_izq", "Girar a la izquierda"),
                                    ("norte", "aguja", "Orientar al norte"), ("der", "girar_der", "Girar a la derecha"),
                                    ("bajar", "inclinar_menos", "Inclinar menos")))
-    zoom = "".join(f'<button type="button" data-y2k-cam="{c}" aria-label="{t}" title="{t}">{ICONOS[i]}</button>'
+    zoom = "".join(f'<button type="button" data-y2k-cam="{c}" aria-label="{tr(t)}" title="{tr(t)}">{ICONOS[i]}</button>'
                    for c, i, t in (("acercar", "mas", "Acercar"), ("alejar", "menos", "Alejar")))
     camara = (f'<div class="y2k-pad"><div class="y2k-cruz">{cruz}</div><div class="y2k-zoom-cam">{zoom}</div></div>'
               '<p class="y2k-cam-lectura" aria-hidden="true"></p><hr>' + _guia_gestos())
     texturas = "".join(f'<button type="button" role="menuitemradio" aria-checked="{"true" if t == textura else "false"}" '
-                       f'data-y2k-pulsar="y2k_tex_{i}"><span>{t}</span></button>'
+                       f'data-y2k-pulsar="y2k_tex_{i}"><span>{tr(t)}</span></button>'
                        for i, t in enumerate(("Satélite", "Topográfico", "Altura")))
-    escalas = ("<hr><p class=\"tit\" aria-hidden=\"true\">Escala de colores</p>" + "".join(
+    escalas = (f"<hr><p class=\"tit\" aria-hidden=\"true\">{tr('Escala de colores')}</p>" + "".join(
         f'<button type="button" role="menuitemradio" aria-checked="{"true" if e == escala else "false"}" '
-        f'data-y2k-pulsar="y2k_esc_{i}"><span>{e.replace("Rango", "Escala")}</span></button>'
+        f'data-y2k-pulsar="y2k_esc_{i}"><span>{tr(e.replace("Rango", "Escala"))}</span></button>'
         for i, e in enumerate(("Rango de la zona", "Rango de Colombia")))) if textura == "Altura" else ""
-    md('<div class="y2k-herr" role="toolbar" aria-orientation="vertical" aria-label="Herramientas del 3D">'
+    md(f'<div class="y2k-herr" role="toolbar" aria-orientation="vertical" aria-label="{tr("Herramientas del 3D")}">'
        '<div class="y2k-grupo">'
        f'<button type="button" class="h" data-y2k-menu="camara" aria-controls="y2k-menu-camara" aria-expanded="false" '
-       f'aria-label="Cámara: girar, inclinar y acercar" title="Cámara">{ICONOS["camara"]}</button>'
-       '<div class="y2k-menu y2k-cam-menu" role="group" id="y2k-menu-camara" data-y2k-menu-de="camara" aria-label="Cámara" hidden>'
-       f'<p class="tit" aria-hidden="true">Cámara</p>{camara}</div></div>'
+       f'aria-label="{tr("Cámara: girar, inclinar y acercar")}" title="{tr("Cámara")}">{ICONOS["camara"]}</button>'
+       f'<div class="y2k-menu y2k-cam-menu" role="group" id="y2k-menu-camara" data-y2k-menu-de="camara" '
+       f'aria-label="{tr("Cámara")}" hidden>'
+       f'<p class="tit" aria-hidden="true">{tr("Cámara")}</p>{camara}</div></div>'
        '<div class="y2k-grupo">'
        f'<button type="button" class="h" data-y2k-menu="capas3d" aria-haspopup="menu" aria-expanded="false" '
-       f'aria-label="Textura del relieve" title="Textura del relieve">{ICONOS["capas"]}</button>'
-       '<div class="y2k-menu" role="menu" data-y2k-menu-de="capas3d" aria-label="Textura del relieve" hidden>'
-       f'<p class="tit" aria-hidden="true">Textura del relieve</p>{texturas}{escalas}</div></div>'
+       f'aria-label="{tr("Textura del relieve")}" title="{tr("Textura del relieve")}">{ICONOS["capas"]}</button>'
+       f'<div class="y2k-menu" role="menu" data-y2k-menu-de="capas3d" aria-label="{tr("Textura del relieve")}" hidden>'
+       f'<p class="tit" aria-hidden="true">{tr("Textura del relieve")}</p>{texturas}{escalas}</div></div>'
        '<span class="y2k-vh y2k-camara-estado" aria-live="polite"></span></div>')
 
 
@@ -2375,26 +2404,26 @@ TITULO_LEYENDA = "Disponibilidad estimada de datos en el periodo"
 def leyenda_estaciones(colores, en3d=False, hay_excluidas=False):
     """Leyenda compacta de los pines sobre el mapa (color, forma y texto; nunca solo color). Es un desplegable: empieza
     cerrada (el resumen ya muestra los colores) y se cierra al tocar fuera de ella."""
-    filas = f'<li class="titulo">{TITULO_LEYENDA}</li>'
+    filas = f'<li class="titulo">{tr(TITULO_LEYENDA)}</li>'
     filas += "".join(f'<li><span class="pin" style="background:{c}"></span>{n}</li>' for n, c in colores)
-    filas += '<li><span class="pin hueco"></span>Sin serie</li><li class="sep" aria-hidden="true"></li>'
+    filas += f'<li><span class="pin hueco"></span>{tr("Sin serie")}</li><li class="sep" aria-hidden="true"></li>'
     if hay_excluidas:
-        filas += '<li><span class="pin fuera"></span>Excluida</li>'
-    filas += '<li><span class="pin duda" style="background:#9AA6BC"></span>Altitud dudosa</li>'
-    filas += ('<li><span class="linea" style="border-color:#35F0FF"></span>Área</li>'
+        filas += f'<li><span class="pin fuera"></span>{tr("Excluida")}</li>'
+    filas += f'<li><span class="pin duda" style="background:#9AA6BC"></span>{tr("Altitud dudosa")}</li>'
+    filas += (f'<li><span class="linea" style="border-color:#35F0FF"></span>{tr("Área")}</li>'
               '<li><span class="linea" style="border-color:#FF7A1A;border-top-style:dashed"></span>Buffer</li>'
-              '<li class="nota">Relieve exagerado ×2</li>') if en3d else (
-              '<li><span class="linea" style="border-color:#1C6FD8"></span>Área</li>'
+              f'<li class="nota">{tr("Relieve exagerado ×2")}</li>') if en3d else (
+              f'<li><span class="linea" style="border-color:#1C6FD8"></span>{tr("Área")}</li>'
               '<li><span class="linea" style="border-color:#FAB219;border-top-style:dashed"></span>Buffer</li>')
     muestras = "".join(f'<i style="background:{c}"></i>' for _, c in colores)
-    md(f'<details class="y2k-sobre lg-regular y2k-leyenda"><summary>Leyenda<span class="muestras" aria-hidden="true">'
+    md(f'<details class="y2k-sobre lg-regular y2k-leyenda"><summary>{tr("Leyenda")}<span class="muestras" aria-hidden="true">'
        f'{muestras}</span></summary><ul>{filas}</ul></details>')
 
 
 def leyenda_altura(html):
     """Leyenda de la textura "Altura" del 3D (la escala la arma terreno.leyenda_altura)."""
-    md(f'<details class="y2k-sobre lg-regular y2k-leyenda"><summary>Altitud</summary>{html}'
-       '<p class="tit">Relieve exagerado ×2</p></details>')
+    md(f'<details class="y2k-sobre lg-regular y2k-leyenda"><summary>{tr("Altitud")}</summary>{html}'
+       f'<p class="tit">{tr("Relieve exagerado ×2")}</p></details>')
 
 
 def ficha_pildora(nombre, codigo):
@@ -2402,9 +2431,10 @@ def ficha_pildora(nombre, codigo):
     abierta tapaba el mapa) y una x que quita la seleccion."""
     md(f'<div class="y2k-ficha-pil" data-codigo="{escape(codigo)}">'
        f'<button type="button" class="abrir" data-y2k-ficha-btn aria-expanded="false" '
-       f'title="Ver la ficha de la estación">{ICONOS["estacion"]}<span class="nom">{escape(nombre)}</span>'
-       f'<span class="y2k-vh">: ficha de la estación</span><span class="flecha">{ICONOS["chevron"]}</span></button>'
-       f'<button type="button" class="x" data-y2k-ficha-quitar aria-label="Quitar la selección" title="Quitar la selección">'
+       f'title="{tr("Ver la ficha de la estación")}">{ICONOS["estacion"]}<span class="nom">{escape(nombre)}</span>'
+       f'<span class="y2k-vh">: {tr("ficha de la estación")}</span><span class="flecha">{ICONOS["chevron"]}</span></button>'
+       f'<button type="button" class="x" data-y2k-ficha-quitar aria-label="{tr("Quitar la selección")}" '
+       f'title="{tr("Quitar la selección")}">'
        f'{ICONOS["cerrar"]}</button><span class="y2k-ficha-cab" hidden></span></div>')
 
 
@@ -2414,7 +2444,7 @@ def sobre_mapa(html, clase, material="lg-regular"):
 
 def detalles(resumen, cuerpo, ver="Ver detalles"):
     """Resumen breve siempre visible y el detalle desplegable (<details>, accesible con teclado)."""
-    md(f'<details class="y2k-det"><summary><span>{resumen}</span><span class="ver">{ver}</span></summary>'
+    md(f'<details class="y2k-det"><summary><span>{resumen}</span><span class="ver">{tr(ver)}</span></summary>'
        f'<div>{cuerpo}</div></details>')
 
 
@@ -2422,12 +2452,13 @@ def pie():
     """Fuente de los datos, manual y creditos de los mapas (al final del panel)."""
     f = FUENTE
     md('<footer class="y2k-pie">'
-       f'<p>Datos: <b>{f["nombre"]}</b> · <a href="{f["url"]}" target="_blank" rel="noopener">Instituto de Hidrología, '
+       f'<p>{tr("Datos")}: <b>{f["nombre"]}</b> · <a href="{f["url"]}" target="_blank" rel="noopener">Instituto de Hidrología, '
        'Meteorología y Estudios Ambientales</a></p>'
-       '<p>Uso personal, privado y no comercial; cita la fuente. Herramienta independiente, no oficial del IDEAM.</p>'
-       f'<p><a href="app/static/manual.html" target="_blank" rel="noopener">Manual de usuario</a> · versión {f["version"]}</p>'
-       f'<details class="y2k-det"><summary><span class="ver">Fuentes y créditos de los mapas</span></summary>'
-       f'<div><p>{CREDITOS_MAPAS}</p></div></details>'
+       f'<p>{tr("Uso personal, privado y no comercial; cita la fuente. Herramienta independiente, no oficial del IDEAM.")}</p>'
+       f'<p><a href="app/static/manual.html" target="_blank" rel="noopener">{tr("Manual de usuario")}</a> · '
+       f'{tr("versión")} {f["version"]}</p>'
+       f'<details class="y2k-det"><summary><span class="ver">{tr("Fuentes y créditos de los mapas")}</span></summary>'
+       f'<div><p>{tr(CREDITOS_MAPAS)}</p></div></details>'
        '</footer>')
 
 
@@ -2437,7 +2468,7 @@ def pie():
 def cabecera_exportar(titulo, estado="vivo"):
     """`estado`: "vivo" (descargando), "hecho" o "alto" (detenida o con error)."""
     punto = {"vivo": '<span class="vivo" aria-hidden="true"></span>', "hecho": '<span class="hecho" aria-hidden="true"></span>'}.get(estado, "")
-    md(f'<header class="y2k-cab-export"><p class="eyebrow">{punto}Exportación</p><h1>{titulo}</h1></header>')
+    md(f'<header class="y2k-cab-export"><p class="eyebrow">{punto}{tr("Exportación")}</p><h1>{titulo}</h1></header>')
 
 
 def progreso(fraccion, principal, meta, estado="vivo"):
@@ -2447,7 +2478,7 @@ def progreso(fraccion, principal, meta, estado="vivo"):
     clase = {"fin": " fin", "alto": " alto"}.get(estado, "")
     return (f'<div class="y2k-md"><div class="y2k-prog">'
             f'<div class="y2k-prog-cifras"><b>{pct} %</b><span>{principal}</span></div>'
-            f'<div class="y2k-barra{clase}" role="progressbar" aria-label="Avance de la descarga" aria-valuemin="0" '
+            f'<div class="y2k-barra{clase}" role="progressbar" aria-label="{tr("Avance de la descarga")}" aria-valuemin="0" '
             f'aria-valuemax="100" aria-valuenow="{pct}" aria-valuetext="{pct} %, {escape(principal)}"><i style="--p:{pct}%"></i></div>'
             f'<div class="y2k-prog-meta">{meta}</div></div></div>')
 
@@ -2462,7 +2493,7 @@ def recibo(filas):
             return f'<ul class="y2k-archivo">{items}</ul>'
         return escape(v) + (f"<small>{escape(s)}</small>" if s else "")
     html = "".join(f'<dt>{escape(e)}</dt><dd>{dd(v, s)}</dd>' for e, v, s in filas)
-    md(f'<dl class="y2k-recibo" aria-label="Recibo de la descarga">{html}</dl>')
+    md(f'<dl class="y2k-recibo" aria-label="{tr("Recibo de la descarga")}">{html}</dl>')
 
 
 def resumen_final(texto, reparto):
@@ -2473,12 +2504,12 @@ def resumen_final(texto, reparto):
     ley = "".join(f'<li><i style="background:{c}"></i>{escape(nm)} <b>{n}</b></li>' for nm, n, c in reparto if n)
     md(f'<div class="y2k-final"><p>{texto}</p>'
        + (f'<div class="y2k-reparto" aria-hidden="true">{barras}</div>'
-          f'<ul class="y2k-reparto-ley" aria-label="Estaciones guardadas por cobertura">{ley}</ul>' if ley else "")
+          f'<ul class="y2k-reparto-ley" aria-label="{tr("Estaciones guardadas por cobertura")}">{ley}</ul>' if ley else "")
        + '</div>')
 
 
 def legal_exportar(texto_legal):
     md('<div class="y2k-legal-bloque">'
-       '<p>Datos del IDEAM: uso personal y no comercial; cita la fuente (el ZIP incluye CITACION.txt).</p>'
-       f'<details class="y2k-det"><summary><span class="ver">Ver condiciones completas</span></summary>'
+       f'<p>{tr("Datos del IDEAM: uso personal y no comercial; cita la fuente (el ZIP incluye CITACION.txt).")}</p>'
+       f'<details class="y2k-det"><summary><span class="ver">{tr("Ver condiciones completas")}</span></summary>'
        f'<div><p>{texto_legal}</p></div></details></div>')

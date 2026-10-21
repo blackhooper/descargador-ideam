@@ -10,6 +10,8 @@ import pydeck as pdk
 import streamlit as st
 from PIL import Image
 
+from modules.idioma import tr
+
 # ===========================================================================
 # VISTA 3D CON RELIEVE REAL
 # ---------------------------------------------------------------------------
@@ -135,7 +137,7 @@ def leyenda_altura(minimo, maximo, escala):
     """Barra de colores con la escala de altitudes (HTML para st.markdown)."""
     gradiente = ", ".join(f"{c} {t * 100:.0f}%" for t, c in RAMPA_ALTURA)
     marcas = "".join(f"<span>{_num(minimo + (maximo - minimo) * f)}</span>" for f in (0, 0.25, 0.5, 0.75, 1))
-    return (f'<p class="tit">Altitud (m) · {escala}</p>'
+    return (f'<p class="tit">{tr("Altitud")} (m) · {escala}</p>'
             f'<div class="rampa" style="background:linear-gradient(90deg,{gradiente})"></div>'
             f'<div class="marcas">{marcas}</div>')
 
@@ -1299,7 +1301,7 @@ def construir_deck(cuenca_gdf, area_gdf, estaciones, seleccionada=None, textura=
         map_style="__MAP_STYLE__",
         tooltip={
             # Streamlit escapa el HTML que viene en los datos: el estilo va en la plantilla
-            "html": "<b>{nombre}</b><br/>{codigo} · {altitud_txt}<br/>Cantidad probable: <b>{pct_txt}</b><br/>{zona}"
+            "html": "<b>{nombre}</b><br/>{codigo} · {altitud_txt}<br/>" + tr("Cantidad probable") + ": <b>{pct_txt}</b><br/>{zona}"
                     f"<div style='color:{paleta.get('alerta', '#8A3208')}'>{{alerta}}</div>",
             "style": {"backgroundColor": paleta["superficie"], "color": paleta["tinta"], "fontFamily": "Figtree, sans-serif",
                       "fontSize": "12px", "border": f"1px solid {paleta['borde']}", "borderRadius": "10px"},

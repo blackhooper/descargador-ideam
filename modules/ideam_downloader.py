@@ -19,6 +19,7 @@ import openpyxl
 from openpyxl.utils import get_column_letter, column_index_from_string
 from modules.calidad import clasificar_calidad
 from modules import estilo
+from modules.idioma import tr
 
 # ---------------------------------------------------------------------------
 # MODO DEPURACION
@@ -1076,10 +1077,11 @@ def procesar_descargas(estaciones_df, clasificar_en_carpetas, fecha_ini, fecha_f
             print(f"[descarga] {texto}", flush=True)
 
     def pintar(fraccion, restante, terminado=False):
-        principal = "Terminando…" if terminado else (f"Faltan ≈ {duracion_texto(restante)}" if restante >= 1
-                                                    else "Faltan unos segundos")
-        meta = (f"<span>Estaciones <b>{terminadas} de {total_estaciones}</b></span>"
-                f"<span>Guardadas <b>{guardadas}</b></span><span>Omitidas <b>{terminadas - guardadas}</b></span>")
+        principal = tr("Terminando…") if terminado else (tr("Faltan ≈ {t}", t=duracion_texto(restante)) if restante >= 1
+                                                        else tr("Faltan unos segundos"))
+        meta = (tr("<span>Estaciones <b>{a} de {b}</b></span>", a=terminadas, b=total_estaciones)
+                + tr("<span>Guardadas <b>{g}</b></span><span>Omitidas <b>{o}</b></span>", g=guardadas,
+                     o=terminadas - guardadas))
         ui["progreso"].markdown(estilo.progreso(fraccion, principal, meta), unsafe_allow_html=True)
 
     token_auth = obtener_token()

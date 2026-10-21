@@ -8,11 +8,11 @@ Consulta y descarga de series hidrometeorológicas del portal **DHIME del IDEAM*
 
 Incluye vista 3D con relieve real y aviso de estaciones cuya altitud en el catálogo no coincide con el terreno.
 
-> **Portfolio (English).** A GIS case study of this project, with the spatial analysis behind it and how it applies to land and site-feasibility work, is in [`docs/portfolio.html`](docs/portfolio.html). In short: the app takes a national catalog of 9,857 stations, cuts it to any study area with metric buffers and spatial joins (Shapefile, GeoJSON, KML/KMZ or GeoPackage input, with CRS checks and geometry repair), screens each station's data coverage and cross-checks its catalog altitude against a terrain model, and delivers a sourced, organized package (merged Excel, summary CSV, citation).
+> **Portfolio (English).** A GIS case study of this project, with the spatial analysis behind it and how it applies to land and site-feasibility work, is at [blackhooper.github.io/descargador-ideam](https://blackhooper.github.io/descargador-ideam/) (source: `docs/index.html`). In short: the app takes a national catalog of 9,857 stations, cuts it to any study area with metric buffers and spatial joins (Shapefile, GeoJSON, KML/KMZ or GeoPackage input, with CRS checks and geometry repair), screens each station's data coverage and cross-checks its catalog altitude against a terrain model, and delivers a sourced, organized package (merged Excel, summary CSV, citation).
 
 ## Contenido
 
-- [Portafolio (inglés)](docs/portfolio.html): caso de estudio SIG del proyecto
+- [Portafolio (inglés)](https://blackhooper.github.io/descargador-ideam/): caso de estudio SIG del proyecto
 - [Usarla en tu computador](#usarla-en-tu-computador) · [Publicarla](#publicarla-en-streamlit-community-cloud)
 - [Cómo está organizado](#cómo-está-organizado): las tres capas y los archivos
 - [Pantallas](#pantallas): Parámetros, Mapa y Exportación (con sus planos)

@@ -4,7 +4,9 @@ from folium.plugins import Draw, FastMarkerCluster
 from shapely.geometry import shape
 import geopandas as gpd
 from modules.estilo import ATRIB_ESRI_NOMBRES, ATRIB_ESRI_RELIEVE, ATRIB_ESRI_SATELITE, ATRIB_NASA
+from modules import idioma
 from modules.calidad import clasificar_calidad
+from modules.idioma import tr
 from modules.ideam_downloader import codigo_de_estacion
 
 # ===========================================================================
@@ -115,29 +117,31 @@ def _tarjeta(row, codigo, excluida=False):
     partes = [f"<b style='font-size:13px'>{nombre}</b>",
               f"<span style='color:{TINTA_2}'>{codigo} · {_altitud_txt(row)}</span>"]
     if excluida:
-        partes.append(f"<span style='color:{TINTA_2}'>Excluida de la descarga</span>")
+        partes.append(f"<span style='color:{TINTA_2}'>{tr('Excluida de la descarga')}</span>")
     if "Porcentaje (%)" in row and pd.notna(row["Porcentaje (%)"]):
         if row.get("Serie DHIME") == "No":
-            partes.append("<span style='color:#B42318'>Sin serie de este parámetro en DHIME</span>")
+            partes.append(f"<span style='color:#B42318'>{tr('Sin serie de este parámetro en DHIME')}</span>")
         else:
-            partes.append(f"Cantidad probable <b>{row['Porcentaje (%)']:.0f} %</b> · cobertura {row.get('Clase calidad', '').lower()}")
+            partes.append(tr("Cantidad probable <b>{p} %</b> · cobertura {clase}", p=f"{row['Porcentaje (%)']:.0f}",
+                             clase=tr(row.get('Clase calidad', '')).lower()))
             if row.get("Inicio serie"):
-                partes.append(f"<span style='color:{TINTA_2}'>Serie {str(row['Inicio serie'])[:4]}–{str(row['Fin serie'])[:4]}</span>")
+                partes.append(f"<span style='color:{TINTA_2}'>{tr('Serie')} {str(row['Inicio serie'])[:4]}–"
+                              f"{str(row['Fin serie'])[:4]}</span>")
     lugar = {"cuenca": "En la cuenca", "buffer": "En el buffer"}.get(row.get("zona"))
     if lugar:
-        partes.append(f"<span style='color:{TINTA_2}'>{lugar}</span>")
+        partes.append(f"<span style='color:{TINTA_2}'>{tr(lugar)}</span>")
     if row.get("altitud_dudosa") and row.get("terreno") is not None:
-        partes.append(f"<span style='color:{ALERTA}'>⚠ Altitud dudosa: el relieve marca "
-                      f"{row['terreno']:,.0f} m</span>".replace(",", "."))
+        partes.append(f"<span style='color:{ALERTA}'>"
+                      + tr("⚠ Altitud dudosa: el relieve marca {m} m", m=idioma.num(row['terreno'])) + "</span>")
     return ("<div style='font-family:Figtree,sans-serif;font-size:12px;line-height:1.45;color:#0E1A2F'>"
             + "<br>".join(partes) + "</div>")
 
 
 def _altitud_txt(row):
     try:
-        return f"{float(row.get('altitud')):,.0f} m".replace(",", ".")
+        return f"{idioma.num(float(row.get('altitud')))} m"
     except (TypeError, ValueError):
-        return "altitud sin dato"
+        return tr("altitud sin dato")
 
 
 def _marca(marcador, pin=False):

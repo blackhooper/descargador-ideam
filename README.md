@@ -63,6 +63,7 @@ La estructura y la estética se conectan solo por **nombres**: las claves de los
 | Archivo | Capa | Para qué sirve |
 |---|---|---|
 | `app.py` | Estructura | Las tres pantallas (Parámetros, Mapa y Exportación), los huecos fijos de cada zona, las cargas por detrás, el estado de sesión y la cola de descarga |
+| `modules/idioma.py` | Idioma | `tr()` y el diccionario español → inglés de la interfaz (y de los textos del guion del navegador) |
 | `modules/estilo.py` | Estética (+ piezas) | Tokens de tema, materiales de vidrio, CSS de toda la app, iconos, menú de Ajustes, piezas HTML (tarjeta de Parámetros, secciones y cifras del panel, cápsula de herramientas, leyendas, avance, recibo) y el guion de la interfaz del navegador |
 | `modules/panel_estadisticas.py` | Estructura | Tablero de calidad del panel (cifras, altitud dudosa, lista con casillas) y ficha de la estación seleccionada |
 | `modules/map_view.py` | Estructura | Mapa 2D (Leaflet vía `streamlit-folium`): capas base, herramienta de dibujo (oculta: la maneja la cápsula de herramientas), pines (también los excluidos) y fichas emergentes |
@@ -82,6 +83,8 @@ La estructura y la estética se conectan solo por **nombres**: las claves de los
 La app tiene **tres pantallas** (`ss.paso`): `"parametros"`, `"mapa"` y `"descarga"` (Exportación). Las tres comparten el **mismo mapa 2D**, que va siempre en el mismo lugar del árbol de Streamlit (`y2k_escenario`): por eso no se vuelve a cargar al cambiar de pantalla, y en Parámetros se carga por detrás mientras la persona elige qué descargar. En Parámetros y Exportación el mapa queda velado y desenfocado (`.st-key-y2k_escenario::after`) y sin foco ni clics (`inert`).
 
 Arriba a la derecha, en las tres, va el menú **Ajustes** (`y2k_ajustes`, `estilo.ajustes`, ícono ◐ de claro/oscuro): tema claro/oscuro, alto contraste, modo Lite y manual. Con Lite activo, junto al botón aparece la marca «Lite». Durante una descarga el menú se bloquea (cambiar algo recargaría la página y la detendría).
+
+Junto a Ajustes va el botón de idioma (`y2k_idioma`): **EN** muestra la app en inglés y **ES** la devuelve al español. El idioma viaja en la dirección (`?lang=en`), así que un enlace con ese parámetro abre la app directamente en inglés. Los textos pasan por `tr()` de `modules/idioma.py`: en español salen tal cual y en inglés se buscan en su diccionario `EN` (un texto nuevo sin traducción sale en español, sin romper nada). Los nombres que vienen del IDEAM (variables, parámetros, departamentos, estaciones) y el manual no se traducen.
 
 **Sin textos de carga.** Ninguna pantalla dice «Cargando…»: la única señal de que la lista de variables del IDEAM está lista es el punto de la etiqueta «Variable», que se enciende en azul. El botón principal es siempre azul: si se pulsa antes de que todo cargó, no avanza y da dos destellos rojos. En el mapa, mientras se evalúa el área, el escáner la recorre.
 

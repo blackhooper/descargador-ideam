@@ -4,6 +4,8 @@ from pathlib import Path
 
 import streamlit.components.v1 as components
 
+from modules.idioma import tr
+
 # ===========================================================================
 # ESCANER DEL MAPA 2D
 # ---------------------------------------------------------------------------
@@ -89,7 +91,7 @@ _CONTROLADOR = r"""
     if (!preparar(win)) return;
     var c = (map.__y2kBase === "Calles" || map.__y2kBase === "Relieve") ? COLORES.mapa : COLORES.satelite;
     var lite = esLite();
-    var scan = win.ScanOverlay.leaflet(win.L, limites, {cycle: 1.8, color: c.color, halo: c.halo, label: "Buscando estaciones",
+    var scan = win.ScanOverlay.leaflet(win.L, limites, {cycle: 1.8, color: c.color, halo: c.halo, label: window.__y2kScanLabel || "Buscando estaciones",
                                                         grid: !lite, pings: !lite});
     scan.addTo(map);
     marcas(map).forEach(ocultar);
@@ -207,7 +209,9 @@ _CONTROLADOR = r"""
 def instalar():
     """Inyecta el controlador en la pagina principal (una sola vez) para que sobreviva a las recargas."""
     codigo = _CONTROLADOR.replace("__SCAN_SRC__", json.dumps(_SCAN_SRC))
-    cuerpo = ("(function(){var w=window.parent;if(w.__y2kScan)return;var s=w.document.createElement('script');"
+    # el texto del escaner va aparte: asi sigue el idioma elegido aunque el controlador ya este instalado
+    cuerpo = (f"(function(){{var w=window.parent;w.__y2kScanLabel={json.dumps(tr('Buscando estaciones'))};"
+              "if(w.__y2kScan)return;var s=w.document.createElement('script');"
               f"s.textContent={json.dumps(codigo)};w.document.head.appendChild(s);}})();")
     components.html("<script>" + cuerpo.replace("</", "<\\/") + "</script>", height=0)
 

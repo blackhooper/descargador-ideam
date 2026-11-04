@@ -1199,6 +1199,11 @@ def pantalla_descarga():
                          + (f" {'Una' if omitidas == 1 else omitidas} no {'tenía' if omitidas == 1 else 'tenían'} datos "
                             "en el periodo o el IDEAM no respondió; el detalle está en resumen_descarga.csv, dentro del "
                             "ZIP." if omitidas else ""))
+            # Verificador: completitud real (datos que llegaron) frente a la cobertura estimada antes de descargar
+            if resultado.get("completitud"):
+                real, estimada = resultado["completitud"]
+                frase += " " + tr("Completitud real media: <b>{r} %</b> (cobertura estimada {e} %).",
+                                  r=f"{real:.0f}", e=f"{estimada:.0f}")
             estilo.resumen_final(frase, panel_estadisticas.reparto_cobertura(resultado["colores"]))
             # Antes de descargar: si el ZIP va en carpetas por cobertura (el recibo de la derecha lo refleja)
             carpetas = st.checkbox(tr("Separar en carpetas por cobertura"), value=True, key="carpetas",

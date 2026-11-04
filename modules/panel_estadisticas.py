@@ -6,7 +6,7 @@ import pandas as pd
 import streamlit as st
 from modules import idioma, ideam_downloader
 from modules.calidad import CLASES_CALIDAD, clasificar_calidad
-from modules.estilo import detalles, ficha_pildora, kpis, md
+from modules.estilo import aviso, detalles, ficha_pildora, kpis, md
 from modules.idioma import tr
 from modules.terreno import ALTITUD_DUDOSA_M
 
@@ -247,6 +247,12 @@ def tablero(zona, descargables, seleccion, param, cifras, dudosas=None, rango=No
          + (tr("(una por estación: la serie multianual se pide de una vez).") if param["frecuencia"] == "Multianual"
             else tr("de hasta {d} días.", d=param['dias_bloque']))),
     ])
+    # La cantidad probable no ve los huecos: el dato real se mide al descargar (ideam_downloader.contar_datos)
+    if n_sel:
+        aviso(tr("La cobertura es estimada."),
+              tr("Mide qué parte del periodo abarca el registro de cada estación, entre su primer y su último dato, "
+                 "sin descontar los huecos internos. La completitud real (los datos que llegan de verdad) aparece al "
+                 "terminar la descarga, en el resumen y en resumen_descarga.csv."), tono="info")
 
     # Estaciones cuya altitud del catalogo no cuadra con el relieve real: una linea ambar; el detalle adentro
     if dudosas is not None and len(dudosas):

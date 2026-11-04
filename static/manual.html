@@ -439,7 +439,7 @@ dl.glosario dd{margin:0;color:var(--ink-2)}
           <strong>Cantidad probable</strong>
           <p>El IDEAM calcula, para cada estación, cuántos datos cabrían entre la primera y la última fecha con registro dentro de tu periodo, según la frecuencia de la serie. El cálculo no descuenta los datos faltantes: una serie con huecos internos cuenta igual que una continua.</p>
           <p>La app expresa ese número como porcentaje del total que tendría una serie ininterrumpida en todo tu periodo. Así que el porcentaje te dice cuánto de tu periodo alcanza a cubrir el registro de la estación, no qué tan densa es la serie por dentro. Una estación con 100 % puede tener vacíos importantes: significa que su registro empieza antes y termina después de tu periodo.</p>
-          <p>Sirve para descartar estaciones cuyo registro no llega a tu periodo. Los huecos reales se revisan en los Excel descargados.</p>
+          <p>Sirve para descartar estaciones cuyo registro no llega a tu periodo. Por eso el panel lo recuerda con la nota <em>La cobertura es estimada</em>. Los huecos reales se miden al descargar: el resumen final muestra la <strong>completitud real</strong> media y <code>resumen_descarga.csv</code> la de cada estación (ver <a href="#zip">Qué trae el ZIP</a>).</p>
         </div>
         <p>Con ese porcentaje, cada estación cae en una clase de <strong>cobertura</strong> del periodo consultado. Si dejas marcada la opción de carpetas (al final, antes de descargar el ZIP), cada Excel va en la carpeta de su clase:</p>
         <div class="clases">
@@ -546,7 +546,8 @@ dl.glosario dd{margin:0;color:var(--ink-2)}
         </div>
         <p>Buena parte de los datos recientes suele estar en nivel preliminar. Si usas los datos en un estudio formal, revisa esta columna antes de tu análisis.</p>
         <h3>El archivo resumen_descarga.csv</h3>
-        <p>Una fila por estación con su nombre, cantidad probable, clase de cobertura, si quedó <em>Guardada</em> u <em>Omitida</em>, dónde quedó en el ZIP y el detalle de cada bloque consultado. Ábrelo con Excel.</p>
+        <p>Una fila por estación con su nombre, cantidad probable, clase de cobertura, <strong>Datos reales</strong> y <strong>Completitud real (%)</strong>, si quedó <em>Guardada</em> u <em>Omitida</em>, dónde quedó en el ZIP y el detalle de cada bloque consultado. Ábrelo con Excel.</p>
+        <p>La <strong>completitud real</strong> cuenta los datos que llegaron de verdad (filas con valor en el Excel) frente a los que caben en tu periodo con la frecuencia de la serie. A diferencia de la cantidad probable, sí descuenta los huecos: una estación con 100 % de cobertura y 85 % de completitud tiene registro en todo tu periodo, pero le falta el 15 % de los datos.</p>
       </section>
 
       <section id="uso-datos">
@@ -625,6 +626,7 @@ dl.glosario dd{margin:0;color:var(--ink-2)}
           <dt>DHIME</dt><dd>El sistema del IDEAM con las series históricas de sus estaciones hidrometeorológicas. De ahí salen todos los datos.</dd>
           <dt>Serie</dt><dd>La secuencia de datos de un parámetro en una estación. El IDEAM la identifica con un código, como <code>PTPM_CON</code>, que va en el nombre de cada Excel (en la serie especial, con la frecuencia y el cálculo: <code>PTPM_CON_Decadal_SUM</code>).</dd>
           <dt>Cantidad probable</dt><dd>Cuántos datos cabrían entre la primera y la última fecha con registro de la estación dentro de tu rango, según la frecuencia. No descuenta los datos faltantes. La app la muestra como porcentaje de tu periodo.</dd>
+          <dt>Completitud real</dt><dd>Los datos que llegaron de verdad en cada Excel frente a los que caben en tu periodo. Se mide al terminar la descarga y sí descuenta los huecos.</dd>
           <dt>Cobertura</dt><dd>Qué parte del periodo consultado abarca el registro de la estación. No mide la densidad de la serie ni sus huecos internos.</dd>
           <dt>Nivel de aprobación</dt><dd>Estado de revisión de cada dato: preliminar (900), en revisión (1100) o definitivo (1200).</dd>
           <dt>Buffer</dt><dd>Franja alrededor del área, de 0,5 a 15 km, para incluir estaciones cercanas.</dd>

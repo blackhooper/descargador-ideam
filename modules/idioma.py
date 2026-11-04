@@ -205,6 +205,13 @@ EN = {
     "Estaciones del IDEAM en el área y el buffer.": "IDEAM stations in the area and the buffer.",
     " {n} tienen datos de esta variable en el periodo.": " {n} have data for this variable in the period.",
     "Cobertura media del periodo": "Mean coverage of the period",
+    "La cobertura es estimada.": "Coverage is an estimate.",
+    "Mide qué parte del periodo abarca el registro de cada estación, entre su primer y su último dato, sin descontar los huecos internos. La completitud real (los datos que llegan de verdad) aparece al terminar la descarga, en el resumen y en resumen_descarga.csv.":
+        "It measures how much of the period each station's record spans, between its first and last value, without "
+        "discounting internal gaps. The actual completeness (the data that really arrive) appears when the download "
+        "finishes, in the summary and in resumen_descarga.csv.",
+    "Completitud real media: <b>{r} %</b> (cobertura estimada {e} %).":
+        "Mean actual completeness: <b>{r} %</b> (estimated coverage {e} %).",
     "Promedio de la cantidad probable de las estaciones seleccionadas: qué parte del periodo consultado cubre su "
     "registro (no descuenta los huecos internos).":
         "Average expected record count of the selected stations: how much of the requested period their record spans "

@@ -355,6 +355,19 @@ def _leer_valores_xlsx(libro):
         wb.close()
 
 
+def contar_datos(libro):
+    """Cuantos datos trae de verdad un Excel del IDEAM: filas con fecha y valor despues del encabezado (fila 8, que
+    tiene "Valor:"). Es la base de la completitud real, que la cantidad probable no puede dar (no ve los huecos)."""
+    try:
+        filas = _leer_valores_xlsx(libro)
+    except Exception:
+        return None
+    encabezado = filas[FILAS_ENCABEZADO_IDEAM - 1] if len(filas) >= FILAS_ENCABEZADO_IDEAM else ()
+    col = next((i for i, c in enumerate(encabezado) if str(c or "").strip().lower().startswith("valor")), 2)
+    return sum(1 for f in filas[FILAS_ENCABEZADO_IDEAM:]
+               if f and f[0] not in (None, "") and len(f) > col and f[col] not in (None, ""))
+
+
 def _atributo(atributos, nombre):
     encontrado = re.search(rf'\b{nombre}="([^"]*)"', atributos)
     return encontrado.group(1) if encontrado else None
@@ -1014,6 +1027,7 @@ def plan_descarga(estaciones_df, fecha_ini, fecha_fin, param):
             "codigo": codigo,
             "nombre": nombre,
             "pct": float(row.get("Porcentaje (%)", 0) or 0),
+            "esperados": int(pd.to_numeric(row.get("Esperados"), errors="coerce") or 0),
             "inicio_serie": inicio_serie,
             "fin_serie": fin_serie,
             "bloques": len(bloques_de(param, fecha_ini, fecha_fin, inicio_serie, fin_serie)),
@@ -1069,6 +1083,7 @@ def procesar_descargas(estaciones_df, clasificar_en_carpetas, fecha_ini, fecha_f
     plan, total_bloques, segundos_estimados = plan_descarga(estaciones_df, fecha_ini, fecha_fin, param)
     total_estaciones = len(plan)
     resumen = []
+    reales = []    # (completitud real %, cantidad probable %) de cada estacion guardada
     colores = []   # uno por estacion terminada (color de su calidad; gris si se omitio)
 
     def log(texto, clase=""):
@@ -1157,6 +1172,7 @@ def procesar_descargas(estaciones_df, clasificar_en_carpetas, fecha_ini, fecha_f
                         resumen.append({
                             "Código": codigo, "Nombre": item["nombre"],
                             "Cantidad probable (%)": item["pct"], "Cobertura": clase["nombre"],
+                            "Datos reales": "", "Completitud real (%)": "",
                             "Resultado": "Omitida", "Archivo": "", "Detalle": diagnostico,
                         })
                         continue
@@ -1171,9 +1187,17 @@ def procesar_descargas(estaciones_df, clasificar_en_carpetas, fecha_ini, fecha_f
                     guardadas += 1
                     colores.append(clase["color"])
                     log(f"GUARDADO {ruta_en_zip}")
+                    # Verificador: los datos que llegaron de verdad frente a los que caben en el periodo pedido
+                    datos = contar_datos(excel_data)
+                    real = round(min(100.0, datos / item["esperados"] * 100), 1) \
+                        if datos is not None and item["esperados"] else None
+                    if real is not None:
+                        reales.append((real, item["pct"]))
                     resumen.append({
                         "Código": codigo, "Nombre": item["nombre"],
                         "Cantidad probable (%)": item["pct"], "Cobertura": clase["nombre"],
+                        "Datos reales": "" if datos is None else datos,
+                        "Completitud real (%)": "" if real is None else real,
                         "Resultado": "Guardada", "Archivo": ruta_en_zip, "Detalle": diagnostico,
                     })
 
@@ -1207,6 +1231,9 @@ def procesar_descargas(estaciones_df, clasificar_en_carpetas, fecha_ini, fecha_f
         "omitidas": terminadas - guardadas,
         "duracion": duracion,
         "colores": colores,
+        # medias de las guardadas: completitud real (datos que llegaron) y cobertura estimada (cantidad probable)
+        "completitud": (round(sum(r for r, _ in reales) / len(reales), 1),
+                        round(sum(p for _, p in reales) / len(reales), 1)) if reales else None,
         "rotulo": rotulo_serie(param),
         "rango": (fecha_ini, fecha_fin),
     }

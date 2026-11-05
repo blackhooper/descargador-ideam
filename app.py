@@ -14,7 +14,7 @@ import streamlit.components.v1 as components
 from streamlit_folium import st_folium
 
 from modules import (escaner, estilo, geo_input, geo_utils, map_view, ideam_catalog, ideam_parameters,
-                     ideam_downloader, idioma, panel_estadisticas, terreno)
+                     ideam_downloader, idioma, panel_estadisticas, terreno, acceso, herramientas)
 from modules.calidad import CLASES_CALIDAD, filtrar_descargables, clasificar_calidad
 from modules.idioma import tr
 
@@ -28,13 +28,15 @@ st.set_page_config(page_title="IDEAM Data Downloader" if st.query_params.get("la
 # cambiar de pantalla: en Parametros se carga por detras mientras la persona elige que descargar.
 # ===========================================================================
 ss = st.session_state
+# Puerta de acceso (clave de cliente o de desarrollador): antes de cualquier otra cosa
+acceso.puerta()
 # Preferencias de apariencia, rendimiento e idioma: viajan en la direccion (?tema=, ?contraste=, ?lite=, ?lang=) para
 # que sobrevivan a una recarga. Sin parametro = lo que pida el equipo (tema y contraste), calidad completa y espanol.
 _q = st.query_params
 for clave, valor in {"paso": "parametros", "vista": "2D", "cuenca": None, "version_mapa": 0, "version_subida": 0,
                      "estacion_sel": None, "_prev_sel": {}, "consulta": None, "descarga": None, "resultado": None,
                      "estado_descarga": None, "excluidas": set(), "version_lista": 0, "subida_abierta": False,
-                     "saltos": 0,
+                     "saltos": 0, "vista_dev": "descargador",
                      "tema": _q.get("tema") if _q.get("tema") in estilo.TEMAS else "sistema",
                      "contraste": _q.get("contraste") if _q.get("contraste") in estilo.CONTRASTES else "sistema",
                      "lite": _q.get("lite") == "1",
@@ -78,6 +80,10 @@ PALETA = estilo.paleta(ss.tema)
 # Ajustes (arriba a la derecha, en todas las pantallas). Durante una descarga se bloquean: cambiar algo recargaria
 # la pagina y la detendria
 estilo.ajustes(bloqueado=ss.paso == "descarga" and ss.estado_descarga in ("pendiente", "en_curso"))
+
+if acceso.es_desarrollador() and ss.vista_dev == "herramientas":
+    herramientas.pantalla()
+    st.stop()
 
 if not all(ideam_downloader.credenciales_ideam()):
     st.error(tr("Faltan el usuario y la clave del portal DHIME del IDEAM. En tu computador van en "

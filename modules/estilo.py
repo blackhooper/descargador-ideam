@@ -4,7 +4,7 @@ from html import escape
 import streamlit as st
 import streamlit.components.v1 as components
 
-from modules import idioma
+from modules import acceso, idioma
 from modules.idioma import tr
 
 # ===========================================================================
@@ -1224,6 +1224,7 @@ def ajustes(bloqueado=False):
                f'{tr("Manual de usuario")}<span class="y2k-vh"> ({tr("se abre en otra pestaña")})</span></a>')
             st.markdown(f'<p class="y2k-hint">{tr("Las animaciones respetan la opción de reducir el movimiento de tu equipo.")}</p>',
                         unsafe_allow_html=True)
+            acceso.menu()
 
 
 # Streamlit no deja cambiar su tema desde Python: este guion pulsa, sin que se vea, la opcion

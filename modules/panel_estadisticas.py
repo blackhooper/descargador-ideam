@@ -207,6 +207,10 @@ def _cuerpo_ficha(fila, codigo, altitud, zona, rango, vista, descargable):
                       a=str(fila.get('Inicio serie'))[:4], b=str(fila.get('Fin serie'))[:4]))
     elif serie == "No":
         st.caption(tr("Sin serie de esta variable en DHIME"))
+    for etiqueta, columna in (("Mide", "programas"), ("Subred", "subredes"), ("Misma estación que", "homologa_con")):
+        valor = str(fila.get(columna) or "").strip()
+        if valor:
+            st.caption(f"{tr(etiqueta)}: {valor}")
     if descargable:
         ss[f"incluir_{codigo}"] = codigo not in ss.get("excluidas", set())
         st.toggle(tr("Incluir en la descarga"), key=f"incluir_{codigo}", on_change=_incluir, args=(codigo,))

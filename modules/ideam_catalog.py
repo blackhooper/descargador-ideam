@@ -1,5 +1,6 @@
 import os
 import re
+import shutil
 import requests
 import geopandas as gpd
 import streamlit as st
@@ -54,7 +55,12 @@ def load_ideam_catalog() -> gpd.GeoDataFrame:
     all_features = []
     offset = 0
     batch_size = 1000 # Pedimos en bloques de 1000 para no hacer saltar la alarma del servidor
-    
+    # Solo queda en True si el servidor dijo "ya no hay mas". Si el ciclo se corta por una
+    # excepcion (red, timeout, HTTP de error), queda en False: lo que se alcanzo a bajar es
+    # un catalogo PARCIAL y no debe guardarse como si fuera el oficial completo (si se hiciera,
+    # la proxima sesion lo cargaria del disco tal cual, sin volver a intentar completarlo).
+    descarga_completa = False
+
     # Ciclo infinito que pide datos hasta que el servidor diga "ya no hay más"
     while True:
         params = {
@@ -69,30 +75,48 @@ def load_ideam_catalog() -> gpd.GeoDataFrame:
             response = requests.get(url, params=params, timeout=40, verify=False)
             response.raise_for_status()
             data = response.json()
-            
+
             features = data.get("features", [])
             if not features:
+                descarga_completa = True
                 break # Rompemos el ciclo si ya no hay datos
-                
+
             all_features.extend(features)
-            
+
             # Si nos devolvió menos de lo que pedimos, significa que llegamos al final
             if len(features) < batch_size:
+                descarga_completa = True
                 break
-                
+
             offset += batch_size
         except Exception as e:
             st.error(f"❌ Error durante la descarga fragmentada: {e}")
             break
-            
+
     if not all_features:
         return None
-        
+
     gdf = gpd.GeoDataFrame.from_features(all_features)
     gdf = gdf.set_crs(epsg=4326)
     gdf = _quitar_estaciones_de_prueba(gdf)
 
+    if not descarga_completa:
+        # Se cortó a medias: se muestra lo que llegó, pero NO se guarda en disco como
+        # catalogo completo (no se toca cache_path, así que si ya había uno bueno sigue ahí).
+        st.warning("⚠️ El catálogo de estaciones del IDEAM se descargó incompleto (se cortó la "
+                   "conexión a medio camino). Se están mostrando solo las estaciones que llegaron "
+                   "a tiempo. Vuelve a intentarlo más tarde.")
+        return _marcar_coordenada_compartida(gdf)
+
     os.makedirs("data", exist_ok=True)
+    if os.path.exists(cache_path):
+        # Antes de sobrescribir, dejamos una copia del catalogo anterior (data/*.bak). Si esta
+        # descarga nueva completa resultara tener algun problema que no detectamos aqui, siempre
+        # queda a mano la ultima version buena conocida.
+        try:
+            shutil.copy2(cache_path, cache_path + ".bak")
+        except OSError:
+            pass
     gdf.to_file(cache_path, driver="GeoJSON")
 
     return _marcar_coordenada_compartida(gdf)

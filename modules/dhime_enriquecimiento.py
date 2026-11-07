@@ -13,7 +13,6 @@ Las tablas ya procesadas se guardan en data/dhime_enriquecimiento.json y se renu
 """
 import json
 import os
-import re
 import time
 
 import pandas as pd
@@ -42,39 +41,53 @@ def _filas(respuesta):
 # ---------------------------------------------------------------------------
 # Procesamiento (funciones puras: reciben el JSON del IDEAM, devuelven diccionarios)
 # ---------------------------------------------------------------------------
+# Codigo de programa (primera palabra de DESCRIPCION) -> variable que se mide. Validado contra la API real: ~40 mil filas,
+# 2.860 estaciones, y la mayoria son tareas de la red (mantenimiento, dificultad de acceso, pinturas), no variables.
+VARIABLE_POR_CODIGO = {
+    "NV": "Nivel", "LD": "Nivel", "GR": "Nivel", "QL": "Caudal", "AL": "Aforos de caudal", "PT": "Perfiles de cauce",
+    "GH": "Gradiente hidraulico", "EC": "Ecosondeos", "AS": "Sedimentos", "MF": "Sedimentos", "SD": "Sedimentos",
+    "PM": "Precipitacion", "PG": "Precipitacion", "PTP": "Precipitacion",
+    "TMN": "Temperatura", "TMX": "Temperatura", "TSE": "Temperatura", "THU": "Humedad", "SL": "Humedad", "HIG": "Humedad",
+    "TEC": "Temperatura", "TSS": "Temperatura del suelo", "GEO": "Temperatura del suelo", "TM": "Temperatura del agua",
+    "TEV": "Evaporacion", "ANM": "Viento", "ANG": "Viento", "HLG": "Brillo solar", "RAD": "Radiacion", "ULV": "Radiacion",
+    "BAR": "Presion", "MBG": "Presion", "NUB": "Nubosidad", "FEN": "Fenomenos observados",
+    "AG": "Calidad de agua", "SU": "Suelo",
+}
+TIPOS_DE_RED = {"Mantenimiento", "Auto"}   # tareas de operacion de la red, no variables
+
+
+def _variable(tipo, descripcion):
+    """Variable medida segun el programa, o None si es una tarea de la red (mantenimiento, acceso, transmision...)."""
+    if tipo in TIPOS_DE_RED or not descripcion:
+        return None
+    codigo = descripcion.split()[0].upper()
+    if tipo == "Quimica" or tipo == "Química":
+        return VARIABLE_POR_CODIGO.get(codigo) if codigo in ("AG", "SU") else "Calidad de agua"
+    return VARIABLE_POR_CODIGO.get(codigo)
+
+
 def procesar_programas(respuesta):
-    """{codigo: {"programas": [descripcion...], "tipos": [tipo...]}} sin repetidos y en orden alfabetico."""
+    """{codigo: {"programas": [variable...], "tipos": [tipo...]}} sin repetidos y en orden alfabetico.
+    Solo cuentan los programas que miden una variable (ver VARIABLE_POR_CODIGO); `tipos` omite mantenimiento/automaticas."""
     acumulado = {}
     for fila in _filas(respuesta):
         codigo = _codigo(fila.get("IDESTACION"))
         if not codigo:
             continue
-        item = acumulado.setdefault(codigo, {"programas": set(), "tipos": set()})
-        descripcion = str(fila.get("DESCRIPCION") or "").strip()
         tipo = str(fila.get("TIPO") or "").strip()
-        if descripcion:
-            item["programas"].add(descripcion)
-        if tipo:
-            item["tipos"].add(tipo)
+        variable = _variable(tipo, str(fila.get("DESCRIPCION") or "").strip())
+        if not variable:
+            continue
+        item = acumulado.setdefault(codigo, {"programas": set(), "tipos": set()})
+        item["programas"].add(variable)
+        item["tipos"].add(tipo)
     return {c: {"programas": sorted(v["programas"]), "tipos": sorted(v["tipos"])} for c, v in acumulado.items()}
 
 
 def _codigo_de_estacion_subred(item):
-    """El codigo dentro de un elemento de `Estaciones` de una subred. No se conoce el nombre exacto del campo,
-    asi que se prueban los habituales y, de ultimas, cualquier campo con 'estacion' o un '[12345678]' en un nombre."""
-    if not isinstance(item, dict):
-        return _codigo(item)
-    for clave in ("IdEstacion", "IDESTACION", "CodigoEstacion", "Codigo", "Id"):
-        if clave in item and _codigo(item[clave]):
-            return _codigo(item[clave])
-    for clave, valor in item.items():
-        if "estacion" in clave.lower() and _codigo(valor):
-            return _codigo(valor)
-    for valor in item.values():
-        match = re.search(r"\[(\d{6,9})\]", str(valor))
-        if match:
-            return match.group(1)
-    return None
+    """Codigo dentro de un elemento de `Estaciones` de una subred. Validado contra la API real: el campo es `IdEstacion`
+    (entero) y llega en las 2.288 filas."""
+    return _codigo(item.get("IdEstacion")) if isinstance(item, dict) else _codigo(item)
 
 
 def procesar_subredes(respuesta):

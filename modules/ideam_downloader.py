@@ -355,17 +355,41 @@ def _leer_valores_xlsx(libro):
         wb.close()
 
 
-def contar_datos(libro):
-    """Cuantos datos trae de verdad un Excel del IDEAM: filas con fecha y valor despues del encabezado (fila 8, que
-    tiene "Valor:"). Es la base de la completitud real, que la cantidad probable no puede dar (no ve los huecos)."""
+NIVELES_APROBACION = ("Definitivo", "En revisión", "Preliminar")
+
+
+def analizar_excel(libro):
+    """Lee una sola vez un Excel del IDEAM y devuelve (datos, niveles): cuantos datos trae de verdad (filas con fecha
+    y valor despues del encabezado, fila 8 con "Valor:") y cuantos de ellos hay en cada nivel de aprobacion
+    ({"Definitivo": n, "En revisión": n, "Preliminar": n}, segun la columna "Nivel de Aprobación"). Es la base de la
+    completitud real, que la cantidad probable no puede dar (no ve los huecos). (None, {}) si no se puede leer."""
     try:
         filas = _leer_valores_xlsx(libro)
     except Exception:
-        return None
+        return None, {}
     encabezado = filas[FILAS_ENCABEZADO_IDEAM - 1] if len(filas) >= FILAS_ENCABEZADO_IDEAM else ()
-    col = next((i for i, c in enumerate(encabezado) if str(c or "").strip().lower().startswith("valor")), 2)
-    return sum(1 for f in filas[FILAS_ENCABEZADO_IDEAM:]
-               if f and f[0] not in (None, "") and len(f) > col and f[col] not in (None, ""))
+    texto = [str(c or "").strip().lower() for c in encabezado]
+    col = next((i for i, c in enumerate(texto) if c.startswith("valor")), 2)
+    col_nivel = next((i for i, c in enumerate(texto) if c.startswith("nivel")), None)
+    datos, niveles = 0, {}
+    for f in filas[FILAS_ENCABEZADO_IDEAM:]:
+        if f and f[0] not in (None, "") and len(f) > col and f[col] not in (None, ""):
+            datos += 1
+            if col_nivel is not None and len(f) > col_nivel and f[col_nivel] not in (None, ""):
+                nivel = str(f[col_nivel]).strip()
+                niveles[nivel] = niveles.get(nivel, 0) + 1
+    return datos, niveles
+
+
+def contar_datos(libro):
+    """Cuantos datos trae de verdad un Excel del IDEAM (ver analizar_excel); None si no se puede leer."""
+    return analizar_excel(libro)[0]
+
+
+def porcentajes_nivel(niveles):
+    """{"Definitivo (%)": x, "En revisión (%)": y, "Preliminar (%)": z} sobre los datos con nivel; vacios si no hay."""
+    total = sum(niveles.values())
+    return {f"{n} (%)": (round(niveles.get(n, 0) / total * 100, 1) if total else "") for n in NIVELES_APROBACION}
 
 
 def _atributo(atributos, nombre):
@@ -599,7 +623,15 @@ def calcular_bloques(fecha_ini, fecha_fin, inicio_serie=None, fin_serie=None, di
     while inicio_actual <= fecha_fin:
         fin_actual = min(inicio_actual + datetime.timedelta(days=dias_por_bloque - 1), fecha_fin)
         if alinear_mes and fin_actual < fecha_fin:
-            fin_mes = (fin_actual + datetime.timedelta(days=1)).replace(day=1) - datetime.timedelta(days=1)
+            # Primer dia del mes siguiente al de fin_actual, menos un dia: el ultimo dia
+            # de SU mes. (Sumarle 1 dia a fin_actual y poner day=1 no alcanza: si fin_actual
+            # no es ya el ultimo dia del mes, el resultado cae en el mismo mes de fin_actual,
+            # no en el siguiente, y queda antes de inicio_actual sin alinear nada.)
+            if fin_actual.month == 12:
+                primer_dia_prox_mes = fin_actual.replace(year=fin_actual.year + 1, month=1, day=1)
+            else:
+                primer_dia_prox_mes = fin_actual.replace(month=fin_actual.month + 1, day=1)
+            fin_mes = primer_dia_prox_mes - datetime.timedelta(days=1)
             fin_actual = fin_mes if fin_mes >= inicio_actual else fin_actual
         bloques.append((inicio_actual, fin_actual))
         inicio_actual = fin_actual + datetime.timedelta(days=1)
@@ -721,7 +753,15 @@ def descargar_excel_ideam(fecha_ini, fecha_fin, token_auth, param, codigo_estaci
                 # catalogo del mapa (CNE). Tambien lo hace si el bloque supera
                 # el limite de años de la frecuencia, pero eso no pasa porque
                 # los bloques se arman con param["dias_bloque"]. Como no depende
-                # de las fechas, no tiene sentido seguir con los otros bloques.
+                # de las fechas, antes se cortaban los bloques restantes aqui.
+                # Pero si YA llegaron datos buenos de un bloque anterior, un 400
+                # sin cuerpo en uno de en medio es mas probable que sea una falla
+                # pasajera del servidor que "la serie no existe": en ese caso no
+                # se corta, se sigue con los demas bloques (si de verdad no existe,
+                # todos fallaran igual y el resultado no cambia).
+                if libros_xlsx or datos_list:
+                    diagnosticos_bloques.append(f"{etiqueta_bloque} HTTP 400 sin respuesta (se sigue con los demás bloques)")
+                    continue
                 diagnosticos_bloques.append(
                     f"DHIME no tiene la serie {param_etiqueta} para esta estación "
                     f"(está en el catálogo del mapa, pero no en el sistema de descargas)"
@@ -1172,7 +1212,7 @@ def procesar_descargas(estaciones_df, clasificar_en_carpetas, fecha_ini, fecha_f
                         resumen.append({
                             "Código": codigo, "Nombre": item["nombre"],
                             "Cantidad probable (%)": item["pct"], "Cobertura": clase["nombre"],
-                            "Datos reales": "", "Completitud real (%)": "",
+                            "Datos reales": "", "Completitud real (%)": "", **porcentajes_nivel({}),
                             "Resultado": "Omitida", "Archivo": "", "Detalle": diagnostico,
                         })
                         continue
@@ -1188,7 +1228,7 @@ def procesar_descargas(estaciones_df, clasificar_en_carpetas, fecha_ini, fecha_f
                     colores.append(clase["color"])
                     log(f"GUARDADO {ruta_en_zip}")
                     # Verificador: los datos que llegaron de verdad frente a los que caben en el periodo pedido
-                    datos = contar_datos(excel_data)
+                    datos, niveles = analizar_excel(excel_data)
                     real = round(min(100.0, datos / item["esperados"] * 100), 1) \
                         if datos is not None and item["esperados"] else None
                     if real is not None:
@@ -1197,7 +1237,7 @@ def procesar_descargas(estaciones_df, clasificar_en_carpetas, fecha_ini, fecha_f
                         "Código": codigo, "Nombre": item["nombre"],
                         "Cantidad probable (%)": item["pct"], "Cobertura": clase["nombre"],
                         "Datos reales": "" if datos is None else datos,
-                        "Completitud real (%)": "" if real is None else real,
+                        "Completitud real (%)": "" if real is None else real, **porcentajes_nivel(niveles),
                         "Resultado": "Guardada", "Archivo": ruta_en_zip, "Detalle": diagnostico,
                     })
 

@@ -355,17 +355,41 @@ def _leer_valores_xlsx(libro):
         wb.close()
 
 
-def contar_datos(libro):
-    """Cuantos datos trae de verdad un Excel del IDEAM: filas con fecha y valor despues del encabezado (fila 8, que
-    tiene "Valor:"). Es la base de la completitud real, que la cantidad probable no puede dar (no ve los huecos)."""
+NIVELES_APROBACION = ("Definitivo", "En revisión", "Preliminar")
+
+
+def analizar_excel(libro):
+    """Lee una sola vez un Excel del IDEAM y devuelve (datos, niveles): cuantos datos trae de verdad (filas con fecha
+    y valor despues del encabezado, fila 8 con "Valor:") y cuantos de ellos hay en cada nivel de aprobacion
+    ({"Definitivo": n, "En revisión": n, "Preliminar": n}, segun la columna "Nivel de Aprobación"). Es la base de la
+    completitud real, que la cantidad probable no puede dar (no ve los huecos). (None, {}) si no se puede leer."""
     try:
         filas = _leer_valores_xlsx(libro)
     except Exception:
-        return None
+        return None, {}
     encabezado = filas[FILAS_ENCABEZADO_IDEAM - 1] if len(filas) >= FILAS_ENCABEZADO_IDEAM else ()
-    col = next((i for i, c in enumerate(encabezado) if str(c or "").strip().lower().startswith("valor")), 2)
-    return sum(1 for f in filas[FILAS_ENCABEZADO_IDEAM:]
-               if f and f[0] not in (None, "") and len(f) > col and f[col] not in (None, ""))
+    texto = [str(c or "").strip().lower() for c in encabezado]
+    col = next((i for i, c in enumerate(texto) if c.startswith("valor")), 2)
+    col_nivel = next((i for i, c in enumerate(texto) if c.startswith("nivel")), None)
+    datos, niveles = 0, {}
+    for f in filas[FILAS_ENCABEZADO_IDEAM:]:
+        if f and f[0] not in (None, "") and len(f) > col and f[col] not in (None, ""):
+            datos += 1
+            if col_nivel is not None and len(f) > col_nivel and f[col_nivel] not in (None, ""):
+                nivel = str(f[col_nivel]).strip()
+                niveles[nivel] = niveles.get(nivel, 0) + 1
+    return datos, niveles
+
+
+def contar_datos(libro):
+    """Cuantos datos trae de verdad un Excel del IDEAM (ver analizar_excel); None si no se puede leer."""
+    return analizar_excel(libro)[0]
+
+
+def porcentajes_nivel(niveles):
+    """{"Definitivo (%)": x, "En revisión (%)": y, "Preliminar (%)": z} sobre los datos con nivel; vacios si no hay."""
+    total = sum(niveles.values())
+    return {f"{n} (%)": (round(niveles.get(n, 0) / total * 100, 1) if total else "") for n in NIVELES_APROBACION}
 
 
 def _atributo(atributos, nombre):
@@ -1188,7 +1212,7 @@ def procesar_descargas(estaciones_df, clasificar_en_carpetas, fecha_ini, fecha_f
                         resumen.append({
                             "Código": codigo, "Nombre": item["nombre"],
                             "Cantidad probable (%)": item["pct"], "Cobertura": clase["nombre"],
-                            "Datos reales": "", "Completitud real (%)": "",
+                            "Datos reales": "", "Completitud real (%)": "", **porcentajes_nivel({}),
                             "Resultado": "Omitida", "Archivo": "", "Detalle": diagnostico,
                         })
                         continue
@@ -1204,7 +1228,7 @@ def procesar_descargas(estaciones_df, clasificar_en_carpetas, fecha_ini, fecha_f
                     colores.append(clase["color"])
                     log(f"GUARDADO {ruta_en_zip}")
                     # Verificador: los datos que llegaron de verdad frente a los que caben en el periodo pedido
-                    datos = contar_datos(excel_data)
+                    datos, niveles = analizar_excel(excel_data)
                     real = round(min(100.0, datos / item["esperados"] * 100), 1) \
                         if datos is not None and item["esperados"] else None
                     if real is not None:
@@ -1213,7 +1237,7 @@ def procesar_descargas(estaciones_df, clasificar_en_carpetas, fecha_ini, fecha_f
                         "Código": codigo, "Nombre": item["nombre"],
                         "Cantidad probable (%)": item["pct"], "Cobertura": clase["nombre"],
                         "Datos reales": "" if datos is None else datos,
-                        "Completitud real (%)": "" if real is None else real,
+                        "Completitud real (%)": "" if real is None else real, **porcentajes_nivel(niveles),
                         "Resultado": "Guardada", "Archivo": ruta_en_zip, "Detalle": diagnostico,
                     })
 

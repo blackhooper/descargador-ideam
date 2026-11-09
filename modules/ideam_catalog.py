@@ -120,3 +120,15 @@ def load_ideam_catalog() -> gpd.GeoDataFrame:
     gdf.to_file(cache_path, driver="GeoJSON")
 
     return _marcar_coordenada_compartida(gdf)
+
+
+@st.cache_data(ttl=24 * 3600, show_spinner=False)
+def load_ideam_catalog_enriquecido() -> gpd.GeoDataFrame:
+    """El catalogo con lo que mide cada estacion, su subred y sus codigos homologados (ver dhime_enriquecimiento).
+    Si el IDEAM no responde, es el catalogo de siempre."""
+    from modules import dhime_enriquecimiento
+    catalogo = load_ideam_catalog()
+    try:
+        return dhime_enriquecimiento.enriquecer_catalogo(catalogo, dhime_enriquecimiento.cargar_tablas())
+    except Exception:
+        return catalogo

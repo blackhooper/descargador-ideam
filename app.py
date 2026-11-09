@@ -91,7 +91,7 @@ if not all(ideam_downloader.credenciales_ideam()):
              + "\n\n```toml\n[ideam]\nusuario = \"...\"\nclave = \"...\"\n```")
     st.stop()
 
-catalogo = ideam_catalog.load_ideam_catalog()
+catalogo = ideam_catalog.load_ideam_catalog_enriquecido()
 # El mapa vive aqui, en la misma posicion en las tres pantallas (no mover esta linea por debajo de nada condicional)
 escenario = st.container(key="y2k_escenario")
 # Los huecos de las tres pantallas van siempre, en este orden (vacios los de las otras pantallas). Asi cada uno

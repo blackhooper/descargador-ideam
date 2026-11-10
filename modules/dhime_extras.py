@@ -11,7 +11,6 @@ Una estacion sin aforos responde 200 con una lista vacia (no es un error).
 
 Las funciones `procesar_*` son puras (reciben el JSON del IDEAM y devuelven DataFrames) para poder probarlas sin red.
 """
-import numpy as np
 import pandas as pd
 
 from modules import ideam_downloader
@@ -72,32 +71,6 @@ def procesar_detalle_perfil(respuesta):
         "descripcion": df.get("ObservacionesNombre"),
     })
     return salida.dropna(subset=["abscisa_m"]).sort_values("abscisa_m", kind="stable").reset_index(drop=True)[columnas]
-
-
-def ajustar_curva(aforos, h0_m=0.0):
-    """
-    Curva de calibracion nivel-caudal por potencia, Q = a * (H - h0)^b (H en m), por minimos cuadrados en logaritmos.
-    `h0_m` es el nivel de caudal cero (por defecto 0: el usuario puede refinarlo). Devuelve un dict con a, b, h0_m, n y r2
-    (en espacio logaritmico), o None si hay menos de 5 aforos validos. Es un ajuste exploratorio, no la curva oficial.
-    """
-    h = aforos["nivel_cm"].to_numpy(float) / 100.0 - h0_m
-    q = aforos["caudal_m3s"].to_numpy(float)
-    ok = (h > 0) & (q > 0)
-    if ok.sum() < 5:
-        return None
-    x, y = np.log(h[ok]), np.log(q[ok])
-    b, ln_a = np.polyfit(x, y, 1)
-    pred = b * x + ln_a
-    ss_tot = float(((y - y.mean()) ** 2).sum())
-    r2 = 1.0 - float(((y - pred) ** 2).sum()) / ss_tot if ss_tot > 0 else float("nan")
-    return {"a": float(np.exp(ln_a)), "b": float(b), "h0_m": float(h0_m), "n": int(ok.sum()), "r2": r2}
-
-
-def caudal_desde_nivel(curva, nivel_cm):
-    """Caudal (m3/s) de una serie de niveles (cm) con la curva de `ajustar_curva`; NaN donde el nivel no supera h0."""
-    h = np.asarray(nivel_cm, float) / 100.0 - curva["h0_m"]
-    with np.errstate(invalid="ignore"):
-        return np.where(h > 0, curva["a"] * np.power(np.where(h > 0, h, np.nan), curva["b"]), np.nan)
 
 
 # ---------------------------------------------------------------------------

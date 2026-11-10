@@ -1,4 +1,4 @@
-"""Herramienta del modo desarrollador: aforos liquidos, curva nivel-caudal y perfiles transversales de una estacion.
+"""Herramienta del modo desarrollador: aforos liquidos, perfiles transversales de una estacion.
 
 Las estaciones que se ofrecen son las que tienen programa de aforos en el catalogo de DHIME (`programas`). Algunas
 responden sin registros aunque figuren con programa: se avisa y no se trata como error.
@@ -51,7 +51,7 @@ def pantalla():
     except ideam_downloader.ErrorAccesoIDEAM as e:
         st.error(str(e))
         return
-    tab_aforos, tab_perfiles = st.tabs([tr("Aforos y curva"), tr("Perfiles transversales")])
+    tab_aforos, tab_perfiles = st.tabs([tr("Aforos"), tr("Perfiles transversales")])
 
     with tab_aforos:
         if aforos.empty:
@@ -61,24 +61,11 @@ def pantalla():
                           b=aforos["fecha"].max().date()))
             anios = (int(aforos["fecha"].dt.year.min()), int(aforos["fecha"].dt.year.max()))
             if anios[0] < anios[1]:
-                # la seccion del rio cambia con el tiempo: una sola curva para todo el periodo puede ajustar mal
+                # la seccion del rio cambia con el tiempo: conviene mirar los aforos por periodos
                 a, b = st.slider(tr("Periodo de los aforos (años)"), anios[0], anios[1], anios, key="aforos_periodo")
                 aforos = aforos[aforos["fecha"].dt.year.between(a, b)]
-            h0 = st.number_input(tr("Nivel de caudal cero h0 (m)"), value=0.0, step=0.05, key="aforos_h0")
-            curva = dhime_extras.ajustar_curva(aforos, h0)
-            puntos = pd.DataFrame({"Nivel (m)": aforos["nivel_cm"] / 100.0, "Caudal (m³/s)": aforos["caudal_m3s"],
-                                   "Serie": tr("Aforos")})
-            if curva:
-                h = pd.Series(sorted(set((aforos["nivel_cm"] / 100.0).round(3))))
-                h = h[h > h0]
-                ajuste = pd.DataFrame({"Nivel (m)": h, "Caudal (m³/s)": curva["a"] * (h - h0) ** curva["b"],
-                                       "Serie": tr("Curva ajustada")})
-                puntos = pd.concat([puntos, ajuste], ignore_index=True)
-                st.caption(f"Q = {curva['a']:.3f} · (H − {h0:.2f})^{curva['b']:.3f} · R² = {curva['r2']:.3f} · n = {curva['n']}"
-                           f" — {tr('ajuste exploratorio, no es la curva oficial del IDEAM')}")
-            else:
-                st.caption(tr("Se necesitan al menos 5 aforos con nivel mayor que h0 para ajustar la curva."))
-            st.scatter_chart(puntos, x="Nivel (m)", y="Caudal (m³/s)", color="Serie")
+            puntos = pd.DataFrame({"Nivel (m)": aforos["nivel_cm"] / 100.0, "Caudal (m³/s)": aforos["caudal_m3s"]})
+            st.scatter_chart(puntos, x="Nivel (m)", y="Caudal (m³/s)")
             st.dataframe(aforos, hide_index=True, width="stretch")
             st.download_button(tr("Descargar aforos (CSV)"), aforos.to_csv(index=False).encode("utf-8-sig"),
                                file_name=f"aforos_{codigo}.csv", mime="text/csv")

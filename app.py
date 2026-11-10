@@ -298,12 +298,20 @@ def _marco(zona):
 def _encuadre(zona):
     """Centro y zoom del mapa 2D para que quepan todas las estaciones (pantalla de ~1000 x 600 px; en el celular
     ~340 x 520). El desfase minusculo hace que el mapa se mueva aunque se repita el mismo encuadre."""
-    minx, miny, maxx, maxy = zona.total_bounds
+    # Con muchas estaciones se encuadra entre los percentiles 1 y 99: una sola estacion con coordenadas erradas
+    # (hay una de Cundinamarca en la longitud -83) alejaba el mapa hasta dejar el departamento diminuto
+    if len(zona) >= 20:
+        xs, ys = zona.geometry.x, zona.geometry.y
+        minx, maxx, miny, maxy = xs.quantile(.01), xs.quantile(.99), ys.quantile(.01), ys.quantile(.99)
+    else:
+        minx, miny, maxx, maxy = zona.total_bounds
     ancho_px, alto_px = (340, 520) if _es_celular() else (1000, 600)
     zoom = min(math.log2(ancho_px * 360 / (256 * max(maxx - minx, .01))),
                math.log2(alto_px * 360 / (256 * max(maxy - miny, .01))))
     ss.saltos += 1
-    return ((miny + maxy) / 2 + ss.saltos * 1e-9, (minx + maxx) / 2), min(13, max(5, int(zoom))) + (ss.saltos % 2) * 1e-4
+    # medio nivel de zoom (el mapa lo admite): redondear siempre hacia abajo dejaba el encuadre pequeno
+    zoom = min(13, max(5, math.floor(zoom * 2) / 2))
+    return ((miny + maxy) / 2 + ss.saltos * 1e-9, (minx + maxx) / 2), zoom + (ss.saltos % 2) * 1e-4
 
 
 def _param_de(clave):
@@ -494,6 +502,13 @@ TEXTURAS = ["Satélite", "Topográfico", "Altura"]
 ESCALAS = ["Rango de la zona", "Rango de Colombia"]
 
 
+def _atajo_periodo(anios):
+    """Atajos de periodo de Parametros: los ultimos `anios` años hasta hoy, o todo el registro (None)."""
+    hoy = date.today()
+    ss.f_fin = hoy
+    ss.f_ini = date(1920, 1, 1) if anios is None else date(hoy.year - anios, hoy.month, min(hoy.day, 28))
+
+
 def _preparar(datos):
     ss.descarga = datos
     ss.resultado = None
@@ -642,6 +657,12 @@ def pantalla_parametros():
             estilo.etiqueta(tr("Hasta"))
             fecha_fin = st.date_input(tr("Hasta"), date(2020, 12, 31), min_value=date(1920, 1, 1), max_value=date.today(),
                                       key="f_fin", format="DD/MM/YYYY", label_visibility="collapsed", persist_state="session")
+        # Atajos de periodo: antes siempre habia que escribir las dos fechas
+        with st.container(key="y2k_atajos", horizontal=True):
+            st.button(tr("Últimos 10 años"), key="atajo_10", on_click=_atajo_periodo, args=(10,))
+            st.button(tr("Últimos 30 años"), key="atajo_30", on_click=_atajo_periodo, args=(30,))
+            st.button(tr("Todo"), key="atajo_todo", on_click=_atajo_periodo, args=(None,),
+                      help=tr("Desde 1920 hasta hoy"))
         fechas_ok = fecha_ini < fecha_fin
         if not fechas_ok:
             estilo.aviso(tr("La fecha inicial debe ser anterior a la final."), tono="error")
@@ -674,7 +695,6 @@ def pantalla_parametros():
                      estaciones=tr("estaciones") if n_filtro != 1 else tr("estación")) if filtro
                   else tr("Seleccionar área en el mapa"), type="primary", key="ir_mapa", icon=":material/arrow_forward:",
                   icon_position="right", width="stretch", on_click=_ir_mapa, args=(clave_param, listo, filtro))
-        estilo.como_funciona()
         estilo.pie_inicio(TEXTO_LEGAL)
     with hueco_ocultos:
         if pendientes:
@@ -766,6 +786,8 @@ def pantalla_mapa():
         with st.container(key="y2k_panel_cab"):
             estilo.cabecera_panel()
         cuerpo = st.container(key="y2k_cuerpo")
+    with cuerpo:
+        estilo.pasos(2)
     with hueco_abrir:
         estilo.boton_abrir_panel()
 
@@ -938,7 +960,13 @@ def pantalla_mapa():
             if cuenca is None and not filtro:
                 capa = _capa_catalogo()
             else:
-                ss._capa_args = (area if buffer_on else None, zona, ss.estacion_sel, None, excluidas & codigos_desc)
+                # Las estaciones sin la serie no se pueden descargar y solian ser mayoria: se ocultan salvo que la
+                # persona las pida en el filtro (la seleccionada se ve siempre)
+                zona_mapa = zona
+                if evaluada and not ss.get("ver_sin_serie") and zona is not None and not zona.empty:
+                    cods = ideam_downloader.codigos_de(zona)
+                    zona_mapa = zona[[(c in codigos_desc) or c == ss.estacion_sel for c in cods]]
+                ss._capa_args = (area if buffer_on else None, zona_mapa, ss.estacion_sel, None, excluidas & codigos_desc)
                 capa = map_view.capa_dinamica(*ss._capa_args)
             centro = zoom = None
             if encuadrar and zona is not None and not zona.empty:
@@ -1036,6 +1064,12 @@ def pantalla_mapa():
                 if filtro_activo:
                     st.button(tr("Quitar el filtro"), key="quitar_filtro", icon=":material/filter_alt_off:",
                               on_click=_quitar_filtro, width="stretch")
+                sin_serie = n_zona_total - len(descargables) if descargables is not None and not filtro_activo else 0
+                if sin_serie or ss.get("ver_sin_serie"):
+                    st.toggle(tr("Mostrar las {n} sin serie", n=sin_serie) if sin_serie else tr("Mostrar las sin serie"),
+                              key="ver_sin_serie", persist_state="session",
+                              help=tr("Estaciones de la zona que no tienen la serie de esta variable en el periodo. "
+                                      "No se pueden descargar."))
             if filtro_activo:
                 estilo.marca_filtro()   # despues del boton: asi no lo mueve de lugar (y no se cierra al filtrar)
 
@@ -1044,18 +1078,21 @@ def pantalla_mapa():
     if listo:
         razon = (f"{n_sel} {tr('estaciones') if n_sel != 1 else tr('estación')} · "
                  f"{panel_estadisticas.duracion_aprox(cifras['segundos'])}")
+        rotulo = tr("Preparar descarga")
+    # Sin poder avanzar, el boton dice que falta (corto) en vez de "Preparar descarga": antes el motivo solo salia
+    # al pasar el puntero, y en el celular no hay puntero
     elif cuenca is None and not filtro:
-        razon = tr("Delimita el área de estudio")
+        razon, rotulo = tr("Delimita el área de estudio"), tr("Delimita el área")
     elif demasiadas:
-        razon = tr("El área es demasiado grande")
+        razon, rotulo = tr("El área es demasiado grande"), tr("Área demasiado grande")
     elif error_ideam:
-        razon = tr("No se pudo consultar el IDEAM")
+        razon, rotulo = tr("No se pudo consultar el IDEAM"), tr("El IDEAM no responde")
     elif excede:
-        razon = tr("El periodo es demasiado largo para Excel")
+        razon, rotulo = tr("El periodo es demasiado largo para Excel"), tr("Periodo demasiado largo")
     elif evaluada and descargables is not None and not descargables.empty:
-        razon = tr("Selecciona al menos una estación")
+        razon, rotulo = tr("Selecciona al menos una estación"), tr("Elige una estación")
     else:
-        razon = tr("No hay estaciones con datos en esta zona")
+        razon, rotulo = tr("No hay estaciones con datos en esta zona"), tr("Sin estaciones con datos")
     with hueco_dock:
         with st.container(key="y2k_dock_izq", horizontal=True, gap=None, vertical_alignment="center"):
             estilo.boton_consulta()   # celular: abre y cierra la tarjeta de la consulta
@@ -1071,7 +1108,7 @@ def pantalla_mapa():
         with st.container(key="y2k_dock_der"):
             datos = {"estaciones": seleccion.copy(), "param": param, "ini": fecha_ini, "fin": fecha_fin,
                      "ubicacion": filtro["texto"] if filtro else None} if listo else None
-            st.button(tr("Preparar descarga"), type="primary", key="preparar", icon=":material/arrow_forward:",
+            st.button(rotulo, type="primary", key="preparar", icon=":material/arrow_forward:" if listo else None,
                       icon_position="right", disabled=not listo, help=razon, on_click=_preparar, args=(datos,))
 
     # ---------------- ficha de la estacion elegida (flotante) ----------------
@@ -1201,7 +1238,26 @@ def pantalla_descarga():
         estilo.cabecera_exportar(titulo, tono)
         izq, der = st.columns([1.12, 1], gap="large")
         with der:
-            _recibo(d)
+            tabla = _tabla_completitud(resultado) if estado == "lista" else None
+            if tabla is not None:
+                # Con la descarga lista, este espacio es para la completitud real por estacion; el recibo (lo que la
+                # persona ya eligio) queda plegado debajo
+                estilo.etiqueta(tr("Completitud real por estación"))
+                st.dataframe(tabla, hide_index=True, width="stretch", height=min(38 + 35 * len(tabla), 283),
+                             key="tabla_completitud",
+                             column_config={
+                                 "Estación": st.column_config.TextColumn(tr("Estación")),
+                                 "Estimada": st.column_config.NumberColumn(tr("Estimada"), format="%d %%", width=74),
+                                 "Real": st.column_config.NumberColumn(tr("Real"), format="%d %%", width=58),
+                                 "Diferencia": st.column_config.NumberColumn(
+                                     tr("Dif."), format="%+d", width=52,
+                                     help=tr("Puntos porcentuales entre la completitud real y la cobertura "
+                                             "estimada. Negativo: la serie tiene huecos que la estimación no ve.")),
+                             })
+                with st.expander(tr("Lo que pediste"), icon=":material/receipt_long:"):
+                    _recibo(d)
+            else:
+                _recibo(d)
             estilo.legal_exportar(TEXTO_LEGAL)
 
         if estado == "pendiente":
@@ -1249,51 +1305,64 @@ def pantalla_descarga():
                               on_click=_volver_mapa)
             return
 
-        # Descarga lista
+        # Descarga lista. Orden: las cifras, el boton (lo que la persona vino a hacer) y debajo las opciones del ZIP.
+        # Antes el boton era lo ultimo, tras la barra, la frase, el reparto, dos casillas y el nombre
         guardadas, omitidas = resultado["guardadas"], resultado["omitidas"]
         with izq:
-            st.markdown(estilo.progreso(1.0, tr("Completada en {t}", t=resultado['duracion']),
-                                        tr("<span>Guardadas <b>{g}</b></span><span>Omitidas <b>{o}</b></span>",
-                                           g=guardadas, o=omitidas), "fin"), unsafe_allow_html=True)
-            if idioma.actual() == "en":
-                frase = (f"<b>{guardadas}</b> of {guardadas + omitidas} "
-                         f"{'stations were' if guardadas + omitidas != 1 else 'station was'} saved."
-                         + (f" {'One' if omitidas == 1 else omitidas} had no data in the period or got no response "
-                            "from IDEAM; see resumen_descarga.csv inside the ZIP for details." if omitidas else ""))
-            else:
-                frase = (f"Se {'guardaron' if guardadas != 1 else 'guardó'} <b>{guardadas}</b> de {guardadas + omitidas} "
-                         f"{'estaciones' if guardadas + omitidas != 1 else 'estación'}."
-                         + (f" {'Una' if omitidas == 1 else omitidas} no {'tenía' if omitidas == 1 else 'tenían'} datos "
-                            "en el periodo o el IDEAM no respondió; el detalle está en resumen_descarga.csv, dentro del "
-                            "ZIP." if omitidas else ""))
-            # Verificador: completitud real (datos que llegaron) frente a la cobertura estimada antes de descargar
-            if resultado.get("completitud"):
-                real, estimada = resultado["completitud"]
-                frase += " " + tr("Completitud real media: <b>{r} %</b> (cobertura estimada {e} %).",
-                                  r=f"{real:.0f}", e=f"{estimada:.0f}")
-            estilo.resumen_final(frase, panel_estadisticas.reparto_cobertura(resultado["colores"]))
-            # Antes de descargar: si el ZIP va en carpetas por cobertura (el recibo de la derecha lo refleja)
-            carpetas = st.checkbox(tr("Separar en carpetas por completitud"), value=True, key="carpetas",
-                                   persist_state="session",
-                                   help=tr("Según los datos que llegaron de verdad: alta (70–100 %), media (50–70 %), "
-                                           "baja (25–50 %) y crítica (0–25 %) del periodo consultado. Sin marcar, "
-                                           "todos los Excel van juntos."))
+            real, estimada = resultado.get("completitud") or (None, None)
+            estilo.kpis([
+                (guardadas, tr("Estaciones guardadas"), tr("de {n}", n=guardadas + omitidas),
+                 tr("Estaciones con su Excel dentro del ZIP.")),
+                (omitidas, tr("Omitidas"), tr("ver el resumen") if omitidas else "",
+                 tr("No tenían datos en el periodo o el IDEAM no respondió; el detalle está en resumen_descarga.csv, "
+                    "dentro del ZIP.")),
+                (f"{real:.0f} %" if real is not None else "–", tr("Completitud real media"),
+                 tr("estimada {e} %", e=f"{estimada:.0f}") if estimada is not None else "",
+                 tr("Datos que llegaron de verdad frente a los que caben en el periodo. La cobertura estimada no "
+                    "descuenta los huecos internos.")),
+            ])
+            estilo.resumen_final(tr("Completada en {t}", t=resultado['duracion']) + ".",
+                                 panel_estadisticas.reparto_cobertura(resultado["colores"]))
+            hay_huecos = bool(resultado.get("huecos") and mapa_huecos.disponible(resultado.get("frecuencia")))
+            # las casillas van debajo del boton: su valor se lee de la sesion (al cambiarlas la tarjeta se rehace)
+            carpetas = bool(ss.get("carpetas", True))
+            huecos = hay_huecos and bool(ss.get("incluir_huecos", False))
+            _entrega(resultado, carpetas, huecos)
+            st.checkbox(tr("Separar en carpetas por completitud"), value=True, key="carpetas",
+                        persist_state="session",
+                        help=tr("Según los datos que llegaron de verdad: alta (70–100 %), media (50–70 %), "
+                                "baja (25–50 %) y crítica (0–25 %) del periodo consultado. Sin marcar, "
+                                "todos los Excel van juntos."))
             # Opcional: mapa de huecos (heatmap de calidad por estacion y año), con lo ya descargado
-            huecos = False
-            if resultado.get("huecos") and mapa_huecos.disponible(resultado.get("frecuencia")):
-                huecos = st.checkbox(tr("Incluir el mapa de huecos"), value=False, key="incluir_huecos",
-                                     persist_state="session",
-                                     help=tr("Una imagen y una tabla con el % de datos de cada estación en cada año, "
-                                             "para ver de un vistazo dónde faltan datos."))
+            if hay_huecos:
+                st.checkbox(tr("Incluir el mapa de huecos"), value=False, key="incluir_huecos",
+                            persist_state="session",
+                            help=tr("Una imagen y una tabla con el % de datos de cada estación en cada año, "
+                                    "para ver de un vistazo dónde faltan datos."))
                 if huecos:
                     with st.expander(tr("Vista previa del mapa de huecos"), expanded=False):
                         st.image(mapa_huecos.png(_tabla_huecos(resultado), _titulo_huecos(resultado)))
-            _entrega(resultado, carpetas, huecos)
             with st.container(horizontal=True, gap="small"):
                 st.button(tr("Volver al mapa"), width="stretch", icon=":material/arrow_back:", key="volver_mapa",
                           on_click=_volver_mapa)
                 st.button(tr("Nueva consulta"), width="stretch", icon=":material/add_location_alt:", key="nueva_consulta",
                           on_click=_nueva_consulta)
+
+
+def _tabla_completitud(resultado):
+    """Completitud real de cada estacion guardada frente a su cobertura estimada, de la mayor caida a la menor: es el
+    dato nuevo de la descarga (antes solo estaba dentro de resumen_descarga.csv)."""
+    filas = [f for f in resultado.get("resumen") or [] if f.get("Resultado") == "Guardada"
+             and f.get("Completitud real (%)") not in ("", None)]
+    if not filas:
+        return None
+    t = pd.DataFrame({
+        "Estación": [panel_estadisticas._nombre_limpio(f["Nombre"]) for f in filas],
+        "Estimada": [float(f["Cobertura estimada (%)"]) for f in filas],
+        "Real": [float(f["Completitud real (%)"]) for f in filas],
+    })
+    t["Diferencia"] = t["Real"] - t["Estimada"]
+    return t.sort_values(["Diferencia", "Estación"]).reset_index(drop=True)
 
 
 def _descargar(d, progreso, aviso):

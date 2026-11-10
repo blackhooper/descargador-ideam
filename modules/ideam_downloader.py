@@ -12,6 +12,7 @@ import base64
 import traceback
 import warnings
 import queue
+from html import escape
 from concurrent.futures import ThreadPoolExecutor, wait, FIRST_COMPLETED
 import xml.etree.ElementTree as ET
 from xml.sax.saxutils import escape as xml_escape
@@ -1183,6 +1184,9 @@ def procesar_descargas(estaciones_df, clasificar_en_carpetas, fecha_ini, fecha_f
         meta = (tr("<span>Estaciones <b>{a} de {b}</b></span>", a=terminadas, b=total_estaciones)
                 + tr("<span>Guardadas <b>{g}</b></span><span>Omitidas <b>{o}</b></span>", g=guardadas,
                      o=terminadas - guardadas))
+        ahora = [re.sub(r"\s*\[\d+\]\s*$", "", str(n)).strip() for n in list(en_curso.values())]
+        if ahora and not terminado:
+            meta += f'<span class="ahora">{tr("Ahora")}: {escape(", ".join(ahora))}</span>'
         ui["progreso"].markdown(estilo.progreso(fraccion, principal, meta), unsafe_allow_html=True)
 
     token_auth = obtener_token()
@@ -1202,14 +1206,20 @@ def procesar_descargas(estaciones_df, clasificar_en_carpetas, fecha_ini, fecha_f
     # Al salir (fin, "Detener", recarga o pestaña cerrada) se activa: los hilos en curso no piden mas bloques
     detener = threading.Event()
 
-    def lanzar(pool, item, token):
+    en_curso = {}   # codigo -> nombre de las estaciones que un hilo esta bajando ahora (se muestran en el avance)
+
+    def tarea(item, token):
         codigo = item["codigo"]
-        bloques_por_estacion[codigo] = 0
-        return pool.submit(
-            descargar_excel_ideam, fecha_ini, fecha_fin, token, param, codigo,
-            item["inicio_serie"], item["fin_serie"],
-            lambda n, c=codigo: avisos_bloques.put((c, n)), detener,
-        )
+        en_curso[codigo] = item["nombre"]
+        try:
+            return descargar_excel_ideam(fecha_ini, fecha_fin, token, param, codigo, item["inicio_serie"],
+                                         item["fin_serie"], lambda n, c=codigo: avisos_bloques.put((c, n)), detener)
+        finally:
+            en_curso.pop(codigo, None)
+
+    def lanzar(pool, item, token):
+        bloques_por_estacion[item["codigo"]] = 0
+        return pool.submit(tarea, item, token)
 
     def escribir_cierre(zip_file):
         # Lista de lo que se descargo y lo que no (con el motivo)

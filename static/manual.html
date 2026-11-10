@@ -295,7 +295,7 @@ dl.glosario dd{margin:0;color:var(--ink-2)}
           <li><span class="ui">Desde</span> y <span class="ui">Hasta</span>: el periodo, en formato día/mes/año (por defecto del 01/01/2000 al 31/12/2020). La fecha inicial debe ser anterior a la final. Si con esa frecuencia el periodo daría más de un millón de filas por estación, más de lo que admite Excel, la tarjeta te pide acortarlo.</li>
           <li><span class="ui">Filtrar por ubicación · opcional</span> (ver <a href="#ubicacion">Elegir las estaciones por ubicación</a>): otra forma de elegir las estaciones, sin dibujar un área.</li>
         </ol>
-        <p>Cuando el mapa y los datos de la variable elegida terminaron de cargar, <span class="ui primario">Seleccionar área en el mapa</span> te lleva al mapa sin esperas. Si lo pulsas antes, no avanza y da dos destellos rojos: espera a que el punto de «Variable» se encienda. Debajo, tres pasos resumen el recorrido: <em>Establecer parámetros</em>, <em>Delimitar el área de análisis</em> y <em>Preparar la descarga</em>.</p>
+        <p>Cuando el mapa y los datos de la variable elegida terminaron de cargar, <span class="ui primario">Seleccionar área en el mapa</span> te lleva al mapa sin esperas. Si lo pulsas antes, no avanza y da dos destellos rojos: espera a que el punto de «Variable» se encienda. Arriba, tres pasos numerados muestran el recorrido y en cuál vas: <em>Parámetros</em>, <em>Área y estaciones</em> y <em>Descarga</em>. Debajo de las fechas, tres atajos llenan el periodo de una vez: <span class="ui">Últimos 10 años</span>, <span class="ui">Últimos 30 años</span> y <span class="ui">Todo</span>.</p>
         <p>El IDEAM entrega un número limitado de años por consulta. La app divide tu periodo en bloques de ese tamaño y después los une en un solo Excel:</p>
         <div class="tabla">
           <table>
@@ -396,9 +396,9 @@ dl.glosario dd{margin:0;color:var(--ink-2)}
           <div class="clase"><span class="punto" style="background:var(--critica)"></span><b>Crítica</b><span>0–25 %</span></div>
         </div>
         <ul>
-          <li><strong>Puntos grises y huecos:</strong> estaciones sin datos de esa variable en tu periodo. No se pueden descargar.</li>
+          <li><strong>Puntos grises y huecos:</strong> estaciones sin datos de esa variable en tu periodo. No se pueden descargar y vienen ocultas, para no tapar las demás: se muestran con <span class="ui">Mostrar las sin serie</span>, dentro del filtro de la lista.</li>
           <li><strong>Punto hueco con borde punteado:</strong> una estación que quitaste de la descarga (ver <a href="#revisar">Revisar las estaciones</a>).</li>
-          <li><strong>Borde naranja:</strong> la altitud que dice el catálogo no coincide con el terreno (ver <a href="#altitud">Altitud dudosa</a>).</li>
+          <li><strong>Halo punteado alrededor del punto:</strong> la altitud que dice el catálogo no coincide con el terreno (ver <a href="#altitud">Altitud dudosa</a>).</li>
           <li><strong>Anillo azul:</strong> la estación que tienes seleccionada.</li>
         </ul>
         <h3>Moverte por el mapa 2D</h3>
@@ -467,7 +467,7 @@ dl.glosario dd{margin:0;color:var(--ink-2)}
         </div>
         <h3>La lista con casillas</h3>
         <ul>
-          <li>Están todas las estaciones que se pueden descargar, de la mejor cobertura a la peor, con un punto del color de su clase y su porcentaje. El ⚠ señala altitud dudosa.</li>
+          <li>Están todas las estaciones que se pueden descargar, de la mejor cobertura a la peor, con un punto del color de su clase, su código, los años de su serie y su porcentaje. El ⚠ señala altitud dudosa. Si hay más de ocho, encima aparece un buscador por nombre o código.</li>
           <li><strong>Las marcadas se descargan.</strong> Todas vienen marcadas: desmarca las que no quieras (en el mapa quedan huecas, con borde punteado). La casilla de arriba marca o desmarca todas.</li>
           <li>Haz clic en el nombre de una estación para seleccionarla: el mapa viaja hasta ella y aparece su ficha.</li>
           <li>Debajo, cuántas están en el área y cuántas en el buffer, y cuántas tienen datos del último año.</li>
@@ -494,7 +494,7 @@ dl.glosario dd{margin:0;color:var(--ink-2)}
       <section id="descarga">
         <h2><span class="etiqueta">PASO 4</span>Exportación</h2>
         <ol>
-          <li>Pulsa <span class="ui primario">Preparar descarga</span>, abajo a la derecha. Si está gris, pasa el cursor sobre el botón: dice qué falta (por ejemplo, delimitar el área o seleccionar al menos una estación).</li>
+          <li>Pulsa <span class="ui primario">Preparar descarga</span>, abajo a la derecha. Si está gris, el propio botón dice qué falta (por ejemplo, «Delimita el área» o «Elige una estación»); al pasar el cursor da el detalle.</li>
           <li>El mapa queda detrás y aparece una tarjeta con el <strong>avance real</strong>: el porcentaje, una barra y el tiempo que falta, más cuántas estaciones van, cuántas se guardaron y cuántas se omitieron.</li>
           <li>A la derecha (en el celular, debajo) está el <strong>recibo</strong> de lo que pediste: variable y frecuencia, periodo, número de estaciones (en el área y en el buffer, o su ubicación si las elegiste por departamento y municipio), la lista de lo que trae el ZIP (un Excel por estación, las carpetas por cobertura si las elegiste, <code>resumen_descarga.csv</code> y <code>CITACION.txt</code>) y la fuente. Debajo, las condiciones de uso de los datos (ver <a href="#uso-datos">Uso de los datos y citación</a>).</li>
           <li>Al terminar, la tarjeta muestra un resumen: cuántas estaciones se guardaron y cómo se reparten por completitud real.</li>
@@ -504,14 +504,15 @@ dl.glosario dd{margin:0;color:var(--ink-2)}
           <li><span class="ui">Detener la descarga</span> la corta a mitad de camino. Lo que alcanzó a bajar no se pierde: con <span class="ui">Descargar lo guardado</span> te llevas esas estaciones en un ZIP (el resumen marca las demás como «Sin descargar»). También puedes <span class="ui primario">Reintentar</span> o <span class="ui">Volver al mapa</span>.</li>
           <li>Si el área trae más de 1.500 estaciones, el panel pide reducirla o elegir las estaciones por departamento y municipio.</li>
           <li>Para no saturar al IDEAM, el servidor hace <strong>máximo 4 descargas a la vez</strong> entre todos los usuarios. Si están ocupadas, tu descarga espera turno: verás tu puesto en la fila y un tiempo estimado, y empieza sola apenas se libere uno.</li>
-          <li>Mientras descarga, el menú de Ajustes queda bloqueado. No cierres ni recargues la pestaña: se perdería el avance.</li>
+          <li>Bajo la barra de avance, la línea «Ahora:» nombra las estaciones que se están descargando. Mientras descarga, el menú de Ajustes queda bloqueado. No cierres ni recargues la pestaña: se perdería el avance.</li>
         </ul>
         <h3>Guardar el ZIP</h3>
         <ol>
-          <li><span class="ui">Separar en carpetas por completitud</span> (marcado por defecto): cada Excel va dentro de la carpeta de su clase según la <strong>completitud real</strong>, es decir, los datos que llegaron de verdad (las mismas clases de <a href="#cobertura">Cobertura del periodo</a>). Si lo desmarcas, todos quedan juntos. Puedes cambiarlo sin volver a descargar; el recibo de la derecha lo refleja.</li>
-          <li><span class="ui">Incluir el mapa de huecos</span> (opcional, sin marcar por defecto): agrega al ZIP una imagen y una tabla con el porcentaje de datos de cada estación en cada año, para ver de un vistazo dónde faltan datos. Al marcarlo aparece una vista previa. No está en la serie multianual.</li>
+          <li>Al terminar, arriba ves cuántas estaciones se guardaron, cuántas se omitieron y la <strong>completitud real media</strong>. A la derecha (en el celular, debajo), una tabla compara por estación la cobertura estimada con la completitud real, y el resumen de la consulta queda plegado en <span class="ui">Lo que pediste</span>.</li>
           <li>En <span class="ui">Nombre del archivo ZIP</span> viene un nombre sugerido, como <code>IDEAM_PTPM_CON_20000101-20201231</code> (en la serie especial lleva también la frecuencia y el cálculo: <code>IDEAM_PTPM_CON_Decadal_SUM_…</code>). Si quieres otro (por ejemplo <em>descarga 1</em>), escríbelo; el <code>.zip</code> se agrega solo.</li>
           <li>Pulsa <span class="ui primario">Descargar el ZIP</span>.</li>
+          <li><span class="ui">Separar en carpetas por completitud</span> (debajo del botón, marcado por defecto): cada Excel va dentro de la carpeta de su clase según la <strong>completitud real</strong>, es decir, los datos que llegaron de verdad (las mismas clases de <a href="#cobertura">Cobertura del periodo</a>). Si lo desmarcas, todos quedan juntos. Puedes cambiarlo sin volver a descargar; el resumen «Lo que pediste» lo refleja.</li>
+          <li><span class="ui">Incluir el mapa de huecos</span> (opcional, sin marcar por defecto): agrega al ZIP una imagen y una tabla con el porcentaje de datos de cada estación en cada año, para ver de un vistazo dónde faltan datos. Al marcarlo aparece una vista previa. No está en la serie multianual.</li>
           <li>Con <span class="ui">Volver al mapa</span> ajustas y descargas otra vez (desde ahí, el nombre de la variable en el panel te lleva a cambiar la variable o el periodo); con <span class="ui">Nueva consulta</span> empiezas de cero.</li>
         </ol>
       </section>

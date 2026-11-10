@@ -87,15 +87,22 @@ def _nombre_limpio(nombre):
 def tabla_lista(descargables):
     """Lista de las estaciones que se pueden descargar (mejor cobertura primero): codigo, punto de color de su
     clase, nombre (con ⚠ si la altitud es dudosa) y cobertura."""
-    columnas = ["Código", "●", "Estación", "Cobertura", "color"]
+    columnas = ["Código", "●", "Estación", "Serie", "Cobertura", "color"]
     if descargables is None or descargables.empty:
         return pd.DataFrame(columns=columnas)
+
+    def anios(ini, fin):
+        ini, fin = str(ini or "")[:4], str(fin or "")[:4]
+        return f"{ini}–{fin}" if ini.isdigit() and fin.isdigit() else ""
+
     dudosa = (descargables["altitud_dudosa"].fillna(False).astype(bool) if "altitud_dudosa" in descargables.columns
               else pd.Series(False, index=descargables.index))
     t = pd.DataFrame({
         "Código": ideam_downloader.codigos_de(descargables),
         "●": "●",
         "Estación": [_nombre_limpio(n) + (" ⚠" if d else "") for n, d in zip(descargables["nombre"], dudosa)],
+        "Serie": [anios(a, b) for a, b in zip(descargables.get("Inicio serie", [""] * len(descargables)),
+                                              descargables.get("Fin serie", [""] * len(descargables)))],
         "Cobertura": pd.to_numeric(descargables["Porcentaje (%)"], errors="coerce").values,
         "color": [clasificar_calidad(p)["color"] for p in descargables["Porcentaje (%)"]],
     })
@@ -292,23 +299,36 @@ def tablero(zona, descargables, seleccion, param, cifras, dudosas=None, rango=No
 
     # Lista con casillas: marcada = se descarga. Un clic en el nombre selecciona la estacion
     tabla = tabla_lista(descargables)
-    codigos = list(tabla["Código"])
     excluidas = set(ss.get("excluidas", set()))
     md(f'<div class="y2k-lista-cab"><span>{tr("Estaciones a descargar")}</span>'
        f'<span><b>{n_sel}</b> {tr("de")} {n_desc}</span></div>')
+    # Buscador: con muchas estaciones, encontrar una por su nombre o su codigo sin recorrer la lista. Las casillas de
+    # las que quedan fuera de la busqueda no cambian (_al_marcar solo toca las que estan a la vista)
+    if n_desc > 8:
+        busca = st.text_input(tr("Buscar estación"), key="buscar_estacion", placeholder=tr("Buscar por nombre o código"),
+                              label_visibility="collapsed", icon=":material/search:").strip().lower()
+        if busca:
+            tabla = tabla[tabla["Estación"].str.lower().str.contains(busca, regex=False)
+                          | tabla["Código"].astype(str).str.contains(busca, regex=False)].reset_index(drop=True)
+            if tabla.empty:
+                st.caption(tr("Ninguna estación coincide con la búsqueda."))
+    codigos = list(tabla["Código"])
     clave = f"lista_{abs(hash(tuple(codigos))) % 10 ** 8}_{ss.get('version_lista', 0)}"
     colores = tabla["color"].tolist()
     vista = tabla.drop(columns=["color"]).style.apply(
         lambda col: [f"color: {c}" for c in colores], subset=["●"]).format({"Cobertura": "{:.0f} %"})
     st.dataframe(
-        vista, hide_index=True, width="stretch", height=min(38 + 35 * max(1, len(tabla)), 330), key=clave,
+        vista, hide_index=True, width="stretch", height=min(38 + 35 * max(1, len(tabla)), 458), key=clave,
         on_select=partial(_al_marcar, clave, codigos), selection_mode=["multi-row", "single-cell"],
         selection_default={"selection": {"rows": [i for i, c in enumerate(codigos) if c not in excluidas]}},
-        column_order=["●", "Estación", "Cobertura"],
+        column_order=["●", "Estación", "Código", "Serie", "Cobertura"],
         column_config={
-            "●": st.column_config.TextColumn("", width=28, help=tr("Color de su clase de cobertura (ver la leyenda)")),
-            "Estación": st.column_config.TextColumn(tr("Estación"), width=176),
-            "Cobertura": st.column_config.TextColumn(tr("Cobertura"), width=66,
+            "●": st.column_config.TextColumn("", width=24, help=tr("Color de su clase de cobertura (ver la leyenda)")),
+            "Estación": st.column_config.TextColumn(tr("Estación"), width=130),
+            "Código": st.column_config.TextColumn(tr("Código"), width=70),
+            "Serie": st.column_config.TextColumn(tr("Serie"), width=72,
+                                                 help=tr("Primer y último año con datos de la serie en el IDEAM")),
+            "Cobertura": st.column_config.TextColumn(tr("Cob."), width=44,
                                                      help=tr("Cobertura estimada: qué parte del periodo cubre el "
                                                              "registro de la estación")),
         },

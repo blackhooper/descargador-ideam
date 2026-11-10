@@ -168,6 +168,9 @@ def _reintentar_catalogo():
 _precarga = _iniciar_precarga_servidor()
 
 # Condiciones de uso de los datos (terminos del portal DHIME)
+# Maximo de estaciones que se evaluan a la vez en el mapa (el departamento con mas estaciones tiene unas 900)
+MAX_ESTACIONES_ZONA = 1500
+
 TEXTO_LEGAL = tr("Los datos provienen del IDEAM y su descarga está autorizada para uso personal, privado y no "
                "comercial. No pueden comercializarse ni venderse. Todo trabajo que los utilice debe citar la "
                "fuente (el ZIP incluye la cita en CITACION.txt). El IDEAM no se hace responsable del uso de los "
@@ -276,7 +279,7 @@ def _filtro_ubicacion(etiqueta, cargada):
 @st.cache_resource(show_spinner=False)
 def _codigos_catalogo():
     """Codigo IDEAM de cada estacion del catalogo (mismo indice), para elegirlas por codigo sin recorrerlo cada vez."""
-    return pd.Series([ideam_downloader.codigo_de_estacion(r, i) for i, r in catalogo.iterrows()], index=catalogo.index)
+    return pd.Series(ideam_downloader.codigos_de(catalogo), index=catalogo.index)
 
 
 def _estaciones_del_filtro(filtro):
@@ -494,6 +497,7 @@ ESCALAS = ["Rango de la zona", "Rango de Colombia"]
 def _preparar(datos):
     ss.descarga = datos
     ss.resultado = None
+    ss._parcial = None
     ss.estado_descarga = "pendiente"
     ss.pop("nombre_zip", None)  # cada descarga nueva arranca con su nombre sugerido
     ss.paso = "descarga"
@@ -505,6 +509,7 @@ def _detener():
 
 def _reintentar_descarga():
     ss.resultado = None
+    ss._parcial = None
     ss.estado_descarga = "pendiente"
 
 
@@ -516,6 +521,7 @@ def _nueva_consulta():
     _borrar_cuenca()
     ss.descarga = None
     ss.resultado = None
+    ss._parcial = None
     ss.estado_descarga = None
     ss.paso = "parametros"
 
@@ -733,9 +739,8 @@ def _control_buffer():
     with st.container(key="y2k_buffer"):
         with st.popover(f"Buffer · {_km_txt(km)} km" if activo else tr("Sin buffer"), icon=":material/radar:",
                         key="pop_buffer", help=tr("Franja alrededor del área para incluir las estaciones cercanas")):
-            buffer_on = st.toggle(tr("Incluir estaciones cercanas"), value=True, key="buf_on", persist_state="session",
-                                  help=tr("Agrega una franja alrededor del área para tener en cuenta las estaciones "
-                                          "cercanas."))
+            # sin ayuda propia: la franja ya la explica la pildora que abre este menu
+            buffer_on = st.toggle(tr("Incluir estaciones cercanas"), value=True, key="buf_on", persist_state="session")
             buffer_km = st.number_input(tr("Ancho del buffer (km)"), min_value=0.5, max_value=15.0, value=2.0, step=0.5,
                                         format="%.1f", key="buf_km", disabled=not buffer_on, persist_state="session")
     return buffer_on, buffer_km
@@ -777,7 +782,7 @@ def pantalla_mapa():
             estilo.acciones_area(cuenca is not None, vista)
             buffer_on, buffer_km = _control_buffer()
         # la variable consultada, en corto (sin fechas): al pulsarla se vuelve a Parametros
-        estilo.seccion(tr("Calidad de los datos"), chip=(
+        estilo.seccion(tr("Cobertura estimada"), chip=(
             param["variable_nombre"], f"{param['nombre']} · {_periodo(fecha_ini, fecha_fin)}. "
                                       + tr("Pulsa para cambiar la variable o el periodo")))
         caja_calidad = st.container()
@@ -800,6 +805,12 @@ def pantalla_mapa():
         zona = geo_utils.filter_stations(catalogo, area)
         union = cuenca.union_all()
         zona["zona"] = ["cuenca" if union.covers(g) else "buffer" for g in zona.geometry]
+    # Tope de estaciones: un rectangulo sobre medio pais trae miles (cada una pide relieve, disponibilidad y un
+    # marcador con su ficha) y deja la pagina sin responder. Por encima del tope no se evalua: se pide reducir.
+    demasiadas = len(zona) if zona is not None and len(zona) > MAX_ESTACIONES_ZONA else 0
+    if demasiadas:
+        zona = zona.iloc[0:0].copy()
+        area = None
     if zona is not None:
         if not zona.empty:
             # sin textos de carga: mientras se calcula, el escaner recorre el area en el mapa
@@ -821,9 +832,9 @@ def pantalla_mapa():
             zona = zona[(pct >= rango_cob[0]) & (pct <= rango_cob[1])]
         if evaluada:
             descargables = filtrar_descargables(zona, 0)
-            codigos = [ideam_downloader.codigo_de_estacion(r, i) for i, r in descargables.iterrows()]
+            codigos = ideam_downloader.codigos_de(descargables)
             seleccion = descargables[[c not in excluidas for c in codigos]]
-    codigos_desc = (set(ideam_downloader.codigo_de_estacion(r, i) for i, r in descargables.iterrows())
+    codigos_desc = (set(ideam_downloader.codigos_de(descargables))
                     if descargables is not None else set())
 
     # ---------------- estacion seleccionada (mapa 2D, 3D o lista) ----------------
@@ -862,7 +873,8 @@ def pantalla_mapa():
                 ligero = _es_celular() or ss.lite
                 with st.container(key="y2k_visor3d"):
                     deck, orbita = terreno.construir_deck(cuenca, area if buffer_on else None,
-                                                          _estaciones_3d(zona, excluidas), ss.estacion_sel, textura,
+                                                          est_intro if usar_intro else _estaciones_3d(zona, excluidas),
+                                                          ss.estacion_sel, textura,
                                                           PALETA, ligero=ligero, altura=altura, celular=_es_celular(),
                                                           marco_gdf=area)
                     # Vuelta de camara: alrededor de la estacion recien elegida o, sin seleccion, alrededor
@@ -932,7 +944,7 @@ def pantalla_mapa():
             if encuadrar and zona is not None and not zona.empty:
                 centro, zoom = _encuadre(zona)   # recien llegadas las estaciones elegidas por ubicacion
             if cambio_sel and zona is not None and ss.estacion_sel:
-                elegida = zona[[ideam_downloader.codigo_de_estacion(r, i) == ss.estacion_sel for i, r in zona.iterrows()]]
+                elegida = zona[[c == ss.estacion_sel for c in ideam_downloader.codigos_de(zona)]]
                 if not elegida.empty:
                     # El mapa solo se mueve si centro/zoom cambian respecto a la vez anterior: un
                     # desfase minusculo (invisible) garantiza que vuelva aunque se elija la misma estacion
@@ -975,7 +987,12 @@ def pantalla_mapa():
     filas_estacion = ideam_parameters.filas_estimadas(param, fecha_ini, fecha_fin)
     excede = filas_estacion > ideam_parameters.MAX_FILAS_EXCEL
     with caja_calidad:
-        if error_ideam:
+        if demasiadas:
+            estilo.aviso(tr("El área es demasiado grande."),
+                         tr("Tiene {n} estaciones y el máximo es {m}. Dibuja un área más pequeña o elige las "
+                            "estaciones por departamento y municipio en Parámetros.", n=_num(demasiadas),
+                            m=_num(MAX_ESTACIONES_ZONA)), tono="error")
+        elif error_ideam:
             estilo.aviso(tr("No se pudo consultar el IDEAM."), error_ideam, tono="error")
         elif cuenca is None and not filtro:
             st.html('<p class="y2k-hint">' + tr("Delimita el área de estudio para evaluar la disponibilidad de datos "
@@ -1029,6 +1046,8 @@ def pantalla_mapa():
                  f"{panel_estadisticas.duracion_aprox(cifras['segundos'])}")
     elif cuenca is None and not filtro:
         razon = tr("Delimita el área de estudio")
+    elif demasiadas:
+        razon = tr("El área es demasiado grande")
     elif error_ideam:
         razon = tr("No se pudo consultar el IDEAM")
     elif excede:
@@ -1058,7 +1077,7 @@ def pantalla_mapa():
     # ---------------- ficha de la estacion elegida (flotante) ----------------
     with hueco_ficha:
         if ss.estacion_sel and zona is not None and not zona.empty:
-            fila = zona[[ideam_downloader.codigo_de_estacion(r, i) == ss.estacion_sel for i, r in zona.iterrows()]]
+            fila = zona[[c == ss.estacion_sel for c in ideam_downloader.codigos_de(zona)]]
             if not fila.empty:
                 panel_estadisticas.tarjeta_seleccionada(fila.iloc[0], rango, vista,
                                                         descargable=ss.estacion_sel in codigos_desc)
@@ -1129,15 +1148,20 @@ def _tabla_huecos(resultado):
 
 
 def _zip_final(resultado, carpetas, huecos=False):
-    """El ZIP tal como se descarga: plano o en carpetas por cobertura, con el mapa de huecos si se pidio (cada
-    variante se arma una vez y se guarda)."""
-    cache = resultado.setdefault("_zips", {})
+    """El ZIP tal como se descarga: plano o en carpetas por completitud, con el mapa de huecos si se pidio. Solo se
+    guarda la variante elegida (ademas del ZIP plano de la descarga): antes quedaban hasta cuatro copias en memoria
+    por sesion, y un ZIP grande pesa decenas de MB."""
     clave = (bool(carpetas), bool(huecos))
-    if clave not in cache:
+    if clave == (False, False):
+        resultado.pop("_zip_variante", None)
+        return resultado["zip"]
+    guardada = resultado.get("_zip_variante")
+    if guardada is None or guardada[0] != clave:
         base = ideam_downloader.zip_con_carpetas(resultado) if carpetas else resultado["zip"]
-        cache[clave] = (mapa_huecos.agregar_al_zip(base, _tabla_huecos(resultado), _titulo_huecos(resultado))
-                        if huecos else base)
-    return cache[clave]
+        if huecos:
+            base = mapa_huecos.agregar_al_zip(base, _tabla_huecos(resultado), _titulo_huecos(resultado))
+        guardada = resultado["_zip_variante"] = (clave, base)
+    return guardada[1]
 
 
 @st.fragment
@@ -1197,11 +1221,25 @@ def pantalla_descarga():
         if estado in ("detenida", "error"):
             error = (resultado or {}).get("error")
             with izq:
-                st.markdown(estilo.progreso(0, tr("Sin terminar"), "<span>" + tr("No se guardó nada") + "</span>",
-                                            "alto"), unsafe_allow_html=True)
+                parcial = ss.get("_parcial") if (ss.get("_parcial") or {}).get("parcial") and not error else None
+                if parcial:
+                    hechas = parcial["guardadas"] + parcial["omitidas"]
+                    st.markdown(estilo.progreso(hechas / max(n, 1), tr("Sin terminar"),
+                                                tr("<span>Guardadas <b>{g} de {n}</b></span>", g=parcial["guardadas"],
+                                                   n=n), "alto"), unsafe_allow_html=True)
+                    ini, fin = parcial["rango"]
+                    st.html('<p class="y2k-hint">' + tr("Lo que alcanzó a bajar no se pierde: puedes llevarte esas "
+                                                         "estaciones o reintentar la descarga completa.") + '</p>')
+                    st.download_button(tr("Descargar lo guardado ({g} estaciones)", g=parcial["guardadas"]),
+                                       data=_zip_final(parcial, True), width="stretch", icon=":material/download:",
+                                       file_name=f"IDEAM_{parcial['rotulo']}_{ini:%Y%m%d}-{fin:%Y%m%d}_parcial.zip",
+                                       mime="application/zip", key="bajar_parcial")
+                else:
+                    st.markdown(estilo.progreso(0, tr("Sin terminar"), "<span>" + tr("No se guardó nada") + "</span>",
+                                                "alto"), unsafe_allow_html=True)
                 if error:
                     st.error(tr(error), icon=":material/cloud_off:")
-                else:
+                elif not parcial:
                     st.html('<p class="y2k-hint">' + tr("Puedes reintentarla o volver al mapa para cambiar la "
                                                          "selección.") + '</p>')
                 with st.container(horizontal=True, gap="small"):
@@ -1271,6 +1309,9 @@ def _descargar(d, progreso, aviso):
     # cortar la corrida ("Detener", recarga, pestaña cerrada) y, si eso pasaba entre tomarlo y entrar al try, el
     # cupo quedaba tomado hasta reiniciar el servidor
     tomado = False
+    # Si la descarga se corta con estaciones ya guardadas, procesar_descargas deja aqui el ZIP parcial. Se guarda
+    # en la sesion ANTES de empezar: al cortarse la corrida ya no se puede escribir en st.session_state
+    parcial = ss._parcial = {}
     try:
         tomado = cupos.acquire(blocking=False)
         if not tomado:
@@ -1296,7 +1337,7 @@ def _descargar(d, progreso, aviso):
         aviso.empty()
         # el ZIP sale plano: las carpetas por cobertura se eligen al final, antes de descargarlo
         resultado = ideam_downloader.procesar_descargas(d["estaciones"], False, d["ini"], d["fin"],
-                                                        d["param"], {"progreso": progreso})
+                                                        d["param"], {"progreso": progreso, "parcial": parcial})
         ss.resultado = resultado or {"error": tr("No se pudo completar la descarga.")}
         ss.estado_descarga = "error" if "error" in ss.resultado else "lista"
     finally:

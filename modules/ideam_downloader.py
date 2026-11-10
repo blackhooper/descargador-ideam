@@ -701,11 +701,20 @@ def _zip_vacio(datos):
 
 def codigo_de_estacion(row, respaldo=""):
     """Codigo IDEAM (8 digitos) de una fila del catalogo de estaciones."""
+    if "codigo" in row.index and isinstance(row["codigo"], str) and row["codigo"]:
+        return row["codigo"]            # ya calculado al cargar el catalogo (ideam_catalog._con_codigo)
     for col in ("idestacion", "codigointerno"):
         if col in row.index and pd.notna(row[col]) and str(row[col]).strip():
             return str(row[col]).strip().split(".")[0]
     match = re.search(r"\[(\d+)\]", str(row.get("nombre", "")))
     return match.group(1) if match else str(respaldo)
+
+
+def codigos_de(df):
+    """Codigos IDEAM de todas las filas (lista, en su orden). Usa la columna "codigo" si el catalogo la trae."""
+    if "codigo" in df.columns:
+        return df["codigo"].astype(str).tolist()
+    return [codigo_de_estacion(r, i) for i, r in df.iterrows()]
 
 
 def descargar_excel_ideam(fecha_ini, fecha_fin, token_auth, param, codigo_estacion,
@@ -1202,6 +1211,32 @@ def procesar_descargas(estaciones_df, clasificar_en_carpetas, fecha_ini, fecha_f
             lambda n, c=codigo: avisos_bloques.put((c, n)), detener,
         )
 
+    def escribir_cierre(zip_file):
+        # Lista de lo que se descargo y lo que no (con el motivo)
+        zip_file.writestr("resumen_descarga.csv", pd.DataFrame(resumen).to_csv(index=False).encode("utf-8-sig"))
+        # Cita obligatoria segun los terminos de uso del IDEAM, ya armada con la fecha de hoy
+        zip_file.writestr("CITACION.txt", texto_citacion(param, fecha_ini, fecha_fin, guardadas).encode("utf-8-sig"))
+
+    def armar_resultado(duracion):
+        return {
+            "zip": zip_buffer.getvalue(),
+            "carpetas": {} if clasificar_en_carpetas else carpetas,
+            "resumen": resumen,
+            "guardadas": guardadas,
+            "omitidas": terminadas - guardadas,
+            "duracion": duracion,
+            "colores": colores,
+            "huecos": huecos,
+            "frecuencia": param.get("frecuencia"),
+            # medias de las guardadas: completitud real (datos que llegaron) y cobertura estimada (cantidad probable)
+            "completitud": (round(sum(r for r, _ in reales) / len(reales), 1),
+                            round(sum(p for _, p in reales) / len(reales), 1)) if reales else None,
+            "rotulo": rotulo_serie(param),
+            "rango": (fecha_ini, fecha_fin),
+        }
+
+    completa = False
+    pendientes = {}
     zip_buffer = io.BytesIO()
     carpetas = {}   # nombre del Excel -> carpeta de su clase (para armar el ZIP en carpetas al final, si se elige)
     usados = set()  # nombres de Excel ya escritos en el ZIP (ninguno se repite)
@@ -1251,7 +1286,7 @@ def procesar_descargas(estaciones_df, clasificar_en_carpetas, fecha_ini, fecha_f
                         log(f"OMITIDA {codigo}: {diagnostico}", "w")
                         resumen.append({
                             "Código": codigo, "Nombre": item["nombre"],
-                            "Cantidad probable (%)": item["pct"], "Cobertura": clase["nombre"],
+                            "Cobertura estimada (%)": item["pct"], "Clase estimada": clase["nombre"],
                             "Datos reales": "", "Completitud real (%)": "", **porcentajes_nivel({}),
                             "Resultado": "Omitida", "Archivo": "", "Detalle": diagnostico,
                         })
@@ -1277,7 +1312,7 @@ def procesar_descargas(estaciones_df, clasificar_en_carpetas, fecha_ini, fecha_f
                     log(f"GUARDADO {ruta_en_zip}")
                     resumen.append({
                         "Código": codigo, "Nombre": item["nombre"],
-                        "Cantidad probable (%)": item["pct"], "Cobertura": clase["nombre"],
+                        "Cobertura estimada (%)": item["pct"], "Clase estimada": clase["nombre"],
                         "Datos reales": "" if datos is None else datos,
                         "Completitud real (%)": "" if real is None else real, **porcentajes_nivel(niveles),
                         "Resultado": "Guardada", "Archivo": ruta_en_zip, "Detalle": diagnostico,
@@ -1292,34 +1327,35 @@ def procesar_descargas(estaciones_df, clasificar_en_carpetas, fecha_ini, fecha_f
                     restante = segundos_estimados - transcurrido
                 pintar(fraccion, restante)
 
-            # Lista de lo que se descargo y lo que no (con el motivo)
-            zip_file.writestr("resumen_descarga.csv", pd.DataFrame(resumen).to_csv(index=False).encode("utf-8-sig"))
-            # Cita obligatoria segun los terminos de uso del IDEAM, ya armada con la fecha de hoy
-            zip_file.writestr("CITACION.txt", texto_citacion(param, fecha_ini, fecha_fin, guardadas).encode("utf-8-sig"))
+            escribir_cierre(zip_file)
+            completa = True
     finally:
         # Si el usuario aborta, no se espera a que terminen las descargas pendientes; las que estan en curso
         # dejan de pedir bloques al IDEAM (antes seguian hasta terminar su estacion, con el cupo ya devuelto)
         detener.set()
         pool.shutdown(wait=False, cancel_futures=True)
+        if not completa and guardadas and ui.get("parcial") is not None:
+            # Descarga cortada con estaciones ya guardadas: se cierra el ZIP con lo que hay (antes se perdia todo).
+            # OJO: aqui la corrida de Streamlit ya esta detenida y tocar st.session_state (o tr(), que lo lee)
+            # vuelve a lanzar la excepcion de parada; por eso el resultado va a un dict que la app ya tiene guardado
+            try:
+                for item in pendientes.values():
+                    resumen.append({
+                        "Código": item["codigo"], "Nombre": item["nombre"], "Cobertura estimada (%)": item["pct"],
+                        "Clase estimada": clasificar_calidad(item["pct"])["nombre"], "Datos reales": "",
+                        "Completitud real (%)": "", **porcentajes_nivel({}), "Resultado": "Sin descargar",
+                        "Archivo": "", "Detalle": "La descarga se detuvo antes de llegar a esta estación",
+                    })
+                with zipfile.ZipFile(zip_buffer, "a", zipfile.ZIP_DEFLATED) as zip_file:
+                    escribir_cierre(zip_file)
+                ui["parcial"].update(armar_resultado(""), parcial=True,
+                                     sin_descargar=len(pendientes))
+            except Exception:
+                pass
 
     # Igual que el portal: el IDEAM registra cada serie descargada (sin datos de la persona)
     registrar_descargas_ideam(param, guardadas, token_auth)
     duracion = duracion_texto(time.time() - inicio)
     log(f"ZIP listo en {duracion} · incluye resumen_descarga.csv y CITACION.txt", "w")
     pintar(1.0, 0, terminado=True)
-    return {
-        "zip": zip_buffer.getvalue(),
-        "carpetas": {} if clasificar_en_carpetas else carpetas,
-        "resumen": resumen,
-        "guardadas": guardadas,
-        "omitidas": terminadas - guardadas,
-        "duracion": duracion,
-        "colores": colores,
-        "huecos": huecos,
-        "frecuencia": param.get("frecuencia"),
-        # medias de las guardadas: completitud real (datos que llegaron) y cobertura estimada (cantidad probable)
-        "completitud": (round(sum(r for r, _ in reales) / len(reales), 1),
-                        round(sum(p for _, p in reales) / len(reales), 1)) if reales else None,
-        "rotulo": rotulo_serie(param),
-        "rango": (fecha_ini, fecha_fin),
-    }
+    return armar_resultado(duracion)

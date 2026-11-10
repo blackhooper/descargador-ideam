@@ -102,11 +102,15 @@ EN = {
     "Zona de estudio y cobertura de cada estación.": "Study area and data coverage of each station.",
     "Preparar la descarga": "Prepare the download",
     "Nombre del ZIP y organización de los archivos.": "ZIP name and file organization.",
-    "Datos del IDEAM: uso personal y no comercial; cita la fuente.":
-        "IDEAM data: personal, non-commercial use; cite the source.",
+    "Herramienta no oficial. Datos del IDEAM: uso personal y no comercial; cita la fuente.":
+        "Unofficial tool. IDEAM data: personal, non-commercial use; cite the source.",
+    "El área es demasiado grande.": "The area is too large.",
+    "El área es demasiado grande": "The area is too large",
+    "Tiene {n} estaciones y el máximo es {m}. Dibuja un área más pequeña o elige las estaciones por departamento y municipio en Parámetros.":
+        "It has {n} stations and the maximum is {m}. Draw a smaller area or choose the stations by department and "
+        "municipality in Parameters.",
     "Ver condiciones": "View terms",
     "Ver condiciones completas": "View full terms",
-    "Herramienta independiente, no oficial del IDEAM": "Independent tool, not affiliated with IDEAM",
     "Manual de usuario": "User manual",
     "se abre en otra pestaña": "opens in a new tab",
     "Los datos provienen del IDEAM y su descarga está autorizada para uso personal, privado y no comercial. No pueden "
@@ -164,7 +168,7 @@ EN = {
     "Estaciones elegidas": "Selected stations",
     "Área de estudio": "Study area",
     "Sin definir": "Not defined",
-    "Calidad de los datos": "Data quality",
+    "Cobertura estimada": "Estimated coverage",
     "Pulsa para cambiar la variable o el periodo": "Click to change the variable or period",
     "Cambiar la variable o el periodo": "Change the variable or period",
     "Para cambiar el área, vuelve a la vista 2D.": "To change the area, go back to the 2D view.",
@@ -183,8 +187,6 @@ EN = {
     "Franja alrededor del área para incluir las estaciones cercanas":
         "Margin around the area to include nearby stations",
     "Incluir estaciones cercanas": "Include nearby stations",
-    "Agrega una franja alrededor del área para tener en cuenta las estaciones cercanas.":
-        "Adds a margin around the area so nearby stations are taken into account.",
     "Ancho del buffer (km)": "Buffer width (km)",
     "No se pudo consultar el IDEAM": "IDEAM could not be reached",
     "No se pudo consultar el IDEAM.": "IDEAM could not be reached.",
@@ -198,13 +200,13 @@ EN = {
     "Ninguna estación de la zona tiene datos de esta variable en el periodo.":
         "No station in this area has data for this variable in the period.",
     "Cambia la variable o el periodo, o amplía el buffer.": "Change the variable or the period, or widen the buffer.",
-    "Estaciones encontradas": "Stations found",
-    "{n} {estaciones} sin información": "{n} {estaciones} without data",
-    "Todas con información": "All with data",
+    "Estaciones con datos": "Stations with data",
+    "de {n} en la zona": "of {n} in the area",
+    "Todas las de la zona": "All in the area",
     "Estaciones con esta serie en {u}.": "Stations with this series in {u}.",
     "Estaciones del IDEAM en el área y el buffer.": "IDEAM stations in the area and the buffer.",
-    " {n} tienen datos de esta variable en el periodo.": " {n} have data for this variable in the period.",
-    "Cobertura media del periodo": "Mean coverage of the period",
+    " {n} no tienen la serie de esta variable en el periodo.": " {n} have no series for this variable in the period.",
+    "Cobertura estimada media": "Mean estimated coverage",
     "La cobertura es estimada.": "Coverage is an estimate.",
     "Mide qué parte del periodo abarca el registro de cada estación, entre su primer y su último dato, sin descontar los huecos internos. La completitud real (los datos que llegan de verdad) aparece al terminar la descarga, en el resumen y en resumen_descarga.csv.":
         "It measures how much of the period each station's record spans, between its first and last value, without "
@@ -212,9 +214,9 @@ EN = {
         "finishes, in the summary and in resumen_descarga.csv.",
     "Completitud real media: <b>{r} %</b> (cobertura estimada {e} %).":
         "Mean actual completeness: <b>{r} %</b> (estimated coverage {e} %).",
-    "Promedio de la cantidad probable de las estaciones seleccionadas: qué parte del periodo consultado cubre su "
+    "Promedio de la cobertura estimada de las estaciones seleccionadas: qué parte del periodo consultado cubre su "
     "registro (no descuenta los huecos internos).":
-        "Average expected record count of the selected stations: how much of the requested period their record spans "
+        "Average estimated coverage of the selected stations: how much of the requested period their record spans "
         "(internal gaps are not subtracted).",
     "Tamaño del ZIP": "ZIP size",
     "{t} aprox.": "≈ {t}",
@@ -243,8 +245,8 @@ EN = {
     "de": "of",
     "Color de su clase de cobertura (ver la leyenda)": "Color of its coverage class (see the legend)",
     "Cobertura": "Coverage",
-    "Cantidad probable: qué parte del periodo cubre el registro de la estación":
-        "Expected record count: how much of the period the station's record spans",
+    "Cobertura estimada: qué parte del periodo cubre el registro de la estación":
+        "Estimated coverage: how much of the period the station's record spans",
     "{n} en el área": "{n} in the area",
     " · {n} en el buffer": " · {n} in the buffer",
     "{n} con datos en el último año": "{n} with data in the last year",
@@ -303,7 +305,7 @@ EN = {
     "Un dedo": "One finger",
     "Dos dedos": "Two fingers",
     "Girar; deslizar arriba o abajo inclina; pellizcar acerca": "Rotate; swipe up or down to tilt; pinch to zoom",
-    "Disponibilidad estimada de datos en el periodo": "Estimated data availability in the period",
+    "Cobertura estimada del periodo": "Estimated coverage of the period",
     "Alta": "High", "Media": "Medium", "Baja": "Low", "Crítica": "Critical",
     "Sin serie": "No series",
     "Excluida": "Excluded",
@@ -373,6 +375,10 @@ EN = {
         "the ↻ button below.",
     "Vista del mapa": "Map view",
     "Repetir animación": "Replay animation",
+    "<span>Guardadas <b>{g} de {n}</b></span>": "<span>Saved <b>{g} of {n}</b></span>",
+    "Lo que alcanzó a bajar no se pierde: puedes llevarte esas estaciones o reintentar la descarga completa.":
+        "What was already downloaded is not lost: you can take those stations or retry the full download.",
+    "Descargar lo guardado ({g} estaciones)": "Download what was saved ({g} stations)",
     "En modo Lite no hay animación de entrada. Desactívalo en Ajustes para verla.":
         "Lite mode has no intro animation. Turn it off in Settings to see it.",
     "Repetir la animación de entrada al 3D": "Replay the 3D intro animation",
@@ -395,11 +401,9 @@ EN = {
     "en el área": "in the area",
     "En el buffer": "In the buffer",
     "en el buffer": "in the buffer",
-    "En la cuenca": "In the area",
     "⚠ Altitud dudosa: el relieve marca {m} m": "⚠ Questionable elevation: the terrain shows {m} m",
     "Cobertura **{p} %** ({clase}) · serie {a}–{b}": "Coverage **{p} %** ({clase}) · series {a}–{b}",
     "Sin serie de esta variable en DHIME": "No series for this variable in DHIME",
-    "Sin serie de este parámetro en DHIME": "No series for this parameter in DHIME",
     "Incluir en la descarga": "Include in the download",
     "Altitud dudosa · Ver detalles": "Questionable elevation · Details",
     "Según el relieve, el terreno en ese punto está a <b>{t} m</b>, pero el catálogo del IDEAM sitúa la estación a "
@@ -419,8 +423,7 @@ EN = {
     " En el mapa 3D, la marca naranja muestra dónde quedaría con la altitud del catálogo.":
         " On the 3D map, the orange marker shows where it would sit at the catalog elevation.",
     "Excluida de la descarga": "Excluded from the download",
-    "Cantidad probable": "Expected records",
-    "Cantidad probable <b>{p} %</b> · cobertura {clase}": "Expected records <b>{p} %</b> · {clase} coverage",
+    "Cobertura estimada <b>{p} %</b> ({clase})": "Estimated coverage <b>{p} %</b> ({clase})",
     "Serie": "Series",
 
     # ---- Subir un area ----

@@ -2245,10 +2245,10 @@ def como_funciona():
 
 def pie_inicio(texto_legal):
     md('<footer class="y2k-pie-inicio">'
-       f'<details class="y2k-det"><summary><span>{tr("Datos del IDEAM: uso personal y no comercial; cita la fuente.")}</span>'
+       # una sola linea: de quien son los datos, como se pueden usar y que la herramienta no es oficial
+       f'<details class="y2k-det"><summary><span>{tr("Herramienta no oficial. Datos del IDEAM: uso personal y no comercial; cita la fuente.")}</span>'
        f'<span class="ver">{tr("Ver condiciones")}</span></summary><div><p>{texto_legal}</p></div></details>'
-       f'<p>{tr("Herramienta independiente, no oficial del IDEAM")} · '
-       f'<a href="app/static/manual.html" target="_blank" rel="noopener">{tr("Manual de usuario")}</a></p></footer>')
+       f'<p><a href="app/static/manual.html" target="_blank" rel="noopener">{tr("Manual de usuario")}</a></p></footer>')
 
 
 # ---------------------------------------------------------------------------
@@ -2417,7 +2417,7 @@ def marca_filtro():
     md('<span class="y2k-oculto y2k-filtro-on" hidden></span>')
 
 
-TITULO_LEYENDA = "Disponibilidad estimada de datos en el periodo"
+TITULO_LEYENDA = "Cobertura estimada del periodo"
 
 
 def leyenda_estaciones(colores, en3d=False, hay_excluidas=False):

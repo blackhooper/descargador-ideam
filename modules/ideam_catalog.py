@@ -35,8 +35,29 @@ def _quitar_duplicados(gdf: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
     return gdf.loc[gdf.index.isin(conservar)].copy()
 
 
+# Columnas del catalogo oficial que la app usa (o que describen la estacion). El servicio trae unas 40, entre ellas
+# observaciones internas y nombres de usuario del IDEAM: no se guardan ni se cargan.
+COLUMNAS = ("idestacion", "nombre", "idcategoria", "idtecnologiatm", "idestadoestaciontm", "fechainstalacion",
+            "fechasuspension", "altitud", "latitud", "longitud", "iddepartamento", "idmunicipio",
+            "idareahidrografica", "idzonahidrografica", "idsubzonahidrografica", "codigointerno", "idcorriente",
+            "fechaultimamodificacion", "geometry")
+
+
+def _recortar(gdf: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
+    """Deja solo las columnas de COLUMNAS (las que existan)."""
+    return gdf[[c for c in gdf.columns if c in COLUMNAS]].copy()
+
+
+def _con_codigo(gdf: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
+    """Agrega la columna "codigo" (codigo IDEAM de la estacion, texto). Se calcula una sola vez al cargar el
+    catalogo; antes se sacaba fila por fila, varias veces en cada recarga de la pagina."""
+    from modules.ideam_downloader import codigo_de_estacion
+    gdf["codigo"] = [codigo_de_estacion(r, i) for i, r in gdf.iterrows()]
+    return gdf
+
+
 def _limpiar(gdf: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
-    return _marcar_coordenada_compartida(_quitar_duplicados(_quitar_estaciones_de_prueba(gdf)))
+    return _con_codigo(_marcar_coordenada_compartida(_quitar_duplicados(_quitar_estaciones_de_prueba(_recortar(gdf)))))
 
 
 def _marcar_coordenada_compartida(gdf: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
@@ -113,7 +134,7 @@ def load_ideam_catalog() -> gpd.GeoDataFrame:
 
     gdf = gpd.GeoDataFrame.from_features(all_features)
     gdf = gdf.set_crs(epsg=4326)
-    gdf = _quitar_duplicados(_quitar_estaciones_de_prueba(gdf))
+    gdf = _quitar_duplicados(_quitar_estaciones_de_prueba(_recortar(gdf)))
 
     if not descarga_completa:
         # Se cortó a medias: se muestra lo que llegó, pero NO se guarda en disco como
@@ -121,7 +142,7 @@ def load_ideam_catalog() -> gpd.GeoDataFrame:
         st.warning(tr("El catálogo de estaciones del IDEAM se descargó incompleto (se cortó la conexión a medio "
                       "camino). Se muestran solo las estaciones que llegaron a tiempo. Vuelve a intentarlo más "
                       "tarde."))
-        return _marcar_coordenada_compartida(gdf)
+        return _con_codigo(_marcar_coordenada_compartida(gdf))
 
     os.makedirs("data", exist_ok=True)
     if os.path.exists(cache_path):
@@ -134,7 +155,7 @@ def load_ideam_catalog() -> gpd.GeoDataFrame:
             pass
     gdf.to_file(cache_path, driver="GeoJSON")
 
-    return _marcar_coordenada_compartida(gdf)
+    return _con_codigo(_marcar_coordenada_compartida(gdf))
 
 
 @st.cache_data(ttl=24 * 3600, show_spinner=False)

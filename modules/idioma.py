@@ -428,6 +428,11 @@ EN = {
     "<span>Guardadas <b>{g}</b></span><span>Omitidas <b>{o}</b></span>":
         "<span>Saved <b>{g}</b></span><span>Skipped <b>{o}</b></span>",
     "Separar en carpetas por cobertura": "Split into folders by coverage",
+    "Incluir el mapa de huecos": "Include the gap map",
+    "Una imagen y una tabla con el % de datos de cada estación en cada año, para ver de un vistazo dónde faltan datos.":
+        "An image and a table with the % of data each station has in each year, to see at a glance where data is missing.",
+    "Vista previa del mapa de huecos": "Gap map preview",
+    "Datos de cada estación por año": "Each station's data by year",
     "Alta (70–100 %), media (50–70 %), baja (25–50 %) y crítica (0–25 %) del periodo consultado. Sin marcar, todos los "
     "Excel van juntos.":
         "High (70–100 %), medium (50–70 %), low (25–50 %) and critical (0–25 %) coverage of the requested period. "

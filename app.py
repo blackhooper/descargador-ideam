@@ -14,7 +14,7 @@ import streamlit.components.v1 as components
 from streamlit_folium import st_folium
 
 from modules import (escaner, estilo, geo_input, geo_utils, map_view, ideam_catalog, ideam_parameters,
-                     ideam_downloader, idioma, panel_estadisticas, terreno, acceso, herramientas)
+                     ideam_downloader, idioma, mapa_huecos, panel_estadisticas, terreno, acceso, herramientas)
 from modules.calidad import CLASES_CALIDAD, filtrar_descargables, clasificar_calidad
 from modules.idioma import tr
 
@@ -1102,29 +1102,47 @@ def _recibo(d):
         (tr("Archivo"), [(tr("Un Excel por estación"), "excel", "")]
          + ([(tr("Carpetas por cobertura"), "carpeta", tr("Alta, media, baja y crítica"))]
             if ss.get("carpetas", True) else [])
+         + ([("mapa_de_huecos.png / .csv", "tabla", tr("Datos de cada estación por año"))]
+            if ss.get("incluir_huecos") and (ss.get("resultado") or {}).get("huecos") else [])
          + [("resumen_descarga.csv", "tabla", tr("Cobertura y resultado por estación")),
             ("CITACION.txt", "cita", tr("Cita de la fuente"))], ""),
         (tr("Fuente"), "IDEAM · DHIME", ""),
     ])
 
 
-def _zip_final(resultado, carpetas):
-    """El ZIP tal como se descarga: plano o en carpetas por cobertura (se arma una vez y se guarda)."""
-    if not carpetas:
-        return resultado["zip"]
-    if resultado.get("_zip_carpetas") is None:
-        resultado["_zip_carpetas"] = ideam_downloader.zip_con_carpetas(resultado)
-    return resultado["_zip_carpetas"]
+def _titulo_huecos(resultado):
+    ini, fin = resultado["rango"]
+    return f"{resultado['rotulo']} · {ini:%d/%m/%Y} – {fin:%d/%m/%Y}"
+
+
+def _tabla_huecos(resultado):
+    """Tabla del mapa de huecos de la descarga (se arma una vez y se guarda)."""
+    if resultado.get("_tabla_huecos") is None:
+        resultado["_tabla_huecos"] = mapa_huecos.tabla_huecos(resultado["huecos"], resultado["rango"],
+                                                              resultado.get("frecuencia"))
+    return resultado["_tabla_huecos"]
+
+
+def _zip_final(resultado, carpetas, huecos=False):
+    """El ZIP tal como se descarga: plano o en carpetas por cobertura, con el mapa de huecos si se pidio (cada
+    variante se arma una vez y se guarda)."""
+    cache = resultado.setdefault("_zips", {})
+    clave = (bool(carpetas), bool(huecos))
+    if clave not in cache:
+        base = ideam_downloader.zip_con_carpetas(resultado) if carpetas else resultado["zip"]
+        cache[clave] = (mapa_huecos.agregar_al_zip(base, _tabla_huecos(resultado), _titulo_huecos(resultado))
+                        if huecos else base)
+    return cache[clave]
 
 
 @st.fragment
-def _entrega(resultado, carpetas):
+def _entrega(resultado, carpetas, huecos=False):
     """Nombre del ZIP y boton de descarga (en un fragmento: escribir el nombre no recarga la tarjeta entera)."""
     ini, fin = resultado["rango"]
     predeterminado = f"IDEAM_{resultado['rotulo']}_{ini:%Y%m%d}-{fin:%Y%m%d}"
     nombre = st.text_input(tr("Nombre del archivo ZIP"), value=predeterminado, key="nombre_zip", max_chars=120,
                            live=True, help=tr("Por ejemplo: descarga 1. La extensión .zip se añade sola."))
-    st.download_button(tr("Descargar el ZIP"), data=_zip_final(resultado, carpetas), type="primary", width="stretch",
+    st.download_button(tr("Descargar el ZIP"), data=_zip_final(resultado, carpetas, huecos), type="primary", width="stretch",
                        file_name=f"{_nombre_archivo(nombre, predeterminado)}.zip", icon=":material/download:",
                        mime="application/zip", key="bajar_zip")
 
@@ -1216,7 +1234,17 @@ def pantalla_descarga():
                                    persist_state="session",
                                    help=tr("Alta (70–100 %), media (50–70 %), baja (25–50 %) y crítica (0–25 %) del "
                                            "periodo consultado. Sin marcar, todos los Excel van juntos."))
-            _entrega(resultado, carpetas)
+            # Opcional: mapa de huecos (heatmap de calidad por estacion y año), con lo ya descargado
+            huecos = False
+            if resultado.get("huecos") and mapa_huecos.disponible(resultado.get("frecuencia")):
+                huecos = st.checkbox(tr("Incluir el mapa de huecos"), value=False, key="incluir_huecos",
+                                     persist_state="session",
+                                     help=tr("Una imagen y una tabla con el % de datos de cada estación en cada año, "
+                                             "para ver de un vistazo dónde faltan datos."))
+                if huecos:
+                    with st.expander(tr("Vista previa del mapa de huecos"), expanded=False):
+                        st.image(mapa_huecos.png(_tabla_huecos(resultado), _titulo_huecos(resultado)))
+            _entrega(resultado, carpetas, huecos)
             with st.container(horizontal=True, gap="small"):
                 st.button(tr("Volver al mapa"), width="stretch", icon=":material/arrow_back:", key="volver_mapa",
                           on_click=_volver_mapa)

@@ -5,6 +5,8 @@ import requests
 import geopandas as gpd
 import streamlit as st
 
+from modules.idioma import tr
+
 # Nombres que delatan una estacion de prueba metida en el catalogo oficial
 # (p. ej. "MONDONEDO_TEST [21208080]", con coordenadas 4.0/-74.0 de relleno).
 # No son estaciones reales y ensucian cualquier filtro por cercania o mapa.
@@ -17,6 +19,24 @@ def _quitar_estaciones_de_prueba(gdf: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
         return gdf
     es_prueba = gdf["nombre"].astype(str).str.contains(_PATRON_PRUEBA, regex=True, na=False)
     return gdf.loc[~es_prueba].copy()
+
+
+def _quitar_duplicados(gdf: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
+    """Deja una sola fila por codigo de estacion (idestacion). El catalogo oficial trae unos pocos codigos repetidos
+    (la misma estacion con dos estados): en la app salian dos veces en la lista y se descargaban dos veces. Se
+    conserva la fila modificada mas recientemente, en su lugar original."""
+    if "idestacion" not in gdf.columns:
+        return gdf
+    orden = gdf
+    if "fechaultimamodificacion" in gdf.columns:
+        orden = gdf.sort_values("fechaultimamodificacion", ascending=False, na_position="last", kind="stable")
+    codigo = orden["idestacion"].astype(str).str.strip()
+    conservar = orden.index[~codigo.duplicated() | codigo.isin(["", "None", "nan"])]
+    return gdf.loc[gdf.index.isin(conservar)].copy()
+
+
+def _limpiar(gdf: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
+    return _marcar_coordenada_compartida(_quitar_duplicados(_quitar_estaciones_de_prueba(gdf)))
 
 
 def _marcar_coordenada_compartida(gdf: gpd.GeoDataFrame) -> gpd.GeoDataFrame:
@@ -41,16 +61,11 @@ def load_ideam_catalog() -> gpd.GeoDataFrame:
     if os.path.exists(cache_path):
         try:
             gdf = gpd.read_file(cache_path)
-            gdf = _quitar_estaciones_de_prueba(gdf)
-            gdf = _marcar_coordenada_compartida(gdf)
-            return gdf
+            return _limpiar(gdf)
         except Exception:
             pass
 
     url = "https://dhime.ideam.gov.co/server/rest/services/CNE/Estaciones/MapServer/0/query"
-    
-    import urllib3
-    urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
     
     all_features = []
     offset = 0
@@ -72,7 +87,7 @@ def load_ideam_catalog() -> gpd.GeoDataFrame:
             "resultRecordCount": batch_size
         }
         try:
-            response = requests.get(url, params=params, timeout=40, verify=False)
+            response = requests.get(url, params=params, timeout=40)
             response.raise_for_status()
             data = response.json()
 
@@ -90,7 +105,7 @@ def load_ideam_catalog() -> gpd.GeoDataFrame:
 
             offset += batch_size
         except Exception as e:
-            st.error(f"❌ Error durante la descarga fragmentada: {e}")
+            st.error(tr("No se pudo descargar el catálogo de estaciones del IDEAM: {e}", e=e))
             break
 
     if not all_features:
@@ -98,14 +113,14 @@ def load_ideam_catalog() -> gpd.GeoDataFrame:
 
     gdf = gpd.GeoDataFrame.from_features(all_features)
     gdf = gdf.set_crs(epsg=4326)
-    gdf = _quitar_estaciones_de_prueba(gdf)
+    gdf = _quitar_duplicados(_quitar_estaciones_de_prueba(gdf))
 
     if not descarga_completa:
         # Se cortó a medias: se muestra lo que llegó, pero NO se guarda en disco como
         # catalogo completo (no se toca cache_path, así que si ya había uno bueno sigue ahí).
-        st.warning("⚠️ El catálogo de estaciones del IDEAM se descargó incompleto (se cortó la "
-                   "conexión a medio camino). Se están mostrando solo las estaciones que llegaron "
-                   "a tiempo. Vuelve a intentarlo más tarde.")
+        st.warning(tr("El catálogo de estaciones del IDEAM se descargó incompleto (se cortó la conexión a medio "
+                      "camino). Se muestran solo las estaciones que llegaron a tiempo. Vuelve a intentarlo más "
+                      "tarde."))
         return _marcar_coordenada_compartida(gdf)
 
     os.makedirs("data", exist_ok=True)

@@ -2,9 +2,8 @@ import json
 from html import escape
 
 import streamlit as st
-import streamlit.components.v1 as components
 
-from modules import acceso, idioma
+from modules import acceso, guion, idioma
 from modules.idioma import tr
 
 # ===========================================================================
@@ -205,9 +204,9 @@ def _tokens_css(tema, contraste):
 
 
 # Superficies de vidrio: contenedores de Streamlit (por su clave) y piezas HTML propias
-VIDRIO_CLARO = (".st-key-y2k_ajustes,.st-key-y2k_herr,.st-key-y2k_abrir,.st-key-y2k_filtro,.st-key-y2k_dock_izq,"
+VIDRIO_CLARO = (".st-key-y2k_ajustes,.st-key-y2k_acceso_idioma,.st-key-y2k_herr,.st-key-y2k_abrir,.st-key-y2k_filtro,.st-key-y2k_dock_izq,"
                 ".lg-claro")
-VIDRIO_REGULAR = ".st-key-y2k_panel,.st-key-y2k_ficha,.st-key-y2k_inicio,.st-key-y2k_exportar,.lg-regular"
+VIDRIO_REGULAR = ".st-key-y2k_panel,.st-key-y2k_ficha,.st-key-y2k_inicio,.st-key-y2k_exportar,.st-key-y2k_acceso,.lg-regular"
 VIDRIO = VIDRIO_CLARO + "," + VIDRIO_REGULAR
 
 CSS = """
@@ -384,6 +383,23 @@ a{color:var(--y2k-accent-texto)}
   padding:10px 0 2px;border-top:1px solid var(--y2k-line)}
 .y2k-enlace:hover{text-decoration:underline !important}
 .y2k-enlace svg{width:17px;height:17px}
+
+/* ================= ACCESO (clave) ================= */
+.st-key-y2k_acceso{position:fixed !important;z-index:40;left:50%;top:50%;transform:translate(-50%,-50%);
+  width:min(420px,calc(100vw - 32px)) !important;padding:26px 28px 24px !important;gap:10px !important;border-radius:30px;
+  animation:y2k-entra-centro .5s var(--y2k-curva) both}
+.st-key-y2k_acceso .y2k-cab-inicio{padding:0 0 12px !important}
+.st-key-y2k_acceso .stButton{margin-top:6px}
+/* el campo de clave trae fondos propios de Streamlit en sus piezas internas (no siguen el tema oscuro) */
+.st-key-y2k_acceso [data-testid="stTextInputRootElement"]{background:var(--y2k-campo) !important;
+  border-color:var(--y2k-campo-borde) !important;border-radius:var(--y2k-r-ctl) !important}
+.st-key-y2k_acceso [data-testid="stTextInputRootElement"] :is(input,button,div){background:transparent !important;color:var(--y2k-ink) !important}
+.st-key-y2k_acceso [data-testid="stTextInputRootElement"] input{caret-color:var(--y2k-ink);-webkit-text-fill-color:var(--y2k-ink)}
+.st-key-y2k_acceso_idioma{position:fixed !important;top:var(--y2k-g);right:var(--y2k-g);z-index:55;width:auto !important;
+  height:var(--y2k-capsula);padding:4px !important;border-radius:999px;display:flex !important;align-items:center}
+.st-key-y2k_acceso_idioma button{min-width:36px;height:36px;min-height:36px;padding:0 8px !important;border-radius:999px;
+  font:700 12px/1 "Figtree",sans-serif !important;letter-spacing:.06em;color:var(--y2k-ink) !important}
+.st-key-y2k_acceso_idioma button p{font:inherit !important}
 
 /* ================= PANTALLA 1: PARAMETROS ================= */
 .st-key-y2k_inicio{position:fixed !important;z-index:40;left:50%;top:50%;transform:translate(-50%,-50%);
@@ -675,13 +691,13 @@ html:not([data-y2k-panel="cerrado"]) .st-key-y2k_abrir{display:none !important}
 .st-key-preparar button:disabled{opacity:.55 !important;filter:saturate(.35)}
 .st-key-y2k_dock_der .stButton button[kind="primary"]{box-shadow:var(--y2k-boton-canto),0 10px 22px -10px var(--y2k-accent) !important}
 /* ficha de la estacion seleccionada (arriba a la derecha, junto a la columna de Ajustes) */
-.st-key-y2k_ficha{position:fixed !important;z-index:42;top:var(--y2k-g);right:calc(var(--y2k-g) * 2 + var(--y2k-capsula));
+.st-key-y2k_ficha{position:fixed !important;z-index:42;top:var(--y2k-g);right:calc(var(--y2k-g) * 2 + var(--y2k-ajustes-w, 84px));
   width:320px !important;max-height:calc(100dvh - var(--y2k-dock-h) - var(--y2k-g) * 3);overflow:hidden;display:flex !important;
   flex-direction:column;padding:0 !important;gap:0 !important;animation:y2k-menu .25s var(--y2k-curva) backwards}
 .st-key-y2k_ficha_cuerpo{padding:14px 16px !important;gap:8px !important;--y2k-fundido:10px}
 .st-key-y2k_ficha:not(:has(.y2k-ficha-cab)){display:none !important}
 /* cerrada (al elegir una estacion): solo la pildora con el nombre; se despliega al pulsarla y se cierra al tocar afuera */
-html:not([data-y2k-ficha="abierta"]) .st-key-y2k_ficha{width:auto !important;max-width:min(340px,calc(100vw - var(--y2k-g) * 4 - var(--y2k-capsula)));
+html:not([data-y2k-ficha="abierta"]) .st-key-y2k_ficha{width:auto !important;max-width:min(340px,calc(100vw - var(--y2k-g) * 4 - var(--y2k-ajustes-w, 84px)));
   border-radius:999px}
 html:not([data-y2k-ficha="abierta"]) .st-key-y2k_ficha_cuerpo{display:none !important}
 html[data-y2k-ficha="abierta"] .st-key-y2k_ficha{border-radius:var(--y2k-r)}
@@ -940,7 +956,7 @@ html[data-y2k-hoja="abierta"] :is(.st-key-y2k_herr,.st-key-y2k_ficha,.st-key-y2k
 .st-key-y2k_filtro,html[data-y2k-panel="cerrado"] .st-key-y2k_filtro{left:var(--y2k-g) !important}
 html[data-y2k-hoja="abierta"][data-y2k-p="mapa"] .y2k-cierre-hoja{display:block;position:fixed;inset:0;z-index:39;background:transparent;
   -webkit-tap-highlight-color:transparent}
-.st-key-y2k_ficha{top:var(--y2k-g) !important;left:var(--y2k-g);right:calc(var(--y2k-g) * 2 + var(--y2k-capsula)) !important;width:auto !important;
+.st-key-y2k_ficha{top:var(--y2k-g) !important;left:var(--y2k-g);right:calc(var(--y2k-g) * 2 + var(--y2k-ajustes-w, 84px)) !important;width:auto !important;
   max-height:38dvh}
 .stApp:has(.st-key-y2k_filtro .stPopover) .st-key-y2k_ficha{top:calc(var(--y2k-g) * 2 + var(--y2k-capsula)) !important}
 html:not([data-y2k-ficha="abierta"]) .st-key-y2k_ficha{right:auto !important}
@@ -1272,7 +1288,7 @@ def guiones_globales(pantalla):
         md(f'<span class="y2k-pantalla" data-p="{pantalla}" hidden></span>')
         instalar_ui()
         quiero = {"claro": "Light", "oscuro": "Dark"}.get(st.session_state.get("tema", "sistema"), "System")
-        components.html(_SINCRONIZAR_TEMA.replace("__TEMA__", quiero), height=0)
+        guion.inyectar(_SINCRONIZAR_TEMA.replace("__TEMA__", quiero))
 
 
 # ---------------------------------------------------------------------------
@@ -1619,6 +1635,8 @@ _UI = r"""
     var ficha = caja(".st-key-y2k_ficha"), dock = caja(".st-key-y2k_dock"), panel = caja(".st-key-y2k_panel");
     var filtro = caja(".st-key-y2k_filtro");
     var pIzq = caja(".st-key-y2k_dock_izq"), pDer = caja(".st-key-y2k_dock_der");
+    // ancho real de la capsula de Ajustes (lleva tambien el boton de idioma): la ficha se aparta de ella
+    if (ajustes) raiz.style.setProperty("--y2k-ajustes-w", Math.round(ajustes.right - ajustes.left) + "px");
     var col = [ajustes, herr].filter(Boolean);
     var izq = G, der = col.length ? W - Math.min.apply(null, col.map(function (r) { return r.left; })) + G : G;
     var arriba = abrir ? abrir.bottom + G : G, abajo = G;
@@ -2173,12 +2191,12 @@ _UI = r"""
 def instalar_ui():
     """Inyecta el guion de la interfaz en la pagina principal (sobrevive a las recargas de Streamlit)."""
     # la version lleva el idioma: al cambiarlo, el guion se instala de nuevo con sus textos
-    codigo = (idioma.traducir_js(_UI).replace("__V__", "36-" + idioma.actual())
+    codigo = (idioma.traducir_js(_UI).replace("__V__", "37-" + idioma.actual())
               .replace("__ICONO_ALERTA__", json.dumps(ICONOS["alerta"]))
               .replace("__MOVIL__", json.dumps(MOVIL)).replace("__VIDRIO__", json.dumps(VIDRIO)))
     cuerpo = ("(function(){var w=window.parent;var s=w.document.createElement('script');"
               f"s.textContent={json.dumps(codigo)};w.document.head.appendChild(s);s.remove();}})();")
-    components.html("<script>" + cuerpo.replace("</", "<\\/") + "</script>", height=0)
+    guion.inyectar("<script>" + cuerpo.replace("</", "<\\/") + "</script>")
 
 
 # ---------------------------------------------------------------------------
@@ -2505,7 +2523,7 @@ def resumen_final(texto, reparto):
     ley = "".join(f'<li><i style="background:{c}"></i>{escape(nm)} <b>{n}</b></li>' for nm, n, c in reparto if n)
     md(f'<div class="y2k-final"><p>{texto}</p>'
        + (f'<div class="y2k-reparto" aria-hidden="true">{barras}</div>'
-          f'<ul class="y2k-reparto-ley" aria-label="{tr("Estaciones guardadas por cobertura")}">{ley}</ul>' if ley else "")
+          f'<ul class="y2k-reparto-ley" aria-label="{tr("Estaciones guardadas por completitud real")}">{ley}</ul>' if ley else "")
        + '</div>')
 
 

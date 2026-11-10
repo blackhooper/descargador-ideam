@@ -642,16 +642,13 @@ def calcular_bloques(fecha_ini, fecha_fin, inicio_serie=None, fin_serie=None, di
     while inicio_actual <= fecha_fin:
         fin_actual = min(inicio_actual + datetime.timedelta(days=dias_por_bloque - 1), fecha_fin)
         if alinear_mes and fin_actual < fecha_fin:
-            # Primer dia del mes siguiente al de fin_actual, menos un dia: el ultimo dia
-            # de SU mes. (Sumarle 1 dia a fin_actual y poner day=1 no alcanza: si fin_actual
-            # no es ya el ultimo dia del mes, el resultado cae en el mismo mes de fin_actual,
-            # no en el siguiente, y queda antes de inicio_actual sin alinear nada.)
-            if fin_actual.month == 12:
-                primer_dia_prox_mes = fin_actual.replace(year=fin_actual.year + 1, month=1, day=1)
-            else:
-                primer_dia_prox_mes = fin_actual.replace(month=fin_actual.month + 1, day=1)
-            fin_mes = primer_dia_prox_mes - datetime.timedelta(days=1)
-            fin_actual = fin_mes if fin_mes >= inicio_actual else fin_actual
+            # El corte se lleva al ultimo dia del mes ANTERIOR al de fin_actual (salvo que fin_actual ya sea fin
+            # de mes): asi el bloque nunca pasa del limite de dias del IDEAM ni de la fecha final pedida. Antes se
+            # llevaba al fin de su propio mes, hacia adelante, y el bloque podia pasarse hasta 30 dias.
+            if (fin_actual + datetime.timedelta(days=1)).day != 1:
+                fin_mes_anterior = fin_actual.replace(day=1) - datetime.timedelta(days=1)
+                if fin_mes_anterior >= inicio_actual:
+                    fin_actual = fin_mes_anterior
         bloques.append((inicio_actual, fin_actual))
         inicio_actual = fin_actual + datetime.timedelta(days=1)
     return bloques
@@ -677,6 +674,22 @@ def rotulo_serie(param):
     return re.sub(r'[\\/:*?"<>|\s]+', "-", "_".join(partes))
 
 
+def nombre_excel(nombre, codigo, param, usados=None):
+    """Nombre del Excel de una estacion dentro del ZIP: "NOMBRE_[codigo]_ROTULO.xlsx". El codigo va siempre (hay
+    estaciones distintas con el mismo nombre y el catalogo no siempre lo trae entre corchetes); si aun asi el nombre
+    ya esta en `usados`, se numera. Asi ningun Excel pisa a otro al descomprimir."""
+    base = re.sub(r'[\\/:*?"<>|]+', "-", re.sub(r"\s+", "_", str(nombre).strip()))
+    if codigo and f"[{codigo}]" not in base:
+        base += f"_[{codigo}]"
+    archivo, n = f"{base}_{rotulo_serie(param)}.xlsx", 1
+    while usados is not None and archivo.lower() in usados:
+        n += 1
+        archivo = f"{base}_{rotulo_serie(param)}_({n}).xlsx"
+    if usados is not None:
+        usados.add(archivo.lower())
+    return archivo
+
+
 def _zip_vacio(datos):
     """True si la respuesta es un ZIP sin ningun archivo (asi responde el IDEAM cuando no hay datos que calcular)."""
     try:
@@ -696,7 +709,7 @@ def codigo_de_estacion(row, respaldo=""):
 
 
 def descargar_excel_ideam(fecha_ini, fecha_fin, token_auth, param, codigo_estacion,
-                          inicio_serie=None, fin_serie=None, al_terminar_bloque=None):
+                          inicio_serie=None, fin_serie=None, al_terminar_bloque=None, detener=None):
     """
     Descarga la serie de una estacion en bloques y los fusiona en un Excel.
     param: dict del parametro del IDEAM (ver ideam_parameters.obtener_catalogo_parametros);
@@ -704,6 +717,8 @@ def descargar_excel_ideam(fecha_ini, fecha_fin, token_auth, param, codigo_estaci
     inicio_serie / fin_serie (date): si se conocen, se evitan bloques vacios.
     al_terminar_bloque(n): se llama cada vez que se terminan n bloques
     (para la barra de progreso). Puede llamarse desde otro hilo.
+    detener (threading.Event): si se activa ("Detener", recarga o pestaña cerrada), no se piden mas bloques al
+    IDEAM y la estacion se abandona.
     """
     if not token_auth.startswith("Bearer "):
         token_auth = "Bearer " + token_auth
@@ -741,6 +756,8 @@ def descargar_excel_ideam(fecha_ini, fecha_fin, token_auth, param, codigo_estaci
     param_url = str(param_etiqueta).replace(" ", "%20")
 
     for f_ini, f_fin in bloques:
+        if detener is not None and detener.is_set():
+            return None, "Descarga detenida"
         # Fechas SIN ceros a la izquierda, tal como las manda la pagina real
         fecha_ini_str = f"{f_ini.year}-{f_ini.month}-{f_ini.day}"
         fecha_fin_str = f"{f_fin.year}-{f_fin.month}-{f_fin.day}"
@@ -1173,6 +1190,8 @@ def procesar_descargas(estaciones_df, clasificar_en_carpetas, fecha_ini, fecha_f
     terminadas = 0
     guardadas = 0
     inicio = time.time()
+    # Al salir (fin, "Detener", recarga o pestaña cerrada) se activa: los hilos en curso no piden mas bloques
+    detener = threading.Event()
 
     def lanzar(pool, item, token):
         codigo = item["codigo"]
@@ -1180,11 +1199,12 @@ def procesar_descargas(estaciones_df, clasificar_en_carpetas, fecha_ini, fecha_f
         return pool.submit(
             descargar_excel_ideam, fecha_ini, fecha_fin, token, param, codigo,
             item["inicio_serie"], item["fin_serie"],
-            lambda n, c=codigo: avisos_bloques.put((c, n)),
+            lambda n, c=codigo: avisos_bloques.put((c, n)), detener,
         )
 
     zip_buffer = io.BytesIO()
     carpetas = {}   # nombre del Excel -> carpeta de su clase (para armar el ZIP en carpetas al final, si se elige)
+    usados = set()  # nombres de Excel ya escritos en el ZIP (ninguno se repite)
     pool = ThreadPoolExecutor(max_workers=HILOS_DESCARGA)
     try:
         with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:
@@ -1237,16 +1257,6 @@ def procesar_descargas(estaciones_df, clasificar_en_carpetas, fecha_ini, fecha_f
                         })
                         continue
 
-                    carpeta = clase["carpeta"] + "/" if clasificar_en_carpetas else ""
-                    # El nombre lleva el rotulo de la serie para no mezclar descargas de distintos parametros
-                    nombre_archivo = re.sub(r'[\\/:*?"<>|]+', "-", re.sub(r"\s+", "_", item["nombre"])) \
-                        + f"_{rotulo_serie(param)}.xlsx"
-                    ruta_en_zip = carpeta + nombre_archivo
-                    zip_file.writestr(ruta_en_zip, excel_data)
-                    carpetas[ruta_en_zip] = clase["carpeta"]
-                    guardadas += 1
-                    colores.append(clase["color"])
-                    log(f"GUARDADO {ruta_en_zip}")
                     # Verificador: los datos que llegaron de verdad frente a los que caben en el periodo pedido
                     datos, niveles, por_anio = analizar_excel_detalle(excel_data)
                     huecos[codigo] = {"nombre": item["nombre"], "anios": por_anio}
@@ -1254,6 +1264,17 @@ def procesar_descargas(estaciones_df, clasificar_en_carpetas, fecha_ini, fecha_f
                         if datos is not None and item["esperados"] else None
                     if real is not None:
                         reales.append((real, item["pct"]))
+                    # La carpeta y el color salen de la completitud real, que ya se conoce (la cobertura estimada
+                    # no ve los huecos); si el Excel no se pudo leer, de la estimada
+                    clase_final = clasificar_calidad(real) if real is not None else clase
+                    carpeta = clase_final["carpeta"] + "/" if clasificar_en_carpetas else ""
+                    nombre_archivo = nombre_excel(item["nombre"], codigo, param, usados)
+                    ruta_en_zip = carpeta + nombre_archivo
+                    zip_file.writestr(ruta_en_zip, excel_data)
+                    carpetas[ruta_en_zip] = clase_final["carpeta"]
+                    guardadas += 1
+                    colores.append(clase_final["color"])
+                    log(f"GUARDADO {ruta_en_zip}")
                     resumen.append({
                         "Código": codigo, "Nombre": item["nombre"],
                         "Cantidad probable (%)": item["pct"], "Cobertura": clase["nombre"],
@@ -1276,7 +1297,9 @@ def procesar_descargas(estaciones_df, clasificar_en_carpetas, fecha_ini, fecha_f
             # Cita obligatoria segun los terminos de uso del IDEAM, ya armada con la fecha de hoy
             zip_file.writestr("CITACION.txt", texto_citacion(param, fecha_ini, fecha_fin, guardadas).encode("utf-8-sig"))
     finally:
-        # Si el usuario aborta, no se espera a que terminen las descargas pendientes
+        # Si el usuario aborta, no se espera a que terminen las descargas pendientes; las que estan en curso
+        # dejan de pedir bloques al IDEAM (antes seguian hasta terminar su estacion, con el cupo ya devuelto)
+        detener.set()
         pool.shutdown(wait=False, cancel_futures=True)
 
     # Igual que el portal: el IDEAM registra cada serie descargada (sin datos de la persona)

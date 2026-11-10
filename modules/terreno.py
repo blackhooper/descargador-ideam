@@ -3,6 +3,7 @@ import json
 from functools import lru_cache
 import math
 import threading
+import time
 from collections import OrderedDict
 from concurrent.futures import ThreadPoolExecutor
 import requests
@@ -266,6 +267,10 @@ def css_boton_3d_espera(bbox, estaciones):
 MAX_TILES_MEMORIA = 400
 _TILES = OrderedDict()
 _TILES_CANDADO = threading.Lock()
+# Imagenes que fallaron hace poco (sin red, servidor caido o lento): no se vuelven a pedir durante un rato. Sin
+# esto, con el servidor de relieve caido cada estacion esperaba sus 30 s, una tras otra y en cada recarga.
+SEGUNDOS_SIN_REINTENTO = 300
+_TILES_FALLIDOS = {}
 
 
 def _tile(z, x, y):
@@ -274,10 +279,20 @@ def _tile(z, x, y):
         if clave in _TILES:
             _TILES.move_to_end(clave)
             return _TILES[clave]
-    respuesta = requests.get(URL_ELEVACION.format(z=z, x=x, y=y), timeout=30)
-    respuesta.raise_for_status()
-    imagen = Image.open(io.BytesIO(respuesta.content)).convert("RGB")
+        if time.time() - _TILES_FALLIDOS.get(clave, 0) < SEGUNDOS_SIN_REINTENTO:
+            raise RuntimeError("imagen de relieve no disponible (fallo reciente)")
+    try:
+        respuesta = requests.get(URL_ELEVACION.format(z=z, x=x, y=y), timeout=15)
+        respuesta.raise_for_status()
+        imagen = Image.open(io.BytesIO(respuesta.content)).convert("RGB")
+    except Exception:
+        with _TILES_CANDADO:
+            _TILES_FALLIDOS[clave] = time.time()
+            if len(_TILES_FALLIDOS) > 5000:
+                _TILES_FALLIDOS.clear()
+        raise
     with _TILES_CANDADO:
+        _TILES_FALLIDOS.pop(clave, None)
         _TILES[clave] = imagen
         while len(_TILES) > MAX_TILES_MEMORIA:
             _TILES.popitem(last=False)
@@ -289,6 +304,17 @@ def _indice_tile(lon, lat, z):
     xf = (lon + 180) / 360 * n
     yf = (1 - math.asinh(math.tan(math.radians(lat))) / math.pi) / 2 * n
     return xf, yf
+
+
+def zoom_para(puntos, tope, z_min=8):
+    """Nivel de zoom mas fino (hasta ZOOM_DEM) con el que esos puntos (lon, lat) caben en `tope` imagenes de relieve.
+    Una zona pequena usa el detalle completo; una muy grande (un departamento entero) baja de nivel en vez de pedir
+    cientos de imagenes: antes pasaba de las que caben en memoria y se volvian a bajar de a una."""
+    puntos = list(puntos)
+    for z in range(ZOOM_DEM, z_min, -1):
+        if len({(int(xf), int(yf)) for xf, yf in (_indice_tile(lon, lat, z) for lon, lat in puntos)}) <= tope:
+            return z
+    return z_min
 
 
 def precargar(puntos, z=ZOOM_DEM):
@@ -1060,10 +1086,10 @@ def _parametros_orbita(lon, lat, t0, z_min, z_max, alcance, pitch_max=PITCH_MAX)
     }
 
 
-def revisar_altitud(altitud_catalogo, lon, lat):
+def revisar_altitud(altitud_catalogo, lon, lat, z=ZOOM_DEM):
     """(altura del terreno, es_dudosa). La altitud es dudosa si falta, es 0 o se
     aleja mas de ALTITUD_DUDOSA_M del terreno real en ese punto."""
-    terreno = altura_terreno(lon, lat)
+    terreno = altura_terreno(lon, lat, z)
     if terreno is None:
         return None, False
     terreno = max(0.0, terreno)  # un pixel de mar (batimetria) cuenta como nivel del mar
@@ -1085,8 +1111,9 @@ def _rango_terreno(wkt):
     xs, ys = np.meshgrid(np.linspace(minx, maxx, 30), np.linspace(miny, maxy, 30))
     dentro = contains_xy(zona, xs.ravel(), ys.ravel())
     muestra = list(zip(xs.ravel()[dentro], ys.ravel()[dentro]))
-    precargar(muestra)
-    alturas = [altura_terreno(x, y) for x, y in muestra]
+    z = zoom_para(muestra, 64)   # una zona enorme se mide con menos detalle (sigue siendo un minimo y un maximo)
+    precargar(muestra, z)
+    alturas = [altura_terreno(x, y, z) for x, y in muestra]
     alturas = [max(0.0, a) for a in alturas if a is not None]
     return (min(alturas), max(alturas)) if alturas else None
 

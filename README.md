@@ -4,7 +4,7 @@ Consulta y descarga de series hidrometeorológicas del portal **DHIME del IDEAM*
 
 1. **Consulta**: eliges la serie de tiempo y el periodo, con las mismas listas que la página del IDEAM. En la serie *estándar* eliges la variable y luego el parámetro (series diarias, mensuales, anuales, horarias y de alta frecuencia; para Precipitación: día pluviométrico, total mensual y total anual). En la *especial* eliges la frecuencia (decadal o multianual), la variable y el parámetro con su cálculo, con el texto de la página: «Día pluviométrico |SUM [PTPM_CON]». Mientras tanto, el mapa y los datos del IDEAM se cargan por detrás.
 2. **Área y estaciones**: en el mapa dibujas un rectángulo o subes el contorno del área (shapefile en ZIP, GeoJSON, KML/KMZ o GeoPackage). La app muestra las estaciones del IDEAM que caen adentro, y en un buffer opcional. También puedes elegirlas como en la página del IDEAM, por departamento, municipio y nombre o código, en el desplegable «Filtrar por ubicación» de la consulta: el mapa abre con solo esas estaciones, sin dibujar nada. Para cada una calcula la **cantidad probable**: qué parte del periodo consultado cubre el registro de la estación, entre su primer y su último dato. Este valor no descuenta los huecos internos. Revisas la cobertura y defines qué estaciones incluir.
-3. **Descarga**: un ZIP con un Excel por estación, con el formato original del IDEAM y los bloques de años ya unidos. Antes de bajarlo eliges su nombre y si las estaciones van separadas en carpetas por cobertura del periodo. El ZIP incluye `resumen_descarga.csv` (con la **completitud real** de cada estación: los datos que llegaron frente a los que caben en el periodo) y `CITACION.txt` con la cita de la fuente.
+3. **Descarga**: un ZIP con un Excel por estación, con el formato original del IDEAM y los bloques de años ya unidos. Antes de bajarlo eliges su nombre y si las estaciones van separadas en carpetas por completitud real del periodo. El ZIP incluye `resumen_descarga.csv` (con la **completitud real** de cada estación: los datos que llegaron frente a los que caben en el periodo) y `CITACION.txt` con la cita de la fuente.
 
 Incluye vista 3D con relieve real y aviso de estaciones cuya altitud en el catálogo no coincide con el terreno.
 
@@ -21,6 +21,8 @@ Las claves van como secretos, junto a las del IDEAM (en `.streamlit/secrets.toml
 cliente = "..."
 desarrollador = "..."
 ```
+
+La pantalla de la clave usa el mismo vidrio y los mismos tokens que el resto (`.st-key-y2k_acceso` en `estilo.py`) y trae el botón de idioma. Tras 5 claves erradas seguidas (entre todos los visitantes) hay que esperar 30 s para volver a probar, y la espera se duplica en cada tanda hasta 5 minutos (`acceso.INTENTOS_POR_TANDA`, `ESPERA_BASE_S`).
 
 Cambiar una clave cierra las sesiones guardadas con la anterior. **Ojo: no es seguridad real.** Es una puerta para que no entre cualquiera por curiosidad; no protege datos sensibles.
 
@@ -88,7 +90,8 @@ La estructura y la estética se conectan solo por **nombres**: las claves de los
 | `modules/escaner.py`, `modules/scan_overlay.js` | Estructura | Escáner del mapa 2D: animación mientras se calculan las estaciones y aparición de los pines en orden |
 | `modules/ideam_downloader.py` | Lógica | Token, consultas por bloques de años (`bloques_de`), tabla de la serie especial (`obtener_series_calculo`), fusión de los Excel, cupos y turnos, `CITACION.txt` |
 | `modules/ideam_parameters.py` | Lógica | Catálogo de la serie estándar y la especial como en el portal (`obtener_catalogo_parametros`, `variables_de`, `parametros_de`, `frecuencias_especiales`), límites de años por frecuencia y de la multianual (`periodo_excedido`), filtro por ubicación (`departamentos_de`, `municipios_de`, `estaciones_de`, `filtro_ubicacion`), cantidad probable |
-| `modules/ideam_catalog.py` | Lógica | Catálogo de estaciones (caché en `data/ideam_catalogo_completo.geojson`) |
+| `modules/ideam_catalog.py` | Lógica | Catálogo de estaciones (caché en `data/ideam_catalogo_completo.geojson`), una fila por estación: si el IDEAM repite un `idestacion`, queda la de modificación más reciente (`_quitar_duplicados`) |
+| `modules/guion.py` | Estructura | `inyectar(html)`: el único punto por donde entran los guiones de la página (iframe de altura 0). Con la variable de entorno `Y2K_IFRAME=1` usa `st.iframe` en lugar de `components.html`, para probar la migración |
 | `modules/calidad.py` | Lógica | Clases de cobertura (alta ≥ 70 %, media ≥ 50 %, baja ≥ 25 %, crítica) y sus colores |
 | `modules/geo_input.py`, `geo_utils.py` | Lógica | Lectura de archivos, buffer y filtro espacial |
 | `static/intro_satelital/` | Estructura | Intro satelital (del mapa 2D al 3D): escena Three.js, reproductor, mosaico de satélite |
@@ -183,6 +186,10 @@ Se arman con los mismos servicios que usa la página del IDEAM (`widgets/Ciudada
 - **Nivel de aprobación** (`ideam_downloader.analizar_excel`, que lee el Excel una sola vez y también cuenta los datos): cada Excel del IDEAM trae el nivel de cada dato (definitivo, en revisión o preliminar). `resumen_descarga.csv` suma las columnas «Definitivo (%)», «En revisión (%)» y «Preliminar (%)», calculadas sobre los datos que sí llegaron (vacías en las estaciones omitidas). Comprobado con un Excel real de temperatura máxima diaria de Tibaitatá de 1990 a 2023: 11.487 datos, 81,5 % definitivos, 1,8 % en revisión y 16,7 % preliminares. Prueba: `tests/test_niveles_aprobacion.py`.
 - Si un cálculo no tiene datos (por ejemplo TMX_CON decadal MIN), el IDEAM devuelve un ZIP vacío; la estación queda omitida con ese motivo en `resumen_descarga.csv`.
 - Si el servicio de mapas no responde, la serie Estándar sigue funcionando: la Especial queda vacía («No disponible por ahora») y se reintenta a los 5 minutos.
+- **Nombre de cada Excel** (`ideam_downloader.nombre_excel`): `ESTACION_[código]_RÓTULO.xlsx`. El código va siempre, así dos estaciones con el mismo nombre no se pisan dentro del ZIP; si aun así coincidiera, se numera (`_(2)`).
+- **Bloques alineados al mes** (`calcular_bloques` con `alinear_mes`, serie decadal): el corte retrocede al fin del mes anterior, nunca avanza, para no pasarse del límite del IDEAM.
+- **Detener** (`procesar_descargas`): una señal (`threading.Event`) llega a cada hilo, que la revisa antes de pedir el siguiente bloque. Al detener o fallar no quedan consultas corriendo contra el IDEAM.
+- **Carpetas**: la clase de cada Excel sale de la completitud real medida al guardarlo (`clasificar_calidad(real)`), la misma del resumen; solo si no se pudo medir se usa la cobertura estimada.
 - Los Excel y el ZIP llevan el rótulo de la serie (`ideam_downloader.rotulo_serie`): `…_PTPM_CON.xlsx`, `…_PTPM_CON_Decadal_SUM.xlsx`, `…_PTPM_TT_M_Multianual.xlsx`. `CITACION.txt` indica la serie y el cálculo.
 - REC VIENTO tiene filas en la tabla, pero la página no la ofrece porque no está entre las variables del portal; se omite igual.
 
@@ -269,11 +276,11 @@ mapa 2D velado                                              ╭ y2k_ajustes ╮
           ╰─────────────────────────────────────────────────────────────╯
 ```
 
-En el celular la tarjeta flota abajo, con margen, y las dos columnas van una debajo de la otra. Al terminar, antes del nombre del ZIP está **Separar en carpetas por cobertura** (`carpetas`): la descarga arma siempre un ZIP plano y, si se marca, `ideam_downloader.zip_con_carpetas` lo reorganiza al momento (sin volver a descargar) y rehace `resumen_descarga.csv` con las rutas nuevas; se guarda en el resultado para no rehacerlo mientras se escribe el nombre. En el recibo, «Archivo» es una lista ordenada (`.y2k-archivo`): un Excel por estación, carpetas por cobertura (si se eligieron), `resumen_descarga.csv` y `CITACION.txt`. El aviso de datos preliminares no se repite aquí: ya está en el panel del mapa.
+En el celular la tarjeta flota abajo, con margen, y las dos columnas van una debajo de la otra. Al terminar, antes del nombre del ZIP está **Separar en carpetas por completitud** (`carpetas`): la descarga arma siempre un ZIP plano y, si se marca, `ideam_downloader.zip_con_carpetas` lo reorganiza al momento (sin volver a descargar) y rehace `resumen_descarga.csv` con las rutas nuevas; se guarda en el resultado para no rehacerlo mientras se escribe el nombre. En el recibo, «Archivo» es una lista ordenada (`.y2k-archivo`): un Excel por estación, carpetas por completitud real (si se eligieron), `resumen_descarga.csv` y `CITACION.txt`. El aviso de datos preliminares no se repite aquí: ya está en el panel del mapa.
 
 - **Estados** (`ss.estado_descarga`): `pendiente` → `en_curso` → `lista` o `error`, y `detenida`. `_preparar` (callback de «Preparar descarga») deja la descarga en `pendiente` y pasa a la pantalla. La corrida que la encuentra en `pendiente` dibuja la tarjeta (recibo, condiciones, «Detener») y descarga en esa misma corrida, actualizando el avance real en un `st.empty()` (`estilo.progreso`, que llama `ideam_downloader.procesar_descargas` vía `ui["progreso"]`). Si una corrida encuentra `en_curso`, la anterior se cortó («Detener» u otra recarga): queda `detenida`.
 - **Todos los botones son callbacks** (`_detener`, `_reintentar_descarga`, `_volver_mapa`, `_nueva_consulta`) que cambian el estado antes de que corra el guion. Por eso «Volver al mapa» funciona siempre (antes, tras «Detener», la siguiente corrida volvía a empezar la descarga antes de ver el botón).
-- Al terminar: barra en verde con la duración, una frase con lo guardado y lo omitido y la **completitud real media** frente a la cobertura estimada (`resultado["completitud"]`), el reparto por cobertura (`estilo.resumen_final`, `panel_estadisticas.reparto_cobertura`) y la entrega (`_entrega`, un fragmento: el nombre del ZIP `nombre_zip` se aplica mientras se escribe, sin recargar la tarjeta).
+- Al terminar: barra en verde con la duración, una frase con lo guardado y lo omitido y la **completitud real media** frente a la cobertura estimada (`resultado["completitud"]`), el reparto por completitud real (`estilo.resumen_final`, `panel_estadisticas.reparto_cobertura`) y la entrega (`_entrega`, un fragmento: el nombre del ZIP `nombre_zip` se aplica mientras se escribe, sin recargar la tarjeta).
 - **Turnos**: como máximo 4 descargas a la vez en el servidor; si no hay cupo, un aviso dice el puesto en la fila y el tiempo estimado.
 - El mapa de fondo solo se monta de cero si no hay una descarga por empezar: al cargar, el componente del mapa podría recargar la página y cortarla.
 
@@ -516,7 +523,8 @@ Está en `modules/terreno.py` y en el bloque `vista == "3D"` de `app.py`. Usa `p
 - Los colores del PNG de relieve no deben "corregirse" (`colorSpaceConversion: none`) o el relieve se llena de picos falsos. Algunos navegadores con protección de privacidad (Brave, Safari privado) lo alteran: `terreno.AVISO_NAVEGADOR` lo detecta y pone una píldora mínima arriba al centro («Tu navegador altera el relieve»), que al tocarla despliega la explicación y se cierra con su ✕ (no vuelve en la sesión). Es un `<aside>` y no un `<div>`: el CSS estira a pantalla completa los `<div>` que cuelgan del visor (así el aviso anterior tapaba toda la pantalla y, en el celular, su ✕ quedaba debajo de Ajustes).
 - `map_style="__MAP_STYLE__"` evita que Streamlit ponga un mapa plano de fondo a nivel 0.
 - El 3D se arma en el servidor (≈ 3 s con caché fría en un PC; más en la nube) y el navegador baja los tiles después.
-- Los `components.html` de `app.py` corren en un iframe de altura 0 y llegan al DOM principal por `window.parent`.
+- Los guiones de `app.py` entran por `guion.inyectar` (ver [Archivos](#archivos)): corren en un iframe de altura 0 y llegan al DOM principal por `window.parent`.
+- **Relieve para cálculos** (`terreno.zoom_para`): la revisión de altitud y el rango del relieve bajan el zoom de los tiles hasta que el área quepa en un tope de tiles (150 y 64), en lugar de pedir siempre el zoom máximo. Un tile que falla se recuerda 5 minutos (`_TILES_FALLIDOS`, `SEGUNDOS_SIN_REINTENTO`) y no se vuelve a pedir en cada corrida.
 
 ## Intro satelital (del mapa 2D al despliegue 3D)
 

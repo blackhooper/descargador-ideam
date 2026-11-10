@@ -10,11 +10,10 @@ import geopandas as gpd
 import pandas as pd
 import shapely
 import streamlit as st
-import streamlit.components.v1 as components
 from streamlit_folium import st_folium
 
 from modules import (escaner, estilo, geo_input, geo_utils, map_view, ideam_catalog, ideam_parameters,
-                     ideam_downloader, idioma, mapa_huecos, panel_estadisticas, terreno, acceso, herramientas)
+                     ideam_downloader, idioma, mapa_huecos, panel_estadisticas, terreno, acceso, herramientas, guion)
 from modules.calidad import CLASES_CALIDAD, filtrar_descargables, clasificar_calidad
 from modules.idioma import tr
 
@@ -28,8 +27,6 @@ st.set_page_config(page_title="IDEAM Data Downloader" if st.query_params.get("la
 # cambiar de pantalla: en Parametros se carga por detras mientras la persona elige que descargar.
 # ===========================================================================
 ss = st.session_state
-# Puerta de acceso (clave de cliente o de desarrollador): antes de cualquier otra cosa
-acceso.puerta()
 # Preferencias de apariencia, rendimiento e idioma: viajan en la direccion (?tema=, ?contraste=, ?lite=, ?lang=) para
 # que sobrevivan a una recarga. Sin parametro = lo que pida el equipo (tema y contraste), calidad completa y espanol.
 _q = st.query_params
@@ -69,11 +66,14 @@ def _en_streamlit_cloud():
 
 
 estilo.aplicar(ss.tema, ss.contraste, ss.lite, sello=_en_streamlit_cloud())
+# Puerta de acceso (clave de cliente o de desarrollador): con los estilos ya puestos (su tarjeta es de la misma
+# familia que el resto) y antes de cualquier otra cosa; sin acceso, detiene la corrida
+acceso.puerta(al_cambiar_idioma=estilo._cambiar_idioma)
 estilo.guiones_globales(PANTALLA)
 # Guion que colorea el relieve en la textura "Altura": se instala desde el arranque de la pagina (no cuesta nada
 # si no se usa) para que ya este puesto antes de que el visor 3D pida sus imagenes
 with st.container(key="y2k_hipso"):
-    components.html(terreno.HIPSOMETRICO, height=0)
+    guion.inyectar(terreno.HIPSOMETRICO)
 # Aqui (arriba, sin alto) se pone despues el CSS que tapa el visor 3D mientras arranca la secuencia de entrada
 velo_3d = st.container(key="y2k_velo")
 PALETA = estilo.paleta(ss.tema)
@@ -356,8 +356,13 @@ def _hex_a_rgb(color):
 
 def _revisar_altitudes(zona):
     """Compara la altitud del catalogo con el terreno real (columnas 'terreno' y 'altitud_dudosa')."""
-    terreno.precargar(list(zip(zona.geometry.x, zona.geometry.y)))
-    revision = [terreno.revisar_altitud(r.get("altitud"), r.geometry.x, r.geometry.y) for _, r in zona.iterrows()]
+    puntos = list(zip(zona.geometry.x, zona.geometry.y))
+    # con muchas estaciones repartidas (un departamento entero) se baja el detalle del relieve en vez de pedir
+    # cientos de imagenes
+    z = terreno.zoom_para(puntos, 150, z_min=10)
+    terreno.precargar(puntos, z)
+    revision = [terreno.revisar_altitud(r.get("altitud"), lon, lat, z) for r, (lon, lat) in
+                zip(zona.to_dict("records"), puntos)]
     zona["terreno"] = [t for t, _ in revision]
     zona["altitud_dudosa"] = [d for _, d in revision]
 
@@ -900,12 +905,12 @@ def pantalla_mapa():
                 # Intro satelital (del mapa 2D al 3D): no en celulares ni en modo Lite
                 satelite = bool(intro and usar_intro)
                 with st.container(key="y2k_orbita"):
-                    components.html(terreno.orbitar(orbita, ss.get("orbita", 0), intro, satelite, 1.7, forzar), height=0)
+                    guion.inyectar(terreno.orbitar(orbita, ss.get("orbita", 0), intro, satelite, 1.7, forzar))
                     if satelite and not ss.lite:
-                        components.html(terreno.intro_satelital(ss.get("orbita", 0), bbox_intro, est_intro, buffer_on,
-                                                                forzar), height=0)
-                    components.html(terreno.AVISO_NAVEGADOR, height=0)
-                    components.html(terreno.EXTRAS_3D, height=0)
+                        guion.inyectar(terreno.intro_satelital(ss.get("orbita", 0), bbox_intro, est_intro, buffer_on,
+                                                                forzar))
+                    guion.inyectar(terreno.AVISO_NAVEGADOR)
+                    guion.inyectar(terreno.EXTRAS_3D)
                 if altura:
                     estilo.leyenda_altura(terreno.leyenda_altura(
                         altura[0], altura[1],
@@ -1075,7 +1080,7 @@ def pantalla_mapa():
     # Lo condicional va al final, para no mover de lugar (y rehacer) lo de arriba
     if usar_intro and not ss.lite:
         with st.container(key="y2k_precal"):
-            components.html(terreno.precalentar_satelite(bbox_intro, est_intro, buffer_on), height=0)
+            guion.inyectar(terreno.precalentar_satelite(bbox_intro, est_intro, buffer_on))
             st.html(terreno.css_boton_3d_espera(bbox_intro, est_intro))   # el boton 3D espera a que todo este listo
     if ss.subida_abierta:
         if vista == "2D":
@@ -1100,7 +1105,7 @@ def _recibo(d):
         (tr("Periodo"), f"{d['ini']:%d/%m/%Y} – {d['fin']:%d/%m/%Y}", ""),
         (tr("Estaciones"), f"{n}", lugar),
         (tr("Archivo"), [(tr("Un Excel por estación"), "excel", "")]
-         + ([(tr("Carpetas por cobertura"), "carpeta", tr("Alta, media, baja y crítica"))]
+         + ([(tr("Carpetas por completitud"), "carpeta", tr("Alta, media, baja y crítica"))]
             if ss.get("carpetas", True) else [])
          + ([("mapa_de_huecos.png / .csv", "tabla", tr("Datos de cada estación por año"))]
             if ss.get("incluir_huecos") and (ss.get("resultado") or {}).get("huecos") else [])
@@ -1230,10 +1235,11 @@ def pantalla_descarga():
                                   r=f"{real:.0f}", e=f"{estimada:.0f}")
             estilo.resumen_final(frase, panel_estadisticas.reparto_cobertura(resultado["colores"]))
             # Antes de descargar: si el ZIP va en carpetas por cobertura (el recibo de la derecha lo refleja)
-            carpetas = st.checkbox(tr("Separar en carpetas por cobertura"), value=True, key="carpetas",
+            carpetas = st.checkbox(tr("Separar en carpetas por completitud"), value=True, key="carpetas",
                                    persist_state="session",
-                                   help=tr("Alta (70–100 %), media (50–70 %), baja (25–50 %) y crítica (0–25 %) del "
-                                           "periodo consultado. Sin marcar, todos los Excel van juntos."))
+                                   help=tr("Según los datos que llegaron de verdad: alta (70–100 %), media (50–70 %), "
+                                           "baja (25–50 %) y crítica (0–25 %) del periodo consultado. Sin marcar, "
+                                           "todos los Excel van juntos."))
             # Opcional: mapa de huecos (heatmap de calidad por estacion y año), con lo ya descargado
             huecos = False
             if resultado.get("huecos") and mapa_huecos.disponible(resultado.get("frecuencia")):
@@ -1261,12 +1267,20 @@ def _descargar(d, progreso, aviso):
     _, _, segundos = ideam_downloader.plan_descarga(d["estaciones"], d["ini"], d["fin"], d["param"])
     turno = object()
     ss.estado_descarga = "en_curso"
-    if not cupos.acquire(blocking=False):
-        with turnos["candado"]:
-            turnos["fila"].append(turno)
-        try:
+    # El cupo se toma DENTRO del try que lo devuelve: cualquier llamada a Streamlit (aviso.info, aviso.empty) puede
+    # cortar la corrida ("Detener", recarga, pestaña cerrada) y, si eso pasaba entre tomarlo y entrar al try, el
+    # cupo quedaba tomado hasta reiniciar el servidor
+    tomado = False
+    try:
+        tomado = cupos.acquire(blocking=False)
+        if not tomado:
+            with turnos["candado"]:
+                turnos["fila"].append(turno)
             inicio_espera = time.time()
-            while not cupos.acquire(timeout=2):
+            while not tomado:
+                tomado = cupos.acquire(timeout=2)
+                if tomado:
+                    break
                 puesto, falta = ideam_downloader.espera_estimada(turno)
                 cuando = (tr("en ≈ {t}", t=ideam_downloader.duracion_texto(falta)) if falta >= 5
                           else tr("en cualquier momento"))
@@ -1275,24 +1289,24 @@ def _descargar(d, progreso, aviso):
                               n=ideam_downloader.MAX_DESCARGAS_SIMULTANEAS, p=puesto, cuando=cuando,
                               t=ideam_downloader.duracion_texto(time.time() - inicio_espera)),
                            icon=":material/hourglass_top:")
-        finally:
-            with turnos["candado"]:
-                if turno in turnos["fila"]:
-                    turnos["fila"].remove(turno)
-    aviso.empty()
-    with turnos["candado"]:
-        turnos["en_curso"][turno] = (time.time(), segundos)
-    try:
+        with turnos["candado"]:
+            if turno in turnos["fila"]:
+                turnos["fila"].remove(turno)
+            turnos["en_curso"][turno] = (time.time(), segundos)
+        aviso.empty()
         # el ZIP sale plano: las carpetas por cobertura se eligen al final, antes de descargarlo
         resultado = ideam_downloader.procesar_descargas(d["estaciones"], False, d["ini"], d["fin"],
                                                         d["param"], {"progreso": progreso})
         ss.resultado = resultado or {"error": tr("No se pudo completar la descarga.")}
         ss.estado_descarga = "error" if "error" in ss.resultado else "lista"
     finally:
-        # Se libera el turno siempre: al terminar, al pulsar "Detener" o si se cierra la pestaña
+        # Se libera siempre: al terminar, al pulsar "Detener" o si se cierra la pestaña (tambien mientras espera turno)
         with turnos["candado"]:
+            if turno in turnos["fila"]:
+                turnos["fila"].remove(turno)
             turnos["en_curso"].pop(turno, None)
-        cupos.release()
+        if tomado:
+            cupos.release()
 
 
 # ===========================================================================

@@ -7,7 +7,9 @@ import streamlit as st
 
 from modules.idioma import tr
 
-HERRAMIENTAS = []   # [(nombre, funcion)]
+from modules import herramienta_aforos
+
+HERRAMIENTAS = [("Aforos y perfiles", herramienta_aforos.pantalla)]   # [(nombre, funcion)]
 
 
 def pantalla():

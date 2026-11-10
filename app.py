@@ -14,7 +14,7 @@ import streamlit.components.v1 as components
 from streamlit_folium import st_folium
 
 from modules import (escaner, estilo, geo_input, geo_utils, map_view, ideam_catalog, ideam_parameters,
-                     ideam_downloader, idioma, mapa_huecos, panel_estadisticas, terreno, acceso, herramientas)
+                     ideam_downloader, idioma, mapa_huecos, tabla_consolidada, panel_estadisticas, terreno, acceso, herramientas)
 from modules.calidad import CLASES_CALIDAD, filtrar_descargables, clasificar_calidad
 from modules.idioma import tr
 
@@ -1104,6 +1104,8 @@ def _recibo(d):
             if ss.get("carpetas", True) else [])
          + ([("mapa_de_huecos.png / .csv", "tabla", tr("Datos de cada estación por año"))]
             if ss.get("incluir_huecos") and (ss.get("resultado") or {}).get("huecos") else [])
+         + ([("tabla_consolidada", "tabla", tr("Fechas en filas, estaciones en columnas"))]
+            if ss.get("incluir_consolidada") and (ss.get("resultado") or {}).get("huecos") else [])
          + [("resumen_descarga.csv", "tabla", tr("Cobertura y resultado por estación")),
             ("CITACION.txt", "cita", tr("Cita de la fuente"))], ""),
         (tr("Fuente"), "IDEAM · DHIME", ""),
@@ -1123,26 +1125,36 @@ def _tabla_huecos(resultado):
     return resultado["_tabla_huecos"]
 
 
-def _zip_final(resultado, carpetas, huecos=False):
-    """El ZIP tal como se descarga: plano o en carpetas por cobertura, con el mapa de huecos si se pidio (cada
-    variante se arma una vez y se guarda)."""
+def _tabla_consolidada(resultado):
+    """La tabla consolidada de la descarga (se arma una vez y se guarda: leer todos los Excel toma su tiempo)."""
+    if resultado.get("_tabla_consolidada") is None:
+        resultado["_tabla_consolidada"] = tabla_consolidada.construir(resultado["zip"], resultado["resumen"])
+    return resultado["_tabla_consolidada"]
+
+
+def _zip_final(resultado, carpetas, huecos=False, consolidada=None):
+    """El ZIP tal como se descarga: plano o en carpetas por cobertura, con el mapa de huecos y la tabla consolidada
+    ("xlsx" o "csv") si se pidieron (cada variante se arma una vez y se guarda)."""
     cache = resultado.setdefault("_zips", {})
-    clave = (bool(carpetas), bool(huecos))
+    clave = (bool(carpetas), bool(huecos), consolidada)
     if clave not in cache:
         base = ideam_downloader.zip_con_carpetas(resultado) if carpetas else resultado["zip"]
-        cache[clave] = (mapa_huecos.agregar_al_zip(base, _tabla_huecos(resultado), _titulo_huecos(resultado))
-                        if huecos else base)
+        if huecos:
+            base = mapa_huecos.agregar_al_zip(base, _tabla_huecos(resultado), _titulo_huecos(resultado))
+        if consolidada:
+            base = tabla_consolidada.agregar_al_zip(base, _tabla_consolidada(resultado), consolidada)
+        cache[clave] = base
     return cache[clave]
 
 
 @st.fragment
-def _entrega(resultado, carpetas, huecos=False):
+def _entrega(resultado, carpetas, huecos=False, consolidada=None):
     """Nombre del ZIP y boton de descarga (en un fragmento: escribir el nombre no recarga la tarjeta entera)."""
     ini, fin = resultado["rango"]
     predeterminado = f"IDEAM_{resultado['rotulo']}_{ini:%Y%m%d}-{fin:%Y%m%d}"
     nombre = st.text_input(tr("Nombre del archivo ZIP"), value=predeterminado, key="nombre_zip", max_chars=120,
                            live=True, help=tr("Por ejemplo: descarga 1. La extensión .zip se añade sola."))
-    st.download_button(tr("Descargar el ZIP"), data=_zip_final(resultado, carpetas, huecos), type="primary", width="stretch",
+    st.download_button(tr("Descargar el ZIP"), data=_zip_final(resultado, carpetas, huecos, consolidada), type="primary", width="stretch",
                        file_name=f"{_nombre_archivo(nombre, predeterminado)}.zip", icon=":material/download:",
                        mime="application/zip", key="bajar_zip")
 
@@ -1244,7 +1256,24 @@ def pantalla_descarga():
                 if huecos:
                     with st.expander(tr("Vista previa del mapa de huecos"), expanded=False):
                         st.image(mapa_huecos.png(_tabla_huecos(resultado), _titulo_huecos(resultado)))
-            _entrega(resultado, carpetas, huecos)
+            # Opcional: tabla consolidada (fechas en filas, estaciones en columnas). Antes se estima su tamaño: si no
+            # cabe en Excel se ofrece solo CSV, y si es enorme no se ofrece
+            consolidada = None
+            estimacion = tabla_consolidada.estimar(resultado.get("huecos"), resultado["rango"],
+                                                   resultado.get("frecuencia"))
+            if estimacion["formatos"]:
+                if st.checkbox(tr("Incluir la tabla consolidada"), value=False, key="incluir_consolidada",
+                               persist_state="session",
+                               help=tr("Un solo archivo con las fechas en filas y cada estación en una columna.")):
+                    formatos = estimacion["formatos"]
+                    consolidada = (st.radio(tr("Formato de la tabla"), formatos, horizontal=True, key="formato_consolidada",
+                                            format_func=lambda f: "Excel (.xlsx)" if f == "xlsx" else "CSV (.csv)")
+                                   if len(formatos) > 1 else formatos[0])
+                    st.caption(tr("≈ {f} filas × {c} estaciones.", f=_num(estimacion["filas"]), c=estimacion["columnas"])
+                               + (" " + tr(estimacion["motivo"]) if estimacion["motivo"] else ""))
+            elif estimacion["motivo"] and resultado.get("huecos"):
+                st.caption(tr("Tabla consolidada no disponible: {m}", m=tr(estimacion["motivo"])))
+            _entrega(resultado, carpetas, huecos, consolidada)
             with st.container(horizontal=True, gap="small"):
                 st.button(tr("Volver al mapa"), width="stretch", icon=":material/arrow_back:", key="volver_mapa",
                           on_click=_volver_mapa)

@@ -432,6 +432,15 @@ EN = {
     "Una imagen y una tabla con el % de datos de cada estación en cada año, para ver de un vistazo dónde faltan datos.":
         "An image and a table with the % of data each station has in each year, to see at a glance where data is missing.",
     "Vista previa del mapa de huecos": "Gap map preview",
+    "Incluir la tabla consolidada": "Include the consolidated table",
+    "Un solo archivo con las fechas en filas y cada estación en una columna.":
+        "A single file with dates in rows and each station in a column.",
+    "Formato de la tabla": "Table format",
+    "≈ {f} filas × {c} estaciones.": "≈ {f} rows × {c} stations.",
+    "Es demasiado grande para Excel; va en CSV.": "Too large for Excel; it goes as CSV.",
+    "Tabla consolidada no disponible: {m}": "Consolidated table not available: {m}",
+    "La serie multianual no tiene fechas para consolidar.": "The multiannual series has no dates to consolidate.",
+    "Fechas en filas, estaciones en columnas": "Dates in rows, stations in columns",
     "Datos de cada estación por año": "Each station's data by year",
     "Alta (70–100 %), media (50–70 %), baja (25–50 %) y crítica (0–25 %) del periodo consultado. Sin marcar, todos los "
     "Excel van juntos.":

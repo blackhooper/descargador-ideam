@@ -93,7 +93,7 @@ def tabla_lista(descargables):
     dudosa = (descargables["altitud_dudosa"].fillna(False).astype(bool) if "altitud_dudosa" in descargables.columns
               else pd.Series(False, index=descargables.index))
     t = pd.DataFrame({
-        "Código": [ideam_downloader.codigo_de_estacion(r, i) for i, r in descargables.iterrows()],
+        "Código": ideam_downloader.codigos_de(descargables),
         "●": "●",
         "Estación": [_nombre_limpio(n) + (" ⚠" if d else "") for n, d in zip(descargables["nombre"], dudosa)],
         "Cobertura": pd.to_numeric(descargables["Porcentaje (%)"], errors="coerce").values,
@@ -109,7 +109,7 @@ def tabla_dudosas(zona):
         return pd.DataFrame(columns=columnas)
     d = zona[zona["altitud_dudosa"].fillna(False).astype(bool)]
     t = pd.DataFrame({
-        "Código": [ideam_downloader.codigo_de_estacion(r, i) for i, r in d.iterrows()],
+        "Código": ideam_downloader.codigos_de(d),
         "Estación": [_nombre_limpio(n) for n in d["nombre"]],
         "Catálogo": pd.to_numeric(d["altitud"], errors="coerce").values,
         "Terreno": pd.to_numeric(d["terreno"], errors="coerce").values,
@@ -233,15 +233,13 @@ def tablero(zona, descargables, seleccion, param, cifras, dudosas=None, rango=No
     n_sel, n_desc, n_zona = len(seleccion), len(descargables), len(zona)
     sin_info = n_zona - n_desc
     kpis([
-        (n_zona, tr("Estaciones encontradas"),
-         tr("{n} {estaciones} sin información", n=sin_info,
-            estaciones=tr("estaciones") if sin_info != 1 else tr("estación")) if sin_info
-         else tr("Todas con información"),
+        # la cifra es lo que sirve (las que tienen datos); el total de la zona va debajo, sin obligar a restar
+        (n_desc, tr("Estaciones con datos"), tr("de {n} en la zona", n=n_zona) if sin_info else tr("Todas las de la zona"),
          (tr("Estaciones con esta serie en {u}.", u=ubicacion) if ubicacion
           else tr("Estaciones del IDEAM en el área y el buffer."))
-         + tr(" {n} tienen datos de esta variable en el periodo.", n=n_desc)),
-        (f"{seleccion['Porcentaje (%)'].mean():.0f} %" if n_sel else "–", tr("Cobertura media del periodo"), "",
-         tr("Promedio de la cantidad probable de las estaciones seleccionadas: qué parte del periodo consultado cubre "
+         + (tr(" {n} no tienen la serie de esta variable en el periodo.", n=sin_info) if sin_info else "")),
+        (f"{seleccion['Porcentaje (%)'].mean():.0f} %" if n_sel else "–", tr("Cobertura estimada media"), "",
+         tr("Promedio de la cobertura estimada de las estaciones seleccionadas: qué parte del periodo consultado cubre "
             "su registro (no descuenta los huecos internos).")),
         (f"≈ {tamano_txt(peso_zip(cifras['datos'], n_sel))}" if n_sel else "–", tr("Tamaño del ZIP"),
          duracion_aprox(cifras["segundos"]) if n_sel else "",
@@ -311,7 +309,7 @@ def tablero(zona, descargables, seleccion, param, cifras, dudosas=None, rango=No
             "●": st.column_config.TextColumn("", width=28, help=tr("Color de su clase de cobertura (ver la leyenda)")),
             "Estación": st.column_config.TextColumn(tr("Estación"), width=176),
             "Cobertura": st.column_config.TextColumn(tr("Cobertura"), width=66,
-                                                     help=tr("Cantidad probable: qué parte del periodo cubre el "
+                                                     help=tr("Cobertura estimada: qué parte del periodo cubre el "
                                                              "registro de la estación")),
         },
     )

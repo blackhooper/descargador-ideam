@@ -1328,7 +1328,7 @@ def construir_deck(cuenca_gdf, area_gdf, estaciones, seleccionada=None, textura=
         map_style="__MAP_STYLE__",
         tooltip={
             # Streamlit escapa el HTML que viene en los datos: el estilo va en la plantilla
-            "html": "<b>{nombre}</b><br/>{codigo} · {altitud_txt}<br/>" + tr("Cantidad probable") + ": <b>{pct_txt}</b><br/>{zona}"
+            "html": "<b>{nombre}</b><br/>{codigo} · {altitud_txt}<br/>" + tr("Cobertura estimada") + ": <b>{pct_txt}</b><br/>{zona}"
                     f"<div style='color:{paleta.get('alerta', '#8A3208')}'>{{alerta}}</div>",
             "style": {"backgroundColor": paleta["superficie"], "color": paleta["tinta"], "fontFamily": "Figtree, sans-serif",
                       "fontSize": "12px", "border": f"1px solid {paleta['borde']}", "borderRadius": "10px"},

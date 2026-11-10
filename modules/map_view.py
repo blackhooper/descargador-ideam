@@ -120,14 +120,14 @@ def _tarjeta(row, codigo, excluida=False):
         partes.append(f"<span style='color:{TINTA_2}'>{tr('Excluida de la descarga')}</span>")
     if "Porcentaje (%)" in row and pd.notna(row["Porcentaje (%)"]):
         if row.get("Serie DHIME") == "No":
-            partes.append(f"<span style='color:#B42318'>{tr('Sin serie de este parámetro en DHIME')}</span>")
+            partes.append(f"<span style='color:#B42318'>{tr('Sin serie de esta variable en DHIME')}</span>")
         else:
-            partes.append(tr("Cantidad probable <b>{p} %</b> · cobertura {clase}", p=f"{row['Porcentaje (%)']:.0f}",
+            partes.append(tr("Cobertura estimada <b>{p} %</b> ({clase})", p=f"{row['Porcentaje (%)']:.0f}",
                              clase=tr(row.get('Clase calidad', '')).lower()))
             if row.get("Inicio serie"):
                 partes.append(f"<span style='color:{TINTA_2}'>{tr('Serie')} {str(row['Inicio serie'])[:4]}–"
                               f"{str(row['Fin serie'])[:4]}</span>")
-    lugar = {"cuenca": "En la cuenca", "buffer": "En el buffer"}.get(row.get("zona"))
+    lugar = {"cuenca": "En el área", "buffer": "En el buffer"}.get(row.get("zona"))
     if lugar:
         partes.append(f"<span style='color:{TINTA_2}'>{tr(lugar)}</span>")
     if row.get("altitud_dudosa") and row.get("terreno") is not None:

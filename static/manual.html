@@ -275,6 +275,7 @@ dl.glosario dd{margin:0;color:var(--ink-2)}
         <h3>Requisitos</h3>
         <ul>
           <li>Un navegador web actualizado y conexión a internet. No hay que instalar nada.</li>
+          <li>La <strong>clave de acceso</strong> que te entregaron. Se pide una sola vez por navegador: después entras directo. Tras varios intentos fallidos seguidos hay que esperar unos segundos para volver a probar. Para salir, usa <span class="ui">Cerrar sesión</span> en el menú de Ajustes.</li>
           <li>El área de estudio (una cuenca, un municipio o cualquier zona): trazada sobre el mapa o como archivo (Shapefile, GeoJSON, KML/KMZ o GeoPackage).</li>
         </ul>
         <p class="pie">Si la aplicación lleva un rato sin uso, la primera carga puede tardar hasta un minuto; las siguientes son inmediatas. Arriba a la derecha, el menú <span class="ui">Ajustes</span> (el botón ◐) cambia el tema (claro u oscuro), activa el alto contraste y el modo Lite, y abre este manual (ver <a href="#vista-3d">El mapa 3D y los ajustes</a>).</p>
@@ -441,12 +442,12 @@ dl.glosario dd{margin:0;color:var(--ink-2)}
           <p>La app expresa ese número como porcentaje del total que tendría una serie ininterrumpida en todo tu periodo. Así que el porcentaje te dice cuánto de tu periodo alcanza a cubrir el registro de la estación, no qué tan densa es la serie por dentro. Una estación con 100 % puede tener vacíos importantes: significa que su registro empieza antes y termina después de tu periodo.</p>
           <p>Sirve para descartar estaciones cuyo registro no llega a tu periodo. Por eso el panel lo recuerda con la nota <em>La cobertura es estimada</em>. Los huecos reales se miden al descargar: el resumen final muestra la <strong>completitud real</strong> media y <code>resumen_descarga.csv</code> la de cada estación (ver <a href="#zip">Qué trae el ZIP</a>).</p>
         </div>
-        <p>Con ese porcentaje, cada estación cae en una clase de <strong>cobertura</strong> del periodo consultado. Si dejas marcada la opción de carpetas (al final, antes de descargar el ZIP), cada Excel va en la carpeta de su clase:</p>
+        <p>Con ese porcentaje, cada estación cae en una clase de <strong>cobertura</strong> del periodo consultado. Al terminar la descarga, las mismas clases se aplican a la completitud real de cada estación (los datos que llegaron de verdad). Si dejas marcada la opción de carpetas (al final, antes de descargar el ZIP), cada Excel va en la carpeta de su clase de completitud real:</p>
         <div class="clases">
-          <div class="clase"><span class="punto" style="background:var(--alta)"></span><b>Alta</b><span>70–100 %</span><code>1_Cobertura_Alta_70_100</code></div>
-          <div class="clase"><span class="punto" style="background:var(--media)"></span><b>Media</b><span>50–70 %</span><code>2_Cobertura_Media_50_70</code></div>
-          <div class="clase"><span class="punto" style="background:var(--baja)"></span><b>Baja</b><span>25–50 %</span><code>3_Cobertura_Baja_25_50</code></div>
-          <div class="clase"><span class="punto" style="background:var(--critica)"></span><b>Crítica</b><span>0–25 %</span><code>4_Cobertura_Critica_0_25</code></div>
+          <div class="clase"><span class="punto" style="background:var(--alta)"></span><b>Alta</b><span>70–100 %</span><code>1_Completitud_Alta_70_100</code></div>
+          <div class="clase"><span class="punto" style="background:var(--media)"></span><b>Media</b><span>50–70 %</span><code>2_Completitud_Media_50_70</code></div>
+          <div class="clase"><span class="punto" style="background:var(--baja)"></span><b>Baja</b><span>25–50 %</span><code>3_Completitud_Baja_25_50</code></div>
+          <div class="clase"><span class="punto" style="background:var(--critica)"></span><b>Crítica</b><span>0–25 %</span><code>4_Completitud_Critica_0_25</code></div>
         </div>
       </section>
 
@@ -496,7 +497,7 @@ dl.glosario dd{margin:0;color:var(--ink-2)}
           <li>Pulsa <span class="ui primario">Preparar descarga</span>, abajo a la derecha. Si está gris, pasa el cursor sobre el botón: dice qué falta (por ejemplo, delimitar el área o seleccionar al menos una estación).</li>
           <li>El mapa queda detrás y aparece una tarjeta con el <strong>avance real</strong>: el porcentaje, una barra y el tiempo que falta, más cuántas estaciones van, cuántas se guardaron y cuántas se omitieron.</li>
           <li>A la derecha (en el celular, debajo) está el <strong>recibo</strong> de lo que pediste: variable y frecuencia, periodo, número de estaciones (en el área y en el buffer, o su ubicación si las elegiste por departamento y municipio), la lista de lo que trae el ZIP (un Excel por estación, las carpetas por cobertura si las elegiste, <code>resumen_descarga.csv</code> y <code>CITACION.txt</code>) y la fuente. Debajo, las condiciones de uso de los datos (ver <a href="#uso-datos">Uso de los datos y citación</a>).</li>
-          <li>Al terminar, la tarjeta muestra un resumen: cuántas estaciones se guardaron y cómo se reparten por cobertura.</li>
+          <li>Al terminar, la tarjeta muestra un resumen: cuántas estaciones se guardaron y cómo se reparten por completitud real.</li>
         </ol>
         <h3>Detener o esperar turno</h3>
         <ul>
@@ -506,7 +507,8 @@ dl.glosario dd{margin:0;color:var(--ink-2)}
         </ul>
         <h3>Guardar el ZIP</h3>
         <ol>
-          <li><span class="ui">Separar en carpetas por cobertura</span> (marcado por defecto): cada Excel va dentro de la carpeta de su clase de cobertura (ver <a href="#cobertura">Cobertura del periodo</a>). Si lo desmarcas, todos quedan juntos. Puedes cambiarlo sin volver a descargar; el recibo de la derecha lo refleja.</li>
+          <li><span class="ui">Separar en carpetas por completitud</span> (marcado por defecto): cada Excel va dentro de la carpeta de su clase según la <strong>completitud real</strong>, es decir, los datos que llegaron de verdad (las mismas clases de <a href="#cobertura">Cobertura del periodo</a>). Si lo desmarcas, todos quedan juntos. Puedes cambiarlo sin volver a descargar; el recibo de la derecha lo refleja.</li>
+          <li><span class="ui">Incluir el mapa de huecos</span> (opcional, sin marcar por defecto): agrega al ZIP una imagen y una tabla con el porcentaje de datos de cada estación en cada año, para ver de un vistazo dónde faltan datos. Al marcarlo aparece una vista previa. No está en la serie multianual.</li>
           <li>En <span class="ui">Nombre del archivo ZIP</span> viene un nombre sugerido, como <code>IDEAM_PTPM_CON_20000101-20201231</code> (en la serie especial lleva también la frecuencia y el cálculo: <code>IDEAM_PTPM_CON_Decadal_SUM_…</code>). Si quieres otro (por ejemplo <em>descarga 1</em>), escríbelo; el <code>.zip</code> se agrega solo.</li>
           <li>Pulsa <span class="ui primario">Descargar el ZIP</span>.</li>
           <li>Con <span class="ui">Volver al mapa</span> ajustas y descargas otra vez (desde ahí, el nombre de la variable en el panel te lleva a cambiar la variable o el periodo); con <span class="ui">Nueva consulta</span> empiezas de cero.</li>
@@ -515,12 +517,12 @@ dl.glosario dd{margin:0;color:var(--ink-2)}
 
       <section id="zip">
         <h2><span class="etiqueta">RESULTADO</span>Qué trae el ZIP</h2>
-        <p class="pie">Ejemplo con precipitación diaria en Bogotá y carpetas por cobertura:</p>
+        <p class="pie">Ejemplo con precipitación diaria en Bogotá y carpetas por completitud:</p>
 <pre class="arbol" aria-label="Ejemplo de contenido del ZIP">IDEAM_PTPM_CON_20000101-20201231.zip
-├── 1_Cobertura_Alta_70_100/
+├── 1_Completitud_Alta_70_100/
 │   ├── JARDIN_BOTANICO_[21205710]_PTPM_CON.xlsx
 │   └── ENMANUEL_D'_ALZON_[21201230]_PTPM_CON.xlsx
-├── 2_Cobertura_Media_50_70/
+├── 2_Completitud_Media_50_70/
 │   └── …
 ├── resumen_descarga.csv   <span class="c">← qué se guardó y qué no, estación por estación</span>
 └── CITACION.txt           <span class="c">← la cita de la fuente, lista para copiar</span></pre>
@@ -529,7 +531,7 @@ dl.glosario dd{margin:0;color:var(--ink-2)}
           <li>Es <strong>el mismo formato que entrega el portal del IDEAM</strong>: filas 1 a 8 con el título, el logo y los metadatos de la estación; desde la fila 9, los datos.</li>
           <li>Si tu rango necesitó varias consultas, los bloques ya vienen <strong>unidos en una sola tabla</strong>, en orden.</li>
           <li>La celda de <em>Fecha consulta</em> refleja el rango completo que pediste.</li>
-          <li>El nombre del archivo es el nombre de la estación seguido del código de la serie.</li>
+          <li>El nombre del archivo es el nombre de la estación, su código entre corchetes y el código de la serie. Así dos estaciones con el mismo nombre nunca se pisan.</li>
           <li>Junto a cada dato viene su <strong>nivel de aprobación</strong> (columna «Nivel de Aprobación»; ver abajo).</li>
         </ul>
         <h3 id="aprobacion">Niveles de aprobación del dato</h3>

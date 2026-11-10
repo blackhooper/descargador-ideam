@@ -8,6 +8,7 @@ from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta
 from modules import ideam_downloader
 from modules.calidad import clasificar_calidad
+from modules.idioma import tr
 
 # ===========================================================================
 # CATALOGO DE VARIABLES Y PARAMETROS DEL IDEAM
@@ -241,7 +242,7 @@ def municipios_de(series, departamento):
     mpios = {_id(r.get("IdMunicipio")): str(r.get("Municipio") or "").strip() for r in series.values()
              if _id(r.get("IdDepartamento")) == departamento}
     mpios.pop("", None)
-    return {TODOS_LOS_MUNICIPIOS: "Todos", **dict(sorted(mpios.items(), key=lambda m: _orden(m[1])))}
+    return {TODOS_LOS_MUNICIPIOS: tr("Todos"), **dict(sorted(mpios.items(), key=lambda m: _orden(m[1])))}
 
 
 def nombre_estacion(registro):
@@ -270,9 +271,9 @@ def filtro_ubicacion(series, departamento, municipio=TODOS_LOS_MUNICIPIOS, estac
         return None
     disponibles = estaciones_de(series, departamento, municipio)
     codigos = [c for c in estaciones if c in disponibles] or list(disponibles)
-    partes = [deps[departamento], municipios_de(series, departamento).get(municipio, "Todos")]
+    partes = [deps[departamento], municipios_de(series, departamento).get(municipio, tr("Todos"))]
     if estaciones:
-        partes.append(f"{len(codigos)} {'estaciones' if len(codigos) != 1 else 'estación'}")
+        partes.append(f"{len(codigos)} {tr('estaciones') if len(codigos) != 1 else tr('estación')}")
     return {"codigos": codigos, "texto": " · ".join(partes)}
 
 

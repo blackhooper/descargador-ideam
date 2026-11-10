@@ -322,6 +322,42 @@ EN = {
     "{a} de {b} {estaciones} en el rango. Las demás no se ven en el mapa ni se descargan.":
         "{a} of {b} {estaciones} in range. The rest are hidden from the map and not downloaded.",
     "Quitar el filtro": "Clear the filter",
+    # ---- Acceso ----
+    "Acceso restringido": "Restricted access",
+    "Descargador IDEAM": "IDEAM Data Downloader",
+    "Escribe la clave para entrar; solo se pide una vez en este navegador.":
+        "Enter the access key; it is only asked once in this browser.",
+    "Clave": "Access key",
+    "Entrar": "Enter",
+    "Clave incorrecta.": "Wrong key.",
+    "Acceso": "Access",
+    "Modo desarrollador": "Developer mode",
+    "Modo cliente": "Client mode",
+    "Vista": "View",
+    "Descargador": "Downloader",
+    "Herramientas": "Tools",
+    "Cerrar sesión": "Sign out",
+    "Todos": "All",
+    # ---- Subida de archivos y catalogo ----
+    "No se encontró ningún archivo .shp (ni en subcarpetas).": "No .shp file was found (not even in subfolders).",
+    "Al shapefile **{archivo}** le falta: {faltan}. Súbelo junto con sus archivos .shx, .dbf y .prj (o todo en un ZIP).":
+        "The shapefile **{archivo}** is missing: {faltan}. Upload it together with its .shx, .dbf and .prj files (or "
+        "everything in a ZIP).",
+    "Había {n} shapefiles; se usó **{archivo}**.": "There were {n} shapefiles; **{archivo}** was used.",
+    "Para un shapefile suelto sube juntos el .shp, .shx, .dbf y .prj (o todo en un ZIP).":
+        "For a loose shapefile, upload the .shp, .shx, .dbf and .prj together (or everything in a ZIP).",
+    "Sube un solo archivo (o las partes de un mismo shapefile).": "Upload a single file (or the parts of one shapefile).",
+    "El ZIP no trae ningún .shp, .gpkg, .geojson ni .kml.": "The ZIP has no .shp, .gpkg, .geojson or .kml.",
+    "El KMZ no trae ningún archivo .kml adentro.": "The KMZ has no .kml file inside.",
+    "Formato de archivo no soportado.": "Unsupported file format.",
+    "El archivo comprimido está dañado o no es un ZIP válido.": "The compressed file is damaged or is not a valid ZIP.",
+    "No se pudo leer el archivo: {e}": "The file could not be read: {e}",
+    "No se pudo descargar el catálogo de estaciones del IDEAM: {e}": "IDEAM's station catalog could not be downloaded: {e}",
+    "El catálogo de estaciones del IDEAM se descargó incompleto (se cortó la conexión a medio camino). Se muestran solo "
+    "las estaciones que llegaron a tiempo. Vuelve a intentarlo más tarde.":
+        "IDEAM's station catalog was downloaded incomplete (the connection dropped midway). Only the stations that "
+        "arrived in time are shown. Try again later.",
+    "Demasiados intentos. Espera {s} s y vuelve a intentarlo.": "Too many attempts. Wait {s} s and try again.",
     "estaciones": "stations",
     "estación": "station",
     "estaciones con datos": "stations with data",
@@ -427,16 +463,16 @@ EN = {
     "Completada en {t}": "Completed in {t}",
     "<span>Guardadas <b>{g}</b></span><span>Omitidas <b>{o}</b></span>":
         "<span>Saved <b>{g}</b></span><span>Skipped <b>{o}</b></span>",
-    "Separar en carpetas por cobertura": "Split into folders by coverage",
+    "Separar en carpetas por completitud": "Split into folders by completeness",
     "Incluir el mapa de huecos": "Include the gap map",
     "Una imagen y una tabla con el % de datos de cada estación en cada año, para ver de un vistazo dónde faltan datos.":
         "An image and a table with the % of data each station has in each year, to see at a glance where data is missing.",
     "Vista previa del mapa de huecos": "Gap map preview",
     "Datos de cada estación por año": "Each station's data by year",
-    "Alta (70–100 %), media (50–70 %), baja (25–50 %) y crítica (0–25 %) del periodo consultado. Sin marcar, todos los "
-    "Excel van juntos.":
-        "High (70–100 %), medium (50–70 %), low (25–50 %) and critical (0–25 %) coverage of the requested period. "
-        "Unchecked, all Excel files go together.",
+    "Según los datos que llegaron de verdad: alta (70–100 %), media (50–70 %), baja (25–50 %) y crítica (0–25 %) del "
+    "periodo consultado. Sin marcar, todos los Excel van juntos.":
+        "By the data that actually arrived: high (70–100 %), medium (50–70 %), low (25–50 %) and critical (0–25 %) "
+        "of the requested period. Unchecked, all Excel files go together.",
     "Nombre del archivo ZIP": "ZIP file name",
     "Por ejemplo: descarga 1. La extensión .zip se añade sola.": "For example: download 1. The .zip extension is added "
                                                                 "automatically.",
@@ -448,13 +484,13 @@ EN = {
     "Frecuencia {f}": "Frequency: {f}",
     " · cálculo {c}": " · aggregation {c}",
     "Un Excel por estación": "One Excel file per station",
-    "Carpetas por cobertura": "Folders by coverage",
+    "Carpetas por completitud": "Folders by completeness",
     "Alta, media, baja y crítica": "High, medium, low and critical",
     "Cobertura y resultado por estación": "Coverage and result per station",
     "Cita de la fuente": "Source citation",
     "Avance de la descarga": "Download progress",
     "Recibo de la descarga": "Download receipt",
-    "Estaciones guardadas por cobertura": "Saved stations by coverage",
+    "Estaciones guardadas por completitud real": "Saved stations by actual completeness",
     "Datos del IDEAM: uso personal y no comercial; cita la fuente (el ZIP incluye CITACION.txt).":
         "IDEAM data: personal, non-commercial use; cite the source (the ZIP includes CITACION.txt).",
     "en ≈ {t}": "in ≈ {t}",

@@ -1,19 +1,16 @@
 import json
-import math
 import os
 import re
 import threading
 import time
 from datetime import date
 
-import geopandas as gpd
 import pandas as pd
-import shapely
 import streamlit as st
 from streamlit_folium import st_folium
 
 from modules import (escaner, estilo, geo_input, geo_utils, map_view, ideam_catalog, ideam_parameters,
-                     ideam_downloader, idioma, mapa_huecos, panel_estadisticas, terreno, acceso, herramientas, guion)
+                     ideam_downloader, idioma, logica, mapa_huecos, panel_estadisticas, terreno, acceso, herramientas, guion)
 from modules.calidad import CLASES_CALIDAD, filtrar_descargables, clasificar_calidad
 from modules.idioma import tr
 
@@ -185,42 +182,10 @@ def _num(n):
     return idioma.num(n)
 
 
-def _firma(gdf):
-    """Huella de una geometria para saber si la cuenca cambio de verdad."""
-    if gdf is None or gdf.empty:
-        return None
-    return shapely.normalize(shapely.set_precision(gdf.union_all(), 1e-5)).wkt
-
-
-def _area_km2(gdf):
-    """Area de la cuenca en km² (en la proyeccion de Colombia que usa tambien el buffer)."""
-    try:
-        return float(gdf[["geometry"]].to_crs(epsg=3116).area.sum()) / 1e6
-    except Exception:
-        return None
-
-
-def _periodo(ini, fin):
-    """Periodo corto para los textos: "2000–2020" si son anos completos; si no, las fechas."""
-    if (ini.month, ini.day, fin.month, fin.day) == (1, 1, 12, 31):
-        return f"{ini.year}–{fin.year}" if ini.year != fin.year else str(ini.year)
-    return f"{ini:%d/%m/%Y} – {fin:%d/%m/%Y}"
-
-
 def _frecuencia_txt(frecuencia):
     """Frecuencia para una frase ("frecuencia diaria", "frecuencia cada 10 minutos")."""
     f = re.sub(r"^0(\d)", r"\1", frecuencia.lower())
     return tr({"diario": "diaria", "horario": "horaria"}.get(f, f))
-
-
-def _por_defecto(opciones, *preferidas):
-    """Posicion de la primera opcion preferida que este en la lista (si ninguna esta, la primera)."""
-    claves = list(opciones)
-    return next((claves.index(c) for c in preferidas if c in opciones), 0)
-
-
-def _clave_widget(texto):
-    return re.sub(r"\W+", "_", str(texto))
 
 
 def _desplegable(titulo, opciones, clave, espera, defecto=0, punto=None, buscar=None):
@@ -230,7 +195,7 @@ def _desplegable(titulo, opciones, clave, espera, defecto=0, punto=None, buscar=
     buscar = buscar or tr("Escribe para buscar")
     estilo.etiqueta(titulo, punto=punto)
     if not opciones:
-        st.selectbox(titulo, [], index=None, key=f"espera_{_clave_widget(titulo)}", label_visibility="collapsed",
+        st.selectbox(titulo, [], index=None, key=f"espera_{logica.clave_widget(titulo)}", label_visibility="collapsed",
                      disabled=True, placeholder=espera)
         return None
     return st.selectbox(titulo, list(opciones), index=defecto, key=clave, label_visibility="collapsed",
@@ -289,29 +254,12 @@ def _estaciones_del_filtro(filtro):
     return zona
 
 
-def _marco(zona):
-    """Recuadro de las estaciones con unos 2 km de margen: encuadra el 3D y mide el relieve (no se dibuja)."""
-    minx, miny, maxx, maxy = zona.total_bounds
-    return gpd.GeoDataFrame(geometry=[shapely.box(minx - .02, miny - .02, maxx + .02, maxy + .02)], crs=4326)
-
-
 def _encuadre(zona):
-    """Centro y zoom del mapa 2D para que quepan todas las estaciones (pantalla de ~1000 x 600 px; en el celular
-    ~340 x 520). El desfase minusculo hace que el mapa se mueva aunque se repita el mismo encuadre."""
-    # Con muchas estaciones se encuadra entre los percentiles 1 y 99: una sola estacion con coordenadas erradas
-    # (hay una de Cundinamarca en la longitud -83) alejaba el mapa hasta dejar el departamento diminuto
-    if len(zona) >= 20:
-        xs, ys = zona.geometry.x, zona.geometry.y
-        minx, maxx, miny, maxy = xs.quantile(.01), xs.quantile(.99), ys.quantile(.01), ys.quantile(.99)
-    else:
-        minx, miny, maxx, maxy = zona.total_bounds
-    ancho_px, alto_px = (340, 520) if _es_celular() else (1000, 600)
-    zoom = min(math.log2(ancho_px * 360 / (256 * max(maxx - minx, .01))),
-               math.log2(alto_px * 360 / (256 * max(maxy - miny, .01))))
+    """Centro y zoom del mapa 2D para que quepan todas las estaciones. El desfase minusculo hace que el mapa se mueva
+    aunque se repita el mismo encuadre."""
+    (lat, lon), zoom = logica.encuadre(zona, _es_celular())
     ss.saltos += 1
-    # medio nivel de zoom (el mapa lo admite): redondear siempre hacia abajo dejaba el encuadre pequeno
-    zoom = min(13, max(5, math.floor(zoom * 2) / 2))
-    return ((miny + maxy) / 2 + ss.saltos * 1e-9, (minx + maxx) / 2), zoom + (ss.saltos % 2) * 1e-4
+    return (lat + ss.saltos * 1e-9, lon), zoom + (ss.saltos % 2) * 1e-4
 
 
 def _param_de(clave):
@@ -336,21 +284,6 @@ def _sincronizar(fuente, valor, a_codigo):
     return False
 
 
-def _estacion_cercana(zona, clic):
-    if zona is None or zona.empty or not clic:
-        return None
-    d = (zona.geometry.x - clic["lng"]) ** 2 + (zona.geometry.y - clic["lat"]) ** 2
-    idx = d.idxmin()
-    return ideam_downloader.codigo_de_estacion(zona.loc[idx], idx) if d.min() < 1e-6 else None
-
-
-def _nombre_archivo(texto, respaldo):
-    """Nombre de archivo valido en Windows a partir de lo que escribio el usuario."""
-    limpio = re.sub(r'[<>:"/\\|?*\x00-\x1f]', "_", (texto or "").strip())
-    limpio = re.sub(r"\.zip$", "", limpio, flags=re.IGNORECASE).strip(" .")
-    return limpio or respaldo
-
-
 def _es_celular():
     """True si la pagina se abrio desde un celular o tablet (segun el navegador)."""
     try:
@@ -358,11 +291,6 @@ def _es_celular():
     except Exception:
         return False
     return any(marca in agente for marca in ("Mobi", "Android", "iPhone", "iPad"))
-
-
-def _hex_a_rgb(color):
-    color = color.lstrip("#")
-    return [int(color[i:i + 2], 16) for i in (0, 2, 4)]
 
 
 def _revisar_altitudes(zona):
@@ -402,7 +330,7 @@ def _estaciones_3d(zona, excluidas):
             "altitud": altitud,
             "altitud_txt": f"{_num(altitud)} m" if altitud else tr("altitud sin dato"),
             "pct_txt": (f"{pct:.0f} %" + (tr(" · excluida") if tiene and not ok else "")) if evaluada else tr("sin evaluar"),
-            "color": _hex_a_rgb(clasificar_calidad(pct)["color"]) if ok else [150, 160, 180],
+            "color": logica.hex_a_rgb(clasificar_calidad(pct)["color"]) if ok else [150, 160, 180],
             "ok": ok,
             "zona": tr({"cuenca": "En el área", "buffer": "En el buffer"}.get(r.get("zona"), "")),
             "alerta": tr("⚠ Altitud dudosa: el relieve marca {m} m", m=_num(r['terreno'])) if dudosa else "",
@@ -504,9 +432,7 @@ ESCALAS = ["Rango de la zona", "Rango de Colombia"]
 
 def _atajo_periodo(anios):
     """Atajos de periodo de Parametros: los ultimos `anios` años hasta hoy, o todo el registro (None)."""
-    hoy = date.today()
-    ss.f_fin = hoy
-    ss.f_ini = date(1920, 1, 1) if anios is None else date(hoy.year - anios, hoy.month, min(hoy.day, 28))
+    ss.f_ini, ss.f_fin = logica.atajo_periodo(anios)
 
 
 def _preparar(datos):
@@ -633,11 +559,11 @@ def pantalla_parametros():
         variables = ideam_parameters.variables_de(catalogo_param, especial, frecuencia)
         variable = _desplegable(tr("Variable"), variables, f"var_{sufijo}",
                                 vacio or (tr("Sin variables") if cargada else tr("Variable")),
-                                defecto=_por_defecto(variables, "PRECIPITACION"), punto=estado_cat)
+                                defecto=logica.por_defecto(variables, "PRECIPITACION"), punto=estado_cat)
         params = ideam_parameters.parametros_de(catalogo_param, variable, especial, frecuencia) if variable else {}
-        clave_param = f"par_{sufijo}_{_clave_widget(variable)}"
+        clave_param = f"par_{sufijo}_{logica.clave_widget(variable)}"
         clave = _desplegable(tr("Parámetro"), {c: p["nombre"] for c, p in params.items()}, clave_param,
-                             vacio or (tr("Sin parámetros") if cargada else tr("Parámetro")), defecto=_por_defecto(params, "PRECIPITACION|PTPM_CON"))
+                             vacio or (tr("Sin parámetros") if cargada else tr("Parámetro")), defecto=logica.por_defecto(params, "PRECIPITACION|PTPM_CON"))
         param = params.get(clave) if clave else None
         if estado_cat == "error":
             st.error(f"{tr('No se pudo cargar la lista de variables del IDEAM.')} {tr(_precarga['error'] or '')}".strip(),
@@ -798,14 +724,14 @@ def pantalla_mapa():
             estilo.ubicacion_elegida(filtro["texto"])
             buffer_on, buffer_km = False, 0
         else:
-            area_km2 = _area_km2(cuenca) if cuenca is not None else None
+            area_km2 = logica.area_km2(cuenca) if cuenca is not None else None
             estilo.seccion(tr("Área de estudio"), capsula=f"≈ {_km_txt(area_km2)} km²" if area_km2 else None,
                            valor="" if cuenca is not None else tr("Sin definir"))
             estilo.acciones_area(cuenca is not None, vista)
             buffer_on, buffer_km = _control_buffer()
         # la variable consultada, en corto (sin fechas): al pulsarla se vuelve a Parametros
         estilo.seccion(tr("Cobertura estimada"), chip=(
-            param["variable_nombre"], f"{param['nombre']} · {_periodo(fecha_ini, fecha_fin)}. "
+            param["variable_nombre"], f"{param['nombre']} · {logica.periodo(fecha_ini, fecha_fin)}. "
                                       + tr("Pulsa para cambiar la variable o el periodo")))
         caja_calidad = st.container()
         estilo.pie()
@@ -821,7 +747,7 @@ def pantalla_mapa():
     error_ideam = None
     if catalogo is not None and filtro:
         zona = _estaciones_del_filtro(filtro)
-        area = _marco(zona) if not zona.empty else None
+        area = logica.marco(zona) if not zona.empty else None
     elif cuenca is not None and catalogo is not None:
         area = geo_utils.create_buffer(cuenca, buffer_km if buffer_on else 0)
         zona = geo_utils.filter_stations(catalogo, area)
@@ -982,7 +908,7 @@ def pantalla_mapa():
             retorno = mapa_2d(capa, centro, zoom)
             if retorno and retorno.get("all_drawings") is not None:
                 nueva = map_view.cuenca_desde_dibujos(retorno["all_drawings"])
-                if _firma(nueva) != _firma(cuenca):
+                if logica.firma(nueva) != logica.firma(cuenca):
                     ss.cuenca = nueva
                     if filtro:
                         _quitar_filtro_mapa()   # un area reemplaza a las estaciones elegidas por ubicacion
@@ -1002,7 +928,7 @@ def pantalla_mapa():
                         texto = tr("Ninguna estación tiene datos en el periodo")
                     escaner.listo(hay, texto)
             clic = (retorno or {}).get("last_object_clicked")
-            if _sincronizar("mapa2d", clic, lambda c: _estacion_cercana(zona, c)):
+            if _sincronizar("mapa2d", clic, lambda c: logica.estacion_cercana(zona, c)):
                 st.rerun()
             if cuenca is not None or filtro:
                 estilo.leyenda_estaciones([(f"{tr(c[1])} {c[2]}", c[4]) for c in CLASES_CALIDAD],
@@ -1171,36 +1097,6 @@ def _recibo(d):
     ])
 
 
-def _titulo_huecos(resultado):
-    ini, fin = resultado["rango"]
-    return f"{resultado['rotulo']} · {ini:%d/%m/%Y} – {fin:%d/%m/%Y}"
-
-
-def _tabla_huecos(resultado):
-    """Tabla del mapa de huecos de la descarga (se arma una vez y se guarda)."""
-    if resultado.get("_tabla_huecos") is None:
-        resultado["_tabla_huecos"] = mapa_huecos.tabla_huecos(resultado["huecos"], resultado["rango"],
-                                                              resultado.get("frecuencia"))
-    return resultado["_tabla_huecos"]
-
-
-def _zip_final(resultado, carpetas, huecos=False):
-    """El ZIP tal como se descarga: plano o en carpetas por completitud, con el mapa de huecos si se pidio. Solo se
-    guarda la variante elegida (ademas del ZIP plano de la descarga): antes quedaban hasta cuatro copias en memoria
-    por sesion, y un ZIP grande pesa decenas de MB."""
-    clave = (bool(carpetas), bool(huecos))
-    if clave == (False, False):
-        resultado.pop("_zip_variante", None)
-        return resultado["zip"]
-    guardada = resultado.get("_zip_variante")
-    if guardada is None or guardada[0] != clave:
-        base = ideam_downloader.zip_con_carpetas(resultado) if carpetas else resultado["zip"]
-        if huecos:
-            base = mapa_huecos.agregar_al_zip(base, _tabla_huecos(resultado), _titulo_huecos(resultado))
-        guardada = resultado["_zip_variante"] = (clave, base)
-    return guardada[1]
-
-
 @st.fragment
 def _entrega(resultado, carpetas, huecos=False):
     """Nombre del ZIP y boton de descarga (en un fragmento: escribir el nombre no recarga la tarjeta entera)."""
@@ -1208,8 +1104,8 @@ def _entrega(resultado, carpetas, huecos=False):
     predeterminado = f"IDEAM_{resultado['rotulo']}_{ini:%Y%m%d}-{fin:%Y%m%d}"
     nombre = st.text_input(tr("Nombre del archivo ZIP"), value=predeterminado, key="nombre_zip", max_chars=120,
                            live=True, help=tr("Por ejemplo: descarga 1. La extensión .zip se añade sola."))
-    st.download_button(tr("Descargar el ZIP"), data=_zip_final(resultado, carpetas, huecos), type="primary", width="stretch",
-                       file_name=f"{_nombre_archivo(nombre, predeterminado)}.zip", icon=":material/download:",
+    st.download_button(tr("Descargar el ZIP"), data=logica.zip_final(resultado, carpetas, huecos), type="primary", width="stretch",
+                       file_name=f"{logica.nombre_archivo(nombre, predeterminado)}.zip", icon=":material/download:",
                        mime="application/zip", key="bajar_zip")
 
 
@@ -1238,7 +1134,7 @@ def pantalla_descarga():
         estilo.cabecera_exportar(titulo, tono)
         izq, der = st.columns([1.12, 1], gap="large")
         with der:
-            tabla = _tabla_completitud(resultado) if estado == "lista" else None
+            tabla = logica.tabla_completitud(resultado) if estado == "lista" else None
             if tabla is not None:
                 # Con la descarga lista, este espacio es para la completitud real por estacion; el recibo (lo que la
                 # persona ya eligio) queda plegado debajo
@@ -1287,7 +1183,7 @@ def pantalla_descarga():
                     st.html('<p class="y2k-hint">' + tr("Lo que alcanzó a bajar no se pierde: puedes llevarte esas "
                                                          "estaciones o reintentar la descarga completa.") + '</p>')
                     st.download_button(tr("Descargar lo guardado ({g} estaciones)", g=parcial["guardadas"]),
-                                       data=_zip_final(parcial, True), width="stretch", icon=":material/download:",
+                                       data=logica.zip_final(parcial, True), width="stretch", icon=":material/download:",
                                        file_name=f"IDEAM_{parcial['rotulo']}_{ini:%Y%m%d}-{fin:%Y%m%d}_parcial.zip",
                                        mime="application/zip", key="bajar_parcial")
                 else:
@@ -1341,28 +1237,12 @@ def pantalla_descarga():
                                     "para ver de un vistazo dónde faltan datos."))
                 if huecos:
                     with st.expander(tr("Vista previa del mapa de huecos"), expanded=False):
-                        st.image(mapa_huecos.png(_tabla_huecos(resultado), _titulo_huecos(resultado)))
+                        st.image(mapa_huecos.png(logica.tabla_huecos(resultado), logica.titulo_huecos(resultado)))
             with st.container(horizontal=True, gap="small"):
                 st.button(tr("Volver al mapa"), width="stretch", icon=":material/arrow_back:", key="volver_mapa",
                           on_click=_volver_mapa)
                 st.button(tr("Nueva consulta"), width="stretch", icon=":material/add_location_alt:", key="nueva_consulta",
                           on_click=_nueva_consulta)
-
-
-def _tabla_completitud(resultado):
-    """Completitud real de cada estacion guardada frente a su cobertura estimada, de la mayor caida a la menor: es el
-    dato nuevo de la descarga (antes solo estaba dentro de resumen_descarga.csv)."""
-    filas = [f for f in resultado.get("resumen") or [] if f.get("Resultado") == "Guardada"
-             and f.get("Completitud real (%)") not in ("", None)]
-    if not filas:
-        return None
-    t = pd.DataFrame({
-        "Estación": [panel_estadisticas._nombre_limpio(f["Nombre"]) for f in filas],
-        "Estimada": [float(f["Cobertura estimada (%)"]) for f in filas],
-        "Real": [float(f["Completitud real (%)"]) for f in filas],
-    })
-    t["Diferencia"] = t["Real"] - t["Estimada"]
-    return t.sort_values(["Diferencia", "Estación"]).reset_index(drop=True)
 
 
 def _descargar(d, progreso, aviso):

@@ -21,6 +21,7 @@ La estructura y la estética se conectan solo por **nombres**: las claves de los
 | Archivo | Capa | Para qué sirve |
 |---|---|---|
 | `app.py` | Estructura | Las tres pantallas (Parámetros, Mapa y Exportación), los huecos fijos de cada zona, las cargas por detrás, el estado de sesión y la cola de descarga |
+| `modules/logica.py` | Lógica | Lo que `app.py` calcula sin dibujar: periodo y atajos, encuadre del mapa, tabla de completitud, variantes del ZIP. No toca Streamlit, para poder probarlo |
 | `modules/idioma.py` | Idioma | `tr()` y el diccionario español → inglés de la interfaz (y de los textos del guion del navegador) |
 | `modules/estilo.py` | Estética (+ piezas) | Tokens de tema, materiales de vidrio, CSS de toda la app, iconos, menú de Ajustes, piezas HTML (tarjeta de Parámetros, secciones y cifras del panel, cápsula de herramientas, leyendas, avance, recibo) y el guion de la interfaz del navegador |
 | `modules/panel_estadisticas.py` | Estructura | Tablero de calidad del panel (cifras, altitud dudosa, lista con casillas) y ficha de la estación seleccionada |
@@ -381,3 +382,10 @@ Tercera textura (junto a Satélite y Topográfico): el relieve se colorea por al
 - **Preparar descarga**: cuando no se puede, el botón dice el motivo corto («Delimita el área», «Elige una estación»…); el detalle sigue en la ayuda.
 - **Línea de carga**: si una recarga pasa de 3 s, una línea fina recorre el borde superior del mapa (`[data-test-script-state="running"]`, solo CSS).
 - **Exportación**: mientras descarga, «Ahora:» nombra las estaciones en curso (`ideam_downloader`, `en_curso`). Al terminar, el orden es cifras (`estilo.kpis`), reparto, nombre y **Descargar el ZIP**, y después las opciones (carpetas, mapa de huecos). La columna derecha muestra `app._tabla_completitud` (estimada, real y diferencia por estación) y el recibo queda plegado en «Lo que pediste».
+
+## Pruebas
+
+- **Lógica** (`python -m pytest -q tests`): bloques de descarga, cobertura, catálogo, mapa de huecos y `modules/logica.py`. No abren la app ni salen a internet.
+- **Interfaz** (`tests/interfaz/`): arrancan la app de verdad contra un IDEAM simulado (`ideam_simulado.py`: variables, series, Excel y relieve inventados, siempre iguales) y la recorren con un navegador (Playwright): acceso, Parámetros, mapa, descarga completa con su ZIP, detener a medias y el flujo en celular. Necesitan `pip install playwright` y `playwright install chromium`; sin Playwright se saltan solas.
+- Para ver la app simulada a mano: `streamlit run tests/interfaz/app_simulada.py --secrets.files tests/interfaz/secretos_prueba.toml` (clave `cliente-prueba`).
+- En GitHub corren las dos en cada PR (`.github/workflows/pruebas.yml`, trabajos `pytest` e `interfaz`).

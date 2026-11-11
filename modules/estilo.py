@@ -212,7 +212,7 @@ VIDRIO = VIDRIO_CLARO + "," + VIDRIO_REGULAR
 CSS = """
 @import url("https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&display=swap");
 :root{
-  --y2k-g:12px; --y2k-panel-w:360px; --y2k-capsula:44px; --y2k-r:22px; --y2k-r-ctl:12px;
+  --y2k-g:12px; --y2k-panel-w:440px; --y2k-capsula:44px; --y2k-r:22px; --y2k-r-ctl:12px;
   --y2k-libre-izq:0px; --y2k-dock-h:64px; --y2k-hoja-h:62px;
   --y2k-ov-top:12px; --y2k-ov-izq:12px; --y2k-ov-der:68px; --y2k-ov-abajo:72px;
   --y2k-ley-abajo:72px; --y2k-atrib-abajo:72px;
@@ -419,6 +419,32 @@ a{color:var(--y2k-accent-texto)}
 .y2k-cab-inicio .eyebrow{font-size:12px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--y2k-accent-texto);margin:0}
 .y2k-cab-inicio h1{font-size:clamp(25px,3.1vw,32px) !important;line-height:1.12 !important;font-weight:700 !important;letter-spacing:-.022em;
   margin:6px 0 0 !important;padding:0 !important;color:var(--y2k-ink)}
+/* Senal de carga del mapa: una linea delgada arriba que solo aparece si la corrida pasa de 3 s (con el filtro por
+   ubicacion no corre el escaner y la pantalla quedaba quieta). Sin textos: se va sola al terminar */
+__P_MAPA__[data-test-script-state="running"]::after{content:"";position:fixed;top:0;left:0;height:3px;width:34%;z-index:60;
+  border-radius:0 3px 3px 0;background:var(--y2k-accent);opacity:0;pointer-events:none;
+  animation:y2k-carga-ver .3s 3s forwards,y2k-carga 1.4s 3s ease-in-out infinite}
+@keyframes y2k-carga-ver{to{opacity:1}}
+@keyframes y2k-carga{0%{transform:translateX(-100%)}100%{transform:translateX(300%)}}
+.y2k-pasos{display:flex;align-items:center;gap:8px;list-style:none;margin:10px 0 0 !important;padding:0 !important;counter-reset:paso;
+  font-size:12.5px;line-height:1;color:var(--y2k-ink-3);flex-wrap:nowrap;min-width:0}
+.y2k-pasos li{display:flex;align-items:center;gap:6px;margin:0 !important;padding:0 !important;min-width:0;white-space:nowrap}
+.y2k-pasos li span{overflow:hidden;text-overflow:ellipsis}
+.y2k-pasos li::before{counter-increment:paso;content:counter(paso);width:18px;height:18px;border-radius:50%;flex:none;display:grid;
+  place-items:center;font-size:11px;font-weight:700;color:var(--y2k-ink-2);box-shadow:inset 0 0 0 1px var(--y2k-campo-borde)}
+.y2k-pasos li + li{flex:0 1 auto}
+.y2k-pasos li:not(:last-child)::after{content:"";width:14px;height:1px;background:var(--y2k-line-2);flex:none;margin-left:2px}
+.y2k-pasos li[aria-current]{color:var(--y2k-ink);font-weight:700}
+.y2k-pasos li[aria-current]::before{background:var(--y2k-accent);color:var(--y2k-sobre-acento);box-shadow:none}
+.y2k-pasos li.hecho::before{background:var(--y2k-campo);color:var(--y2k-ink)}
+/* en el panel del mapa (angosto) solo el paso actual lleva nombre */
+.st-key-y2k_cuerpo .y2k-pasos{margin:0 0 2px !important}
+.st-key-y2k_cuerpo .y2k-pasos li:not([aria-current]) span{display:none}
+.st-key-y2k_atajos{gap:6px !important;margin-top:-6px;flex-wrap:wrap}
+.st-key-y2k_atajos button{min-height:28px !important;height:28px;padding:0 11px !important;border-radius:999px !important;
+  background:var(--y2k-campo) !important;border:0 !important;box-shadow:inset 0 0 0 1px var(--y2k-campo-borde) !important}
+.st-key-y2k_atajos button p{font-size:12.5px !important;font-weight:600 !important;color:var(--y2k-ink-2) !important}
+.st-key-y2k_atajos button:hover{background:var(--y2k-hover) !important}
 .y2k-etq{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;color:var(--y2k-ink);margin:0 0 -8px;min-height:18px}
 .y2k-etq .opc{font-weight:500;color:var(--y2k-ink-3)}
 .st-key-y2k_fechas [data-testid="stHorizontalBlock"]{flex-wrap:nowrap !important}
@@ -468,15 +494,6 @@ details.y2k-aviso > summary::-webkit-details-marker{display:none}
 details.y2k-aviso[open] .ver::after{content:" ▴"}
 details.y2k-aviso > div{margin:5px 0 0 22px}
 details.y2k-aviso > div p{margin:0 !important;font-size:12.5px !important;color:var(--y2k-ink-3) !important}
-/* pasos de la consulta: el actual resaltado, los demas en linea fina */
-.y2k-como{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:2px 0 0;padding:0;list-style:none;counter-reset:paso}
-.y2k-como li{display:flex;flex-direction:column;gap:4px;padding:10px 12px 11px;border-radius:16px;margin:0;font-size:12.5px;line-height:1.4;
-  color:var(--y2k-ink-3);box-shadow:inset 0 0 0 1px var(--y2k-line)}
-.y2k-como li[aria-current]{background:var(--y2k-campo);box-shadow:inset 0 0 0 1px var(--y2k-campo-borde)}
-.y2k-como li b{font-size:13px;color:var(--y2k-ink);display:flex;align-items:center;gap:7px;line-height:1.2}
-.y2k-como li b::before{counter-increment:paso;content:counter(paso);width:20px;height:20px;border-radius:50%;flex:none;display:grid;place-items:center;
-  font-size:11px;color:var(--y2k-ink-2);box-shadow:inset 0 0 0 1.5px var(--y2k-line-2)}
-.y2k-como li[aria-current] b::before{background:var(--y2k-accent);color:var(--y2k-sobre-acento);box-shadow:none}
 .y2k-pie-inicio{display:flex;flex-direction:column;gap:6px;padding-top:12px;border-top:1px solid var(--y2k-line);font-size:12px;line-height:1.5;color:var(--y2k-ink-3)}
 .y2k-pie-inicio p{margin:0;font-size:12px;color:var(--y2k-ink-3)}
 .st-key-y2k_inicio [data-testid="stExpander"] details,.st-key-y2k_exportar [data-testid="stExpander"] details{border-radius:16px !important;border:0 !important;
@@ -776,7 +793,7 @@ details.y2k-det b{color:var(--y2k-ink)}
 .y2k-leyenda .pin{width:12px;height:12px;border-radius:50%;flex:none;border:2px solid #fff;box-shadow:0 0 0 1px rgba(0,0,0,.5)}
 .y2k-leyenda .pin.hueco{background:transparent !important;border-color:#E6ECF7}
 .y2k-leyenda .pin.fuera{background:rgba(255,255,255,.35) !important;border:2px dashed #7C87A3}
-.y2k-leyenda .pin.duda{border-color:#D0602F;box-shadow:0 0 0 1px #fff}
+.y2k-leyenda .pin.duda{border-color:#fff;box-shadow:0 0 0 1px rgba(0,0,0,.5);outline:2px dotted #B98900;outline-offset:2px}
 .y2k-leyenda .linea{width:18px;height:0;border-top:3px solid;flex:none}
 .y2k-leyenda .nota{grid-column:1 / -1;font-size:12px;color:var(--y2k-ink-3);margin-top:2px}
 .y2k-leyenda li.titulo{grid-column:1 / -1;font-size:12px;font-weight:700;color:var(--y2k-ink);line-height:1.3;margin:0 0 2px}
@@ -858,6 +875,7 @@ details.y2k-det b{color:var(--y2k-ink)}
 @keyframes y2k-brillo{from{background-position:160% 0}to{background-position:-60% 0}}
 .y2k-prog-meta{display:flex;flex-wrap:wrap;gap:4px 16px;font-size:13px;color:var(--y2k-ink-3);font-variant-numeric:tabular-nums}
 .y2k-prog-meta b{color:var(--y2k-ink);font-weight:700}
+.y2k-prog-meta .ahora{flex-basis:100%;min-height:2.9em;line-height:1.45;font-size:12.5px}
 /* recibo de la descarga */
 .y2k-recibo{display:grid;grid-template-columns:max-content 1fr;gap:9px 18px;margin:0;padding:14px 16px;border-radius:18px;background:var(--y2k-campo);
   box-shadow:inset 0 0 0 1px var(--y2k-campo-borde)}
@@ -894,12 +912,16 @@ details.y2k-det b{color:var(--y2k-ink)}
 
 # Ventanas medianas: el panel se angosta un poco
 CSS_MEDIO = """
-:root{--y2k-panel-w:330px}
+:root{--y2k-panel-w:350px}
 """
 
 # Celular en vertical: tarjetas flotantes con margen. En el mapa, la consulta es una tarjeta que se abre y se cierra
 # con el boton "Consulta" de la barra de abajo (sin arrastres: el gesto se confundia con "jalar para recargar")
 CSS_MOVIL = """
+/* indicador de pasos: en el celular solo el paso actual lleva nombre */
+.y2k-pasos li:not([aria-current]) span{display:none}
+/* el boton principal de Parametros queda fijo abajo: al abrir "Filtrar por ubicacion" se salia de la pantalla */
+.st-key-y2k_inicio_cuerpo .st-key-ir_mapa{position:sticky;bottom:var(--y2k-fundido,14px);z-index:3}
 html{--y2k-libre-izq:0px !important;--y2k-g:10px}
 .st-key-y2k_abrir,.y2k-panel-cerrar{display:none !important}
 /* Parametros y Exportacion: tarjeta flotante abajo, con margen a los lados y libre la esquina del boton de Streamlit */
@@ -908,10 +930,6 @@ html{--y2k-libre-izq:0px !important;--y2k-g:10px}
   max-height:calc(100dvh - var(--y2k-capsula) - var(--y2k-g) * 3 - var(--y2k-sello) - env(safe-area-inset-bottom));
   animation:y2k-entra-abajo .45s var(--y2k-curva) both}
 .st-key-y2k_inicio_cuerpo,.st-key-y2k_exportar_cuerpo{padding:22px 18px !important;--y2k-fundido:14px}
-.y2k-como{gap:6px}
-.y2k-como li{padding:8px 8px 9px;font-size:11.5px}
-.y2k-como li span{display:none}
-.y2k-como li b{font-size:12px;flex-direction:column;align-items:flex-start;gap:5px}
 .st-key-y2k_exportar_cuerpo > [data-testid="stLayoutWrapper"] > [data-testid="stHorizontalBlock"],
 .st-key-y2k_exportar_cuerpo > [data-testid="stHorizontalBlock"]{row-gap:14px !important}
 /* Mapa: barra flotante abajo (Consulta, 2D/3D y "Preparar descarga"), encima de la esquina del boton de Streamlit */
@@ -987,7 +1005,6 @@ CSS_ANGOSTO = """
 CSS_BAJO = """
 :root{--y2k-capsula:40px;--y2k-g:8px;--y2k-panel-w:300px}
 .st-key-y2k_inicio_cuerpo,.st-key-y2k_exportar_cuerpo{padding:16px 20px !important;gap:10px !important;--y2k-fundido:12px}
-.y2k-como{display:none}
 .y2k-herr button.h{width:32px;height:32px}
 .st-key-preparar button{min-height:38px !important}
 """
@@ -1039,6 +1056,8 @@ CSS_MOVIMIENTO = """
   *,*::before,*::after{transition-duration:0s !important;scroll-behavior:auto !important}
   .st-key-y2k_inicio,.st-key-y2k_exportar,.st-key-y2k_panel,.st-key-y2k_dock,.st-key-y2k_ficha,.st-key-y2k_herr,.y2k-menu,.y2k-punto,
   .y2k-barra i::after,.y2k-cab-export .vivo{animation:none !important}
+  .stApp:has(.y2k-pantalla[data-p="mapa"])[data-test-script-state="running"]::after{width:100%;border-radius:0;
+    animation:y2k-carga-ver 0s 3s forwards !important}
 }
 """
 
@@ -2203,8 +2222,9 @@ def instalar_ui():
 # Piezas de la pantalla 1 (Parametros)
 # ---------------------------------------------------------------------------
 def cabecera_inicio():
-    md('<header class="y2k-cab-inicio"><p class="eyebrow">IDEAM</p>'
-       f'<h1>{tr("Consulta y descarga de datos hidrometeorológicos")}</h1></header>')
+    # "no oficial" arriba: el rotulo "IDEAM" solo hacia pensar que la pagina era del instituto
+    md(f'<header class="y2k-cab-inicio"><p class="eyebrow">{tr("Descargador IDEAM · no oficial")}</p>'
+       f'<h1>{tr("Consulta y descarga de datos hidrometeorológicos")}</h1>{_pasos(1)}</header>')
 
 
 def etiqueta(texto, punto=None, opcional=False):
@@ -2235,12 +2255,19 @@ def aviso(resumen, detalle="", tono="alerta"):
         md(f'<p class="y2k-aviso" data-tono="{tono}"{rol}>{icono}<span>{escape(resumen)}</span></p>')
 
 
-def como_funciona():
-    """Pasos de la consulta (el actual resaltado). En el celular solo los titulos."""
-    md(f'<ol class="y2k-como" aria-label="{tr("Pasos de la consulta")}">'
-       f'<li aria-current="step"><b>{tr("Establecer parámetros")}</b><span>{tr("Serie, variable y periodo.")}</span></li>'
-       f'<li><b>{tr("Delimitar el área de análisis")}</b><span>{tr("Zona de estudio y cobertura de cada estación.")}</span></li>'
-       f'<li><b>{tr("Preparar la descarga")}</b><span>{tr("Nombre del ZIP y organización de los archivos.")}</span></li></ol>')
+PASOS = ("Parámetros", "Área y estaciones", "Descarga")
+
+
+def _pasos(actual):
+    """Indicador 1 · 2 · 3 de la consulta, delgado e igual en las tres pantallas (`actual`: 1, 2 o 3). Reemplaza a
+    las tres tarjetas de pasos de Parametros, que solo se veian en la primera pantalla."""
+    items = "".join(f'<li{" aria-current=\"step\"" if n == actual else ""}{" class=\"hecho\"" if n < actual else ""}>'
+                    f'<span>{tr(t)}</span></li>' for n, t in enumerate(PASOS, 1))
+    return f'<ol class="y2k-pasos" aria-label="{tr("Pasos de la consulta")}">{items}</ol>'
+
+
+def pasos(actual):
+    md(_pasos(actual))
 
 
 def pie_inicio(texto_legal):
@@ -2487,7 +2514,7 @@ def pie():
 def cabecera_exportar(titulo, estado="vivo"):
     """`estado`: "vivo" (descargando), "hecho" o "alto" (detenida o con error)."""
     punto = {"vivo": '<span class="vivo" aria-hidden="true"></span>', "hecho": '<span class="hecho" aria-hidden="true"></span>'}.get(estado, "")
-    md(f'<header class="y2k-cab-export"><p class="eyebrow">{punto}{tr("Exportación")}</p><h1>{titulo}</h1></header>')
+    md(f'<header class="y2k-cab-export"><p class="eyebrow">{punto}{tr("Exportación")}</p><h1>{titulo}</h1>{_pasos(3)}</header>')
 
 
 def progreso(fraccion, principal, meta, estado="vivo"):

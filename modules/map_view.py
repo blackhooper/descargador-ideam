@@ -26,6 +26,7 @@ GRIS = "#7C87A3"
 TINTA_2 = "#4F5D78"
 BORDE_PIN = "#FFFFFF"
 ALERTA = "#A4430F"
+HALO_DUDOSA = "#FFE08A"   # halo punteado de las estaciones con altitud dudosa (claro: se lee sobre el satelite)
 
 
 def mapa_base(cuenca_gdf=None, tema="claro"):
@@ -90,7 +91,12 @@ def mapa_base(cuenca_gdf=None, tema="claro"):
     # Creditos de las capas: una linea chica en el borde (el texto completo va al final del panel)
     m.get_root().header.add_child(folium.Element(
         "<style>.leaflet-control-attribution{font:10px/1.4 Figtree,system-ui,sans-serif !important;"
-        "white-space:nowrap;max-width:75%;overflow:hidden;text-overflow:ellipsis}</style>"))
+        "white-space:nowrap;max-width:75%;overflow:hidden;text-overflow:ellipsis}"
+        # Grupos del catalogo nacional en un solo color neutro: el verde, amarillo y naranja de Leaflet son los
+        # mismos que despues significan cobertura alta, media y baja, y un grupo verde parecia "buena cobertura"
+        ".marker-cluster-small,.marker-cluster-medium,.marker-cluster-large{background:rgba(28,111,216,.28) !important}"
+        ".marker-cluster-small div,.marker-cluster-medium div,.marker-cluster-large div{background:rgba(28,111,216,.86) "
+        "!important;color:#fff !important;font:600 12px/30px Figtree,system-ui,sans-serif !important}</style>"))
     if cuenca_gdf is not None and not cuenca_gdf.empty:
         minx, miny, maxx, maxy = cuenca_gdf.total_bounds
         m.fit_bounds([[miny, minx], [maxy, maxx]], padding=(30, 30))
@@ -185,12 +191,16 @@ def capa_dinamica(area_gdf=None, estaciones=None, seleccionada=None, catalogo=No
                     dash_array="3 3", fill=True, fill_color="#FFFFFF", fill_opacity=0.35,
                     tooltip=folium.Tooltip(_tarjeta(row, codigo, excluida=True), sticky=True))
             else:
+                if row.get("altitud_dudosa"):
+                    # Altitud dudosa: un halo punteado oscuro alrededor del pin. Antes era un borde naranja, casi el
+                    # mismo tono del relleno de la cobertura baja. No es interactivo: los clics pasan al pin
+                    _marca(folium.CircleMarker(location=[row.geometry.y, row.geometry.x], radius=12, color=HALO_DUDOSA,
+                                               weight=2, dash_array="2 5", fill=False, interactive=False)).add_to(fg)
                 marcador = folium.CircleMarker(
                     location=[row.geometry.y, row.geometry.x],
                     radius=9 if es_sel else 7 if ok else 5,
-                    # borde naranja = altitud dudosa; borde claro = se lee sobre el satelite
-                    color="#D0602F" if row.get("altitud_dudosa") else BORDE_PIN if ok or es_sel else "#E6ECF7",
-                    weight=2.5 if es_sel or row.get("altitud_dudosa") else 1.6 if ok else 1.4,
+                    color=BORDE_PIN if ok or es_sel else "#E6ECF7",   # borde claro: se lee sobre el satelite
+                    weight=2.5 if es_sel else 1.6 if ok else 1.4,
                     fill=ok or es_sel, fill_color=color, fill_opacity=0.95 if ok else 0.4,
                     tooltip=folium.Tooltip(_tarjeta(row, codigo), sticky=True))
             _marca(marcador, pin=True).add_to(fg)

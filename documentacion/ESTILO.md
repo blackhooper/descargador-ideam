@@ -19,7 +19,7 @@ Todo lo visual de la app sale de `modules/estilo.py`. Este es el mapa del archiv
 | `CSS_ALTO`, `CSS_LITE`, `CSS_MOVIMIENTO`, `CSS_FORZADOS` | Alto contraste, modo Lite, movimiento reducido y colores forzados | **Sí** |
 | `aplicar()`, `_tokens_css()`, `_vidrio()` | Arman y ordenan todo el CSS | No |
 | `ICONOS` | Iconos SVG de línea (heredan el color del texto) | **Sí** |
-| `ajustes()`, `cabecera_inicio()`, `etiqueta()`, `como_funciona()`, `pie_inicio()`, `cabecera_panel()`, `boton_consulta()`, `boton_abrir_panel()`, `seccion()`, `acciones_area()`, `kpis()`, `aviso()`, `marca_listo()`, `marca_filtro()`, `herramientas_2d()`, `herramientas_3d()`, `leyenda_*()`, `pie()`, `cabecera_exportar()`, `progreso()`, `recibo()`, `resumen_final()`, `legal_exportar()` | Piezas HTML: definen la estructura y las clases de cada pieza | Solo sus clases decorativas; no los `data-y2k-*` ni la estructura |
+| `ajustes()`, `cabecera_inicio()`, `etiqueta()`, `pasos()`, `pie_inicio()`, `cabecera_panel()`, `boton_consulta()`, `boton_abrir_panel()`, `seccion()`, `acciones_area()`, `kpis()`, `aviso()`, `marca_listo()`, `marca_filtro()`, `herramientas_2d()`, `herramientas_3d()`, `leyenda_*()`, `pie()`, `cabecera_exportar()`, `progreso()`, `recibo()`, `resumen_final()`, `legal_exportar()` | Piezas HTML: definen la estructura y las clases de cada pieza | Solo sus clases decorativas; no los `data-y2k-*` ni la estructura |
 | `_UI` (dentro, `CSS_IFRAME`) | Guion de la interfaz del navegador; `CSS_IFRAME` es el estilo de los controles de Leaflet dentro de su iframe | Solo `CSS_IFRAME` |
 
 ### Pasos para cambiar la estética

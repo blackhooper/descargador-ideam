@@ -1,5 +1,4 @@
 import datetime
-import re
 from functools import partial
 from html import escape
 import pandas as pd
@@ -8,6 +7,7 @@ from modules import idioma, ideam_downloader
 from modules.calidad import CLASES_CALIDAD, clasificar_calidad
 from modules.estilo import aviso, detalles, ficha_pildora, kpis, md
 from modules.idioma import tr
+from modules.logica import nombre_limpio
 from modules.terreno import ALTITUD_DUDOSA_M
 
 # ===========================================================================
@@ -80,10 +80,6 @@ def cifras_seleccion(seleccion, param, fecha_ini, fecha_fin):
             "segundos": ideam_downloader.estimar_segundos(bloques, datos, len(seleccion))}
 
 
-def _nombre_limpio(nombre):
-    return re.sub(r"\s*\[\d+\]\s*$", "", str(nombre)).strip()
-
-
 def tabla_lista(descargables):
     """Lista de las estaciones que se pueden descargar (mejor cobertura primero): codigo, punto de color de su
     clase, nombre (con ⚠ si la altitud es dudosa) y cobertura."""
@@ -100,7 +96,7 @@ def tabla_lista(descargables):
     t = pd.DataFrame({
         "Código": ideam_downloader.codigos_de(descargables),
         "●": "●",
-        "Estación": [_nombre_limpio(n) + (" ⚠" if d else "") for n, d in zip(descargables["nombre"], dudosa)],
+        "Estación": [nombre_limpio(n) + (" ⚠" if d else "") for n, d in zip(descargables["nombre"], dudosa)],
         "Serie": [anios(a, b) for a, b in zip(descargables.get("Inicio serie", [""] * len(descargables)),
                                               descargables.get("Fin serie", [""] * len(descargables)))],
         "Cobertura": pd.to_numeric(descargables["Porcentaje (%)"], errors="coerce").values,
@@ -117,7 +113,7 @@ def tabla_dudosas(zona):
     d = zona[zona["altitud_dudosa"].fillna(False).astype(bool)]
     t = pd.DataFrame({
         "Código": ideam_downloader.codigos_de(d),
-        "Estación": [_nombre_limpio(n) for n in d["nombre"]],
+        "Estación": [nombre_limpio(n) for n in d["nombre"]],
         "Catálogo": pd.to_numeric(d["altitud"], errors="coerce").values,
         "Terreno": pd.to_numeric(d["terreno"], errors="coerce").values,
     })
@@ -199,7 +195,7 @@ def tarjeta_seleccionada(fila, rango=None, vista="2D", descargable=False):
         altitud = tr("altitud sin dato")
     zona = tr({"cuenca": "en el área", "buffer": "en el buffer"}.get(fila.get("zona"), ""))
     # cerrada: una pildora con el nombre; al pulsarla se despliega el resto (estilo.ficha_pildora)
-    ficha_pildora(_nombre_limpio(fila.get("nombre", "")), codigo)
+    ficha_pildora(nombre_limpio(fila.get("nombre", "")), codigo)
     with st.container(key="y2k_ficha_cuerpo"):   # se desplaza el cuerpo, no el vidrio
         _cuerpo_ficha(fila, codigo, altitud, zona, rango, vista, descargable)
 

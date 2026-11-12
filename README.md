@@ -33,9 +33,9 @@ Cambiar una clave cierra las sesiones guardadas con la anterior. **Ojo: no es se
 - [Cómo probar cambios](#cómo-probar-cambios) · [Convenciones](#convenciones)
 - [Uso de los datos](#uso-de-los-datos) · [Fuentes y créditos de los mapas](#fuentes-y-créditos-de-los-mapas)
 
-Para quien modifica la app hay dos documentos aparte:
+Cada cosa se explica en un solo sitio: este README dice qué es la app, cómo instalarla y sus reglas; el [manual](static/manual.html) explica cómo se usa, con los nombres de los botones; y para quien modifica la app hay dos documentos aparte:
 
-- [Arquitectura](documentacion/ARQUITECTURA.md): las tres capas y los archivos, las tres pantallas con sus planos, cómo se arma la página en cada corrida, los avisos de fallo, el mapa 2D, la vista 3D y la intro satelital.
+- [Arquitectura](documentacion/ARQUITECTURA.md): las tres capas y los archivos, las tres pantallas con sus planos, cómo se arma la página en cada corrida, los avisos de fallo, el mapa 2D, la vista 3D, la intro satelital y las pruebas.
 - [Estilo](documentacion/ESTILO.md): el sistema visual (tokens, materiales y el contrato de lo que no hay que tocar), el guion de la interfaz del navegador y los temas, el contraste, el modo Lite y el movimiento.
 
 ## Usarla en tu computador
@@ -65,8 +65,9 @@ Conecta este repositorio en [share.streamlit.io](https://share.streamlit.io), co
 
 ## Cómo probar cambios
 
-- **Lógica y flujo:** `streamlit.testing.v1.AppTest` recorre las pantallas sin navegador (no ejecuta JavaScript). La red bloquea a veces el IDEAM: conviene simular `obtener_catalogo_parametros`, `obtener_series_disponibles` y `procesar_descargas`.
-- **Lo visual (3D, escáner, vidrio):** abrir la app en un navegador sin ventana (Chrome o Edge, por ejemplo con Playwright) y sacar capturas. Para el mapa 2D hay que probar con **ratón real** (eventos de ratón del navegador): disparar eventos de Leaflet a mano no detecta, por ejemplo, un canvas que intercepta los clics. Al correr un script de prueba aparte con `streamlit run`, el servidor no recarga los módulos del proyecto: reinícialo tras cambiar `modules/`.
+- **Pruebas automáticas:** `python -m pytest -q tests`. Las de lógica no abren la app; las de `tests/interfaz/` la arrancan contra un IDEAM simulado y la recorren con un navegador (necesitan `pip install playwright` y `playwright install chromium`; sin Playwright se saltan). En GitHub corren en cada PR. El detalle está en [Arquitectura · Pruebas](documentacion/ARQUITECTURA.md#pruebas).
+- **Ver la app sin el IDEAM:** con la app simulada de las pruebas (el comando está en el mismo apartado de Arquitectura). Streamlit no recarga los módulos de `modules/` al cambiarlos: reinicia el servidor.
+- **Lo visual (3D, escáner, vidrio):** las pruebas no miran el aspecto. Hay que abrir la app y sacar capturas. Para el mapa 2D hay que probar con **ratón real** (eventos de ratón del navegador): disparar eventos de Leaflet a mano no detecta, por ejemplo, un canvas que intercepta los clics.
 - **Contraste:** medirlo sobre píxeles reales (captura de cada texto: fondo = mediana de la caja, tinta = el píxel más alejado), sobre el mapa y con un fondo negro o blanco bajo el vidrio.
 - Conviene probar con una cuenca grande, con muchas estaciones, con el modo Lite, en un celular, con los tres temas y con movimiento reducido (Lite y movimiento reducido por separado y juntos).
 - **Trampas de Streamlit:** `st.html` quita los SVG en línea (por eso el HTML propio va con `estilo.md`, que usa `st.markdown`); un `<style>` cuyo texto contenga `<` seguido de una letra (aunque sea en un comentario CSS) lo descarta el sanitizador entero (por eso `estilo.aplicar` escapa todo `<` del CSS); los contenedores horizontales traen un margen negativo (las cápsulas lo anulan); Streamlit pinta los captions al 60 % de opacidad (el CSS lo devuelve a 1); los botones con ayuda y los popover traen una copia oculta en el DOM (en las pruebas, usa `:visible`); `st.dataframe` no acepta `args` (el callback va con `functools.partial`); y al cambiar de pantalla deja los elementos viejos hasta terminar la corrida, por eso las tres pantallas tienen [huecos fijos](documentacion/ARQUITECTURA.md#pantallas).

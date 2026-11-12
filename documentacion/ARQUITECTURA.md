@@ -386,7 +386,7 @@ Tercera textura (junto a Satélite y Topográfico): el relieve se colorea por al
 
 ## Pruebas
 
-- **Lógica** (`python -m pytest -q tests`): bloques de descarga, cobertura, catálogo, mapa de huecos y `modules/logica.py`. No abren la app ni salen a internet.
+- **Lógica** (`python -m pytest -q tests`): bloques de descarga, cobertura, catálogo, mapa de huecos y `modules/logica.py`. No abren la app ni salen a internet. `tests/test_idioma.py` revisa las traducciones: que todo texto de `tr()` tenga su entrada en `idioma.EN`, que ninguna sobre ni se repita y que los huecos `{así}` coincidan en los dos idiomas.
 - **Interfaz** (`tests/interfaz/`): arrancan la app de verdad contra un IDEAM simulado (`ideam_simulado.py`: variables, series, Excel y relieve inventados, siempre iguales) y la recorren con un navegador (Playwright): acceso, Parámetros, mapa, descarga completa con su ZIP, detener a medias y el flujo en celular. Necesitan `pip install playwright` y `playwright install chromium`; sin Playwright se saltan solas.
 - Para ver la app simulada a mano: `streamlit run tests/interfaz/app_simulada.py --secrets.files tests/interfaz/secretos_prueba.toml` (clave `cliente-prueba`).
 - En GitHub corren las dos en cada PR (`.github/workflows/pruebas.yml`, trabajos `pytest` e `interfaz`).

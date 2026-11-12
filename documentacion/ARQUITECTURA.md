@@ -25,6 +25,7 @@ La estructura y la estética se conectan solo por **nombres**: las claves de los
 | `modules/logica.py` | Lógica | Lo que `app.py` calcula sin dibujar: periodo y atajos, encuadre del mapa, tabla de completitud, variantes del ZIP. No toca Streamlit, para poder probarlo |
 | `modules/idioma.py` | Idioma | `tr()` y el diccionario español → inglés de la interfaz (y de los textos del guion del navegador) |
 | `modules/estilo.py` | Estética (+ piezas) | Tokens de tema, materiales de vidrio, CSS de toda la app, iconos, menú de Ajustes, piezas HTML (tarjeta de Parámetros, secciones y cifras del panel, cápsula de herramientas, leyendas, avance, recibo) y el guion de la interfaz del navegador |
+| `modules/recursos/` | Estética | Hojas de estilo (`base.css` y una por tamaño o modo) y guiones del navegador (`ui.js`, `sincronizar_tema.html`) que `estilo.py` lee al arrancar |
 | `modules/panel_estadisticas.py` | Estructura | Tablero de calidad del panel (cifras, altitud dudosa, lista con casillas) y ficha de la estación seleccionada |
 | `modules/map_view.py` | Estructura | Mapa 2D (Leaflet vía `streamlit-folium`): capas base, herramienta de dibujo (oculta: la maneja la cápsula de herramientas), pines (también los excluidos) y fichas emergentes |
 | `modules/terreno.py` | Lógica + estructura | Vista 3D: relieve, textura por altura, pines, cámara, secuencia de entrada y guiones de la intro satelital |

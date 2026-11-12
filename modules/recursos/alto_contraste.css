@@ -1,0 +1,25 @@
+
+:is(__VIDRIO__){box-shadow:0 0 0 2px var(--lg-borde) !important;background:var(--lg-regular) !important}
+/* barras de desplazamiento siempre visibles */
+:is(.st-key-y2k_cuerpo,.st-key-y2k_inicio_cuerpo,.st-key-y2k_exportar_cuerpo,.st-key-y2k_ficha_cuerpo,[data-testid="stPopoverBody"],
+.y2k-menu,.dvn-scroller,[data-testid="stDialog"] [role="dialog"],[data-testid="stExpanderDetails"]){scrollbar-color:var(--y2k-ink-3) transparent !important}
+:is(__VIDRIO__)::before,:is(__VIDRIO__)::after{display:none}
+.st-key-y2k_dock_izq button[aria-checked="true"],[data-testid="stPopoverBody"] button[aria-checked="true"],.st-key-serie button[aria-checked="true"],
+.y2k-herr button.h[aria-expanded="true"],.y2k-consulta[aria-expanded="true"]{background:var(--y2k-ink) !important;color:var(--y2k-bg) !important;box-shadow:none !important}
+.st-key-y2k_dock_izq button[aria-checked="true"] p,[data-testid="stPopoverBody"] button[aria-checked="true"] p,
+.st-key-serie button[aria-checked="true"] p{color:var(--y2k-bg) !important}
+.y2k-kpi,.y2k-como li,.y2k-recibo,.y2k-boton.sec,.y2k-dialogo button,.y2k-menu,.y2k-chip,.y2k-km,
+:is(.st-key-y2k_panel,.st-key-y2k_ficha,.st-key-y2k_inicio,.st-key-y2k_exportar) [data-testid="stExpander"] details,
+.st-key-y2k_buffer .stPopover button{box-shadow:0 0 0 2px var(--y2k-line-2) inset !important}
+.y2k-km{background:transparent;color:var(--y2k-ink)}
+.y2k-menu{background:var(--lg-denso) !important}
+.stButton > button,.stDownloadButton > button{border:2px solid var(--y2k-line-2) !important}
+.stButton button[kind="primary"],.stDownloadButton button[kind="primary"],.y2k-boton.prim{box-shadow:none !important}
+:is(button,a,input,select,textarea,summary,[role="radio"],[role="tab"],[tabindex]):focus-visible{outline:3px solid var(--y2k-foco) !important;outline-offset:3px !important}
+.y2k-hint,[data-testid="stMarkdownContainer"] p.y2k-hint,[data-testid="stCaptionContainer"] p{color:var(--y2k-ink-2) !important}
+a,details.y2k-det summary .ver,.y2k-aviso .ver{text-decoration:underline !important}
+.st-key-y2k_escenario::after{-webkit-backdrop-filter:none;backdrop-filter:none}
+.y2k-barra{box-shadow:0 0 0 2px var(--y2k-line-2) inset}
+.y2k-barra i{background:var(--y2k-accent);box-shadow:none}
+.y2k-aviso3d{border-width:2px !important;box-shadow:none !important}
+.st-key-y2k_dock{box-shadow:0 0 0 2px var(--lg-borde) !important}

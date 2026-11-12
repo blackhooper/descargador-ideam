@@ -44,7 +44,7 @@ La estructura y la estética se conectan solo por **nombres**: las claves de los
 
 La app tiene **tres pantallas** (`ss.paso`): `"parametros"`, `"mapa"` y `"descarga"` (Exportación). Las tres comparten el **mismo mapa 2D**, que va siempre en el mismo lugar del árbol de Streamlit (`y2k_escenario`): por eso no se vuelve a cargar al cambiar de pantalla, y en Parámetros se carga por detrás mientras la persona elige qué descargar. En Parámetros y Exportación el mapa queda velado y desenfocado (`.st-key-y2k_escenario::after`) y sin foco ni clics (`inert`).
 
-Arriba a la derecha, en las tres, va el menú **Ajustes** (`y2k_ajustes`, `estilo.ajustes`, ícono ◐ de claro/oscuro): tema claro/oscuro, alto contraste, modo Lite y manual. Con Lite activo, junto al botón aparece la marca «Lite». Durante una descarga el menú se bloquea (cambiar algo recargaría la página y la detendría).
+Arriba a la derecha, en las tres, va el menú **Ajustes** (`y2k_ajustes`, `estilo.ajustes`, ícono ◐ de claro/oscuro): tema claro/oscuro, alto contraste, modo Lite y manual. Con Lite activo, junto al botón aparece la marca «Lite». Durante una descarga el menú se bloquea, para no rehacer la pantalla mientras se dibuja el avance.
 
 Junto a Ajustes va el botón de idioma (`y2k_idioma`): **EN** muestra la app en inglés y **ES** la devuelve al español. El idioma viaja en la dirección (`?lang=en`), así que un enlace con ese parámetro abre la app directamente en inglés. Los textos pasan por `tr()` de `modules/idioma.py`: en español salen tal cual y en inglés se buscan en su diccionario `EN` (un texto nuevo sin traducción sale en español, sin romper nada). Los nombres que vienen del IDEAM (variables, parámetros, departamentos, estaciones) y el manual no se traducen.
 
@@ -68,7 +68,9 @@ Junto a Ajustes va el botón de idioma (`y2k_idioma`): **EN** muestra la app en 
 ┌──────────────────────────────────────────────────────────────────────┐
 │ mapa 2D velado (y2k_escenario)                         ╭ y2k_ajustes ╮
 │              ╭ y2k_inicio (tarjeta centrada) ─────────╮ ╰─────────────╯
-│              │ IDEAM · Consulta y descarga de datos…   │             │
+│              │ DESCARGADOR IDEAM · NO OFICIAL          │             │
+│              │ Consulta y descarga de datos…           │             │
+│              │ ① Parámetros — 2 Área y estaciones — 3 Descarga       │
 │              │ Serie de tiempo y frecuencia   [serie]  │             │
 │              │   Estándar │ Especial                   │             │
 │              │ Frecuencia (solo Especial) [frec_especial]            │
@@ -76,19 +78,18 @@ Junto a Ajustes va el botón de idioma (`y2k_idioma`): **EN** muestra la app en 
 │              │ Parámetro    [par_est_<variable> /                    │
 │              │               par_esp_<frecuencia>_<variable>]        │
 │              │ Desde [f_ini]   Hasta [f_fin]           │  ● = punto  │
-│              │ ▸ Filtrar por ubicación · opcional      │  de estado  │
+│              │ (Últimos 10 años)(Últimos 30 años)(Todo)│  de estado  │
+│              │ ▸ Filtrar por ubicación · opcional      │             │
 │              │   [y2k_ubicacion: ubic_dep, ubic_mun,   │             │
 │              │    ubic_est] (cerrado por defecto)      │             │
 │              │ [ Seleccionar área en el mapa → ] ir_mapa             │
 │              │   (con filtro: «Ver N estaciones en el mapa»)         │
-│              │ 1 Establecer parámetros · 2 Delimitar el área de      │
-│              │   análisis · 3 Preparar la descarga                   │
 │              │ condiciones de uso                      │             │
 │              ╰─────────────────────────────────────────╯             │
 └──────────────────────────────────────────────────────────────────────┘
 ```
 
-En el celular la tarjeta flota abajo, con margen a los lados; Desde y Hasta siguen en una fila (`y2k_fechas`) y los pasos muestran solo sus títulos.
+En el celular la tarjeta flota abajo, con margen a los lados; Desde y Hasta siguen en una fila (`y2k_fechas`) solo el paso actual muestra su nombre y el botón principal queda fijo abajo mientras se desplaza la tarjeta.
 
 - **Serie de tiempo y frecuencia** (`serie`), igual que en la página del IDEAM: **Estándar** pide la variable (`var_est`) y luego el parámetro (`par_est_<variable>`). **Especial** pide la frecuencia (`frec_especial`: Decadal o Multianual), la variable (`var_esp_<frecuencia>`) y el parámetro (`par_esp_<frecuencia>_<variable>`). Cada desplegable sale de `app._desplegable` y cada variable recuerda su parámetro. Solo se ofrecen las variables que tienen parámetros en la serie (y frecuencia) elegida. Las de alta frecuencia van en Estándar, como en la página, y muestran un aviso discreto con «Ver más»: el IDEAM las entrega de a un mes por consulta. Ver [Series estándar y especial](#series-estándar-y-especial).
 - **Lista de variables** (`_iniciar_precarga_servidor`): se pide en un hilo al arrancar el servidor. Mientras carga, los desplegables (`espera_<campo>`) están en gris y no se pueden abrir, y el punto `.y2k-punto[data-estado]` respira en gris; al cargar, se enciende en azul (`listo`) y aparecen los desplegables de verdad (con búsqueda al escribir; por defecto, Precipitación y el día pluviométrico). Si falla, el punto se pone rojo y aparece **Reintentar** (`ideam_parameters.limpiar_catalogo`).
@@ -97,7 +98,7 @@ En el celular la tarjeta flota abajo, con margen a los lados; Desde y Hasta sigu
 - **Series por detrás** (`_precargar_series`): al elegir una variable se pide en un hilo qué estaciones tienen esa serie (lo que necesita el mapa para evaluar). Compartido entre sesiones; si falló, se reintenta a los 30 s.
 - **El botón es siempre azul** (nunca gris). Avanza cuando todo está listo: lista cargada, variable elegida, fechas válidas, periodo que cabe en Excel y series cargadas (Python lo marca en `.y2k-cta-listo[data-listo]`, `estilo.marca_listo`) y el mapa 2D cargado (`html[data-y2k-mapa-listo]`). Si se pulsa antes, el guion detiene el clic y le pone `.y2k-parpadeo` (dos destellos rojos); para lectores de pantalla queda `aria-disabled="true"`. `_ir_mapa` recibe además `listo` y no hace nada si no lo está (por si el guion no cargó).
 - **Pasos** (`estilo.pasos(n)`, `estilo.PASOS`): Parámetros, Área y estaciones, Descarga. Van numerados en la cabecera de las tres pantallas, con el actual resaltado; en el panel del mapa y en el celular solo el paso actual muestra su nombre.
-- **Atajos de periodo** (`y2k_atajos`, `app._atajo_periodo`): «Últimos 10 años», «Últimos 30 años» y «Todo» llenan Desde y Hasta.
+- **Atajos de periodo** (`y2k_atajos`, `app._atajo_periodo`, `logica.atajo_periodo`): «Últimos 10 años», «Últimos 30 años» y «Todo» llenan Desde y Hasta.
 - Un **vigía** (`_vigia`, un fragmento con `run_every=1`) revisa cada segundo lo que carga por detrás y recarga la página una vez al terminar.
 - **Filtrar por ubicación** (`app._filtro_ubicacion`, `st.expander` dentro de `y2k_ubicacion`), como «Datos Estación» de la página del IDEAM: **Departamento** (`ubic_dep`, vacío por defecto; su × quita el filtro), **Municipio** (`ubic_mun`, «Todos» por defecto) y **Estaciones** (`ubic_est`, un `st.multiselect` que busca por nombre o código y muestra los años del primer y el último dato; vacío = todas). Va cerrado por defecto, para no llenar la tarjeta, y abierto si ya hay un filtro. Las listas salen de las estaciones de la serie (`obtener_series_disponibles`, ya cargadas por detrás al elegir el parámetro), así que no hay esperas: mientras no llegan, el Departamento está en gris. Si cambia la serie o el departamento, lo elegido que ya no está en la lista se olvida (`_vigente`). Con un departamento elegido, el botón dice «Ver N estaciones en el mapa». Ver [Filtro por ubicación](#filtro-por-ubicación).
 - `_ir_mapa` (callback) guarda la consulta en `ss.consulta` (clave única del parámetro, fechas y `filtro`: `{"codigos", "texto"}` o `None`) y pasa a `"mapa"` antes de que corra el guion: la pantalla nueva sale en la misma recarga. Con filtro, quita el área que hubiera (y rearma el mapa, `version_mapa`, para que no quede el rectángulo) y marca `ss._encuadrar` para que el mapa 2D se encuadre en las estaciones.
@@ -198,9 +199,11 @@ En **horizontal** (alto ≤ 560 px y ancho > 760 px) se usa la disposición de e
 **Cuerpo del panel** (`y2k_cuerpo`), en dos secciones (`estilo.seccion`):
 
 1. **Área de estudio** (o **Estaciones elegidas**, si se eligieron por ubicación en Parámetros: ver [Filtro por ubicación](#filtro-por-ubicación)): con área, su tamaño en una cápsula (`.y2k-km`) y tres acciones compactas (`estilo.acciones_area`: Redibujar, Ajustar, Borrar); sin área, «Sin definir» (dibujar o subir el área se hace desde el menú **Dibujo** de la cápsula de herramientas, sin repetirlo en el panel). En 3D, un aviso y «Ver en 2D». Después, el **buffer** en una píldora pequeña (`app._control_buffer`, `st.popover` con clave `pop_buffer`): al pulsarla se activa o desactiva (`buf_on`) y se cambia el ancho con − y + de 0,5 en 0,5 km (`buf_km`).
-2. **Cobertura estimada** (`panel_estadisticas.tablero`): a la derecha del título, la variable consultada en corto (`.y2k-chip`, solo su nombre; al pulsarla pulsa el botón oculto `chip_param` y vuelve a Parámetros). Tres cifras (`estilo.kpis`): **Estaciones encontradas** (y cuántas no tienen información), **Cobertura media del periodo** y **Tamaño del ZIP** con el tiempo aproximado («≈ 12 MB», «3 min 20 s aprox.»; `panel_estadisticas.peso_zip`: unos 17 bytes por registro probable ya comprimido más unos 33 kB por Excel de logo, estilos y encabezado; medido con descargas reales de precipitación diaria, el error quedó entre −6 % y +3 %). Debajo, la nota «La cobertura es estimada» (aviso informativo con «Ver más»: no descuenta los huecos; la completitud real se mide al descargar). Después, la línea discreta de altitud dudosa (`alerta_altura`, con la lista `tabla_dudosas` que lleva al 3D) y la **lista con casillas** (`st.dataframe` con selección `multi-row` + `single-cell`: las filas marcadas se descargan; un clic en una celda selecciona la estación y el mapa va a ella). Las excluidas se guardan en `ss.excluidas` (códigos) y en el mapa salen huecas con borde punteado. Al final, la nota de datos preliminares (una línea con «Ver más») y el pie (`estilo.pie`, con los créditos de los mapas).
+2. **Cobertura estimada** (`panel_estadisticas.tablero`): a la derecha del título, la variable consultada en corto (`.y2k-chip`, solo su nombre; al pulsarla pulsa el botón oculto `chip_param` y vuelve a Parámetros). Tres cifras (`estilo.kpis`): **Estaciones encontradas** (y cuántas no tienen información), **Cobertura media del periodo** y **Tamaño del ZIP** con el tiempo aproximado («≈ 12 MB», «3 min 20 s aprox.»; `panel_estadisticas.peso_zip`: unos 17 bytes por registro probable ya comprimido más unos 33 kB por Excel de logo, estilos y encabezado; medido con descargas reales de precipitación diaria, el error quedó entre −6 % y +3 %). Debajo, la nota «La cobertura es estimada» (aviso informativo con «Ver más»: no descuenta los huecos; la completitud real se mide al descargar). Después, la línea discreta de altitud dudosa (`alerta_altura`, con la lista `tabla_dudosas` que lleva al 3D) y la **lista con casillas** (`panel_estadisticas.tabla_lista`: columnas ●, Estación, Código, Serie en años y Cob.; con más de ocho estaciones, encima va el buscador `buscar_estacion` por nombre o código; `st.dataframe` con selección `multi-row` + `single-cell`: las filas marcadas se descargan; un clic en una celda selecciona la estación y el mapa va a ella). Las excluidas se guardan en `ss.excluidas` (códigos) y en el mapa salen huecas con borde punteado. Al final, la nota de datos preliminares (una línea con «Ver más») y el pie (`estilo.pie`, con los créditos de los mapas).
 
-Los estados sin datos (sin área, zona sin estaciones, IDEAM caído, periodo demasiado largo, ninguna estación con datos) se explican en la sección de calidad, y **Preparar descarga** queda desactivado con la razón en su ayuda. Mientras se evalúa el área no hay textos de carga: el escáner la recorre en el mapa.
+Los estados sin datos (sin área, zona sin estaciones, IDEAM caído, periodo demasiado largo, ninguna estación con datos) se explican en la sección de calidad, y **Preparar descarga** queda desactivado: el propio botón dice el motivo corto («Delimita el área», «Elige una estación»…) y su ayuda da el detalle. Mientras se evalúa el área no hay textos de carga: el escáner la recorre en el mapa. Si una recarga pasa de 3 s, una línea fina recorre el borde superior del mapa (`[data-test-script-state="running"]`, solo CSS).
+
+Las **estaciones sin serie** (sin datos de esa variable) no se dibujan salvo que esté activo `ver_sin_serie` («Mostrar las N sin serie», dentro del filtro de la lista): eran la mayoría de los puntos y tapaban las que sí se pueden descargar. El panel mide 440 px (`--y2k-panel-w`; 350 px en pantallas medianas) y lleva arriba los pasos (`estilo.pasos(2)`), con nombre solo en el actual.
 
 **Subir un archivo** abre un diálogo (`dialogo_subida`, `st.dialog`) con el cargador `subida_<n>` y el botón `usar_subida`. Lo abre el botón oculto `y2k_subir`, que pulsa «Subir un archivo» del menú Dibujo.
 
@@ -211,24 +214,32 @@ Los estados sin datos (sin área, zona sin estaciones, IDEAM caído, periodo dem
 ```text
 mapa 2D velado                                              ╭ y2k_ajustes ╮
           ╭ y2k_exportar (tarjeta) ─────────────────────────────────────╮
-          │ ● EXPORTACIÓN · título                                      │
+          │ ● EXPORTACIÓN · título · 1 — 2 — ③ Descarga                 │
           │ ┌ izquierda ───────────────────┐ ┌ derecha ───────────────┐ │
-          │ │ 42 %          Faltan ≈ 1 min │ │ recibo (.y2k-recibo):  │ │
-          │ │ ▓▓▓▓▓▓▓░░░░░ (.y2k-barra)    │ │ variable, periodo,     │ │
-          │ │ estaciones · guardadas ·     │ │ estaciones, archivo    │ │
-          │ │ omitidas                     │ │ (lista), fuente        │ │
-          │ │ [Detener] / resumen + reparto│ │ condiciones de uso     │ │
-          │ │ nombre del ZIP + Descargar   │ │ (.y2k-legal-bloque)    │ │
-          │ │ [Volver al mapa][Nueva consulta]                      │ │
+          │ │ mientras descarga:           │ │ recibo (.y2k-recibo):  │ │
+          │ │  42 %         Faltan ≈ 1 min │ │ variable, periodo,     │ │
+          │ │  ▓▓▓▓▓▓▓░░░░░ (.y2k-barra)   │ │ estaciones, archivo    │ │
+          │ │  estaciones·guardadas·omitidas│ │ (lista), fuente        │ │
+          │ │  Ahora: A, B, C, D           │ │                        │ │
+          │ │  [Detener la descarga]       │ │ al terminar:           │ │
+          │ │ al terminar:                 │ │ completitud real por   │ │
+          │ │  cifras (guardadas, omitidas,│ │ estación (tabla) y el  │ │
+          │ │  completitud real media)     │ │ recibo plegado en      │ │
+          │ │  reparto por completitud     │ │ «Lo que pediste»       │ │
+          │ │  nombre del ZIP + Descargar  │ │                        │ │
+          │ │  ☑ carpetas  ☐ mapa de huecos│ │ condiciones de uso     │ │
+          │ │  [Volver al mapa][Nueva consulta] (.y2k-legal-bloque)  │ │
           │ └──────────────────────────────┘ └────────────────────────┘ │
           ╰─────────────────────────────────────────────────────────────╯
 ```
 
-En el celular la tarjeta flota abajo, con margen, y las dos columnas van una debajo de la otra. Al terminar, antes del nombre del ZIP está **Separar en carpetas por completitud** (`carpetas`): la descarga arma siempre un ZIP plano y, si se marca, `ideam_downloader.zip_con_carpetas` lo reorganiza al momento (sin volver a descargar) y rehace `resumen_descarga.csv` con las rutas nuevas; se guarda en el resultado para no rehacerlo mientras se escribe el nombre. En el recibo, «Archivo» es una lista ordenada (`.y2k-archivo`): un Excel por estación, carpetas por completitud real (si se eligieron), `resumen_descarga.csv` y `CITACION.txt`. El aviso de datos preliminares no se repite aquí: ya está en el panel del mapa.
+En el celular la tarjeta flota abajo, con margen, y las dos columnas van una debajo de la otra. Al terminar, debajo del botón del ZIP está **Separar en carpetas por completitud** (`carpetas`): la descarga arma siempre un ZIP plano y, si se marca, `ideam_downloader.zip_con_carpetas` lo reorganiza al momento (sin volver a descargar) y rehace `resumen_descarga.csv` con las rutas nuevas; se guarda en el resultado para no rehacerlo mientras se escribe el nombre. En el recibo, «Archivo» es una lista ordenada (`.y2k-archivo`): un Excel por estación, carpetas por completitud real (si se eligieron), `resumen_descarga.csv` y `CITACION.txt`. El aviso de datos preliminares no se repite aquí: ya está en el panel del mapa.
 
 - **La descarga es un trabajo del servidor** (`modules/trabajo.py`, `ss.trabajo`): corre en su propio hilo, no en la corrida de Streamlit. `_preparar` (callback de «Preparar descarga») crea el `Trabajo`, lo arranca y pasa a la pantalla. Estados (`trabajo.estado`): `en_curso` → `lista`, `error` o `detenida`. La pantalla solo lo mira: el fragmento `_avance_vivo` (`run_every=1`) dibuja cada segundo el avance (`ideam_downloader.html_avance` con las cifras que deja `procesar_descargas` vía `ui["avance"]`) o el puesto en la fila, y rehace la pantalla al terminar. «Detener» activa `trabajo.detener`; lo ya guardado queda en `trabajo.parcial`. El id del trabajo viaja en la dirección (`?descarga=`): si la página se recarga (sesión nueva), `trabajo.buscar` lo encuentra y se restauran la descarga y la consulta. La pantalla manda un latido por segundo; tras 120 s sin latidos (pestaña cerrada) el trabajo se detiene solo, y los terminados se olvidan a los 15 min sin que nadie los mire.
 - **Todos los botones son callbacks** (`_detener`, `_reintentar_descarga`, `_volver_mapa`, `_nueva_consulta`) que cambian el estado antes de que corra el guion. Por eso «Volver al mapa» funciona siempre (antes, tras «Detener», la siguiente corrida volvía a empezar la descarga antes de ver el botón).
-- Al terminar: barra en verde con la duración, una frase con lo guardado y lo omitido y la **completitud real media** frente a la cobertura estimada (`resultado["completitud"]`), el reparto por completitud real (`estilo.resumen_final`, `panel_estadisticas.reparto_cobertura`) y la entrega (`_entrega`, un fragmento: el nombre del ZIP `nombre_zip` se aplica mientras se escribe, sin recargar la tarjeta).
+- **Mientras descarga**: la barra con el tiempo que falta, las cifras y la línea «Ahora:», que nombra las estaciones en curso (`ideam_downloader.html_avance`).
+- **Al terminar**, en este orden: tres cifras (`estilo.kpis`: estaciones guardadas, omitidas y **completitud real media** frente a la cobertura estimada, `resultado["completitud"]`), la duración con el reparto por completitud real (`estilo.resumen_final`, `panel_estadisticas.reparto_cobertura`), la entrega (`_entrega`, un fragmento: el nombre del ZIP `nombre_zip` se aplica mientras se escribe, sin recargar la tarjeta) y después las opciones del ZIP (carpetas y mapa de huecos; `logica.zip_final` guarda solo la variante elegida). El botón va antes que las opciones porque es lo que la persona vino a hacer.
+- A la derecha, al terminar, `logica.tabla_completitud` compara por estación la cobertura estimada con la completitud real, de la mayor caída a la menor, y el recibo queda plegado en «Lo que pediste».
 - **Turnos**: como máximo 4 descargas a la vez en el servidor; si no hay cupo, un aviso dice el puesto en la fila y el tiempo estimado.
 - El mapa de fondo solo se monta de cero si no hay una descarga por empezar: al cargar, el componente del mapa podría recargar la página y cortarla.
 
@@ -285,8 +296,11 @@ Reintentar rehace el visor 3D y repone la cámara y la selección; en 2D vuelve 
 - Solo se puede dibujar un **rectángulo** («Ajustar» mueve sus esquinas y «Borrar» lo quita sin rehacer el mapa: se queda el encuadre y el zoom). Los controles de Leaflet (zoom, dibujo, capas) están ocultos: los maneja la cápsula de herramientas de la página, y las acciones del dibujo («Guardar», «Cancelar») salen junto a ella. «Dibujar» y «Ajustar» se activan con el manejador de Leaflet.draw (`activarHerramienta` en el guion: busca el `draw_control_*` del iframe y llama a `handler.enable()`), no con un clic en sus botones ocultos: en iPhone, iPad y iPod, Leaflet.draw hace que esos botones respondan al toque (`touchstart`) y el clic simulado no hacía nada (en el iPhone no se podía dibujar). Mientras se dibuja o se ajusta (`draw:drawstart`/`draw:editstart`), el contenedor del mapa lleva `touch-action: none` para que el navegador no desplace ni amplíe a mitad del gesto. Un rectángulo nuevo reemplaza al anterior; "Usar el área visible" crea uno igual con la zona que se ve (`map.fire("draw:created")`), y así se puede marcar la cuenca solo con el teclado (foco en el mapa, flechas y +/−). La cuenca subida desde archivo puede tener cualquier forma. Un clic en la cuenca no abre la alerta del navegador con su GeoJSON (`show_geometry_on_click=False`).
 - Al soltar (o editar) el rectángulo corre un **escáner** sobre él mientras el servidor calcula las estaciones; al terminar se desvanece, muestra "N estaciones con datos" y los pines aparecen de norte a sur con un pequeño rebote. Mientras corre, el mapa no se mueve ni hace zoom; la barra de dibujo sigue activa y dibujar otra vez reinicia el escáner. Tope de 30 s por si algo falla; con `prefers-reduced-motion` no corre y en modo Lite se dibuja sin rejilla ni destellos y los pines aparecen sin animación.
 - Aún no hay animación para la cuenca subida desde archivo (el mapa todavía no existe mientras se calcula).
-- Sin área, el mapa muestra el catálogo nacional agrupado (`FastMarkerCluster`) para ubicarse. La capa se arma de nuevo en cada corrida: folium no deja volver a dibujar el mismo objeto (el agrupador quedaría sin definir).
+- Sin área, el mapa muestra el catálogo nacional agrupado (`FastMarkerCluster`) para ubicarse; los grupos van en un azul neutro, para que no parezcan clases de cobertura. La capa se arma de nuevo en cada corrida: folium no deja volver a dibujar el mismo objeto (el agrupador quedaría sin definir).
 - La lista de variables del IDEAM se pide por detrás al arrancar el servidor (`app._iniciar_precarga_servidor`) y las series de la variable elegida, al elegirla (`app._precargar_series`); ver [Parámetros](#1-parámetros-pantalla_parametros-en-apppy).
+
+- **Altitud dudosa**: halo punteado alrededor del punto (`map_view.HALO_DUDOSA`). Antes era un borde naranja, que se confundía con una clase de cobertura.
+- **Encuadre** (`logica.encuadre`, desde `app._encuadre`): al llegar con estaciones elegidas por ubicación, el mapa se ajusta a ellas. Con 20 o más usa los percentiles 1 y 99, para que una estación lejana o con coordenadas erradas no aleje el mapa, y admite medios niveles de zoom.
 
 **Contratos que no hay que romper** (si cambias `app.py`, `map_view.py` o `escaner.py`):
 
@@ -375,19 +389,9 @@ Animación de ~16,5 s (Three.js) que **cubre la carga del 3D**: un satélite rec
 
 Tercera textura (junto a Satélite y Topográfico): el relieve se colorea por altitud (verdes abajo, naranjas y rojos arriba) con sombreado de ladera. Hay dos escalas: **Rango de la zona** (mínimo y máximo de la cuenca con buffer) y **Rango de Colombia** (0–5.730 m, más pixelada para ahorrar memoria). Un guion (`_HIPSOMETRICO`) intercepta `window.fetch` y devuelve, para las imágenes con la marca `y2k_hipso`, el tile de elevación coloreado. La leyenda sale de `terreno.leyenda_altura()` dentro de `estilo.leyenda_altura()`.
 
-## Rediseño de noviembre de 2026
-
-- **Lista de estaciones** (`panel_estadisticas.tabla_lista`): columnas ●, Estación, Código, Serie (años) y Cob.; con más de ocho estaciones aparece el buscador `buscar_estacion` (nombre o código). El panel mide 440 px (`--y2k-panel-w`; 350 px en pantallas medianas).
-- **Estaciones sin serie**: `app.zona_mapa` no las dibuja salvo que esté activo `ver_sin_serie` («Mostrar las N sin serie», dentro del filtro de la lista).
-- **Altitud dudosa**: halo punteado (`map_view.HALO_DUDOSA`) alrededor del punto, en lugar del borde naranja, que se confundía con la clase «Regular». Los grupos de marcadores usan un azul neutro para no parecer clases de cobertura.
-- **Encuadre** (`app._encuadre`): con 20 estaciones o más usa los percentiles 1 y 99, para que una estación lejana (San Andrés) no aleje el mapa, y admite medios niveles de zoom.
-- **Preparar descarga**: cuando no se puede, el botón dice el motivo corto («Delimita el área», «Elige una estación»…); el detalle sigue en la ayuda.
-- **Línea de carga**: si una recarga pasa de 3 s, una línea fina recorre el borde superior del mapa (`[data-test-script-state="running"]`, solo CSS).
-- **Exportación**: mientras descarga, «Ahora:» nombra las estaciones en curso (`ideam_downloader`, `en_curso`). Al terminar, el orden es cifras (`estilo.kpis`), reparto, nombre y **Descargar el ZIP**, y después las opciones (carpetas, mapa de huecos). La columna derecha muestra `app._tabla_completitud` (estimada, real y diferencia por estación) y el recibo queda plegado en «Lo que pediste».
-
 ## Pruebas
 
-- **Lógica** (`python -m pytest -q tests`): bloques de descarga, cobertura, catálogo, mapa de huecos y `modules/logica.py`. No abren la app ni salen a internet. `tests/test_idioma.py` revisa las traducciones: que todo texto de `tr()` tenga su entrada en `idioma.EN`, que ninguna sobre ni se repita y que los huecos `{así}` coincidan en los dos idiomas.
+- **Lógica** (`python -m pytest -q tests`): bloques de descarga, cobertura, catálogo, mapa de huecos, `modules/logica.py`, la descarga en su hilo (`test_trabajo.py`) y las hojas de estilo y el guion (`test_estilo.py`). `test_documentacion.py` revisa que los enlaces entre documentos y los archivos que nombra la tabla de arriba existan. No abren la app ni salen a internet. `tests/test_idioma.py` revisa las traducciones: que todo texto de `tr()` tenga su entrada en `idioma.EN`, que ninguna sobre ni se repita y que los huecos `{así}` coincidan en los dos idiomas.
 - **Interfaz** (`tests/interfaz/`): arrancan la app de verdad contra un IDEAM simulado (`ideam_simulado.py`: variables, series, Excel y relieve inventados, siempre iguales) y la recorren con un navegador (Playwright): acceso, Parámetros, mapa, descarga completa con su ZIP, detener a medias y el flujo en celular. Necesitan `pip install playwright` y `playwright install chromium`; sin Playwright se saltan solas.
 - Para ver la app simulada a mano: `streamlit run tests/interfaz/app_simulada.py --secrets.files tests/interfaz/secretos_prueba.toml` (clave `cliente-prueba`).
 - En GitHub corren las dos en cada PR (`.github/workflows/pruebas.yml`, trabajos `pytest` e `interfaz`).

@@ -206,8 +206,6 @@ EN = {
         "It measures how much of the period each station's record spans, between its first and last value, without "
         "discounting internal gaps. The actual completeness (the data that really arrive) appears when the download "
         "finishes, in the summary and in resumen_descarga.csv.",
-    "Completitud real media: <b>{r} %</b> (cobertura estimada {e} %).":
-        "Mean actual completeness: <b>{r} %</b> (estimated coverage {e} %).",
     "Promedio de la cobertura estimada de las estaciones seleccionadas: qué parte del periodo consultado cubre su "
     "registro (no descuenta los huecos internos).":
         "Average estimated coverage of the selected stations: how much of the requested period their record spans "
@@ -551,6 +549,30 @@ EN = {
         "downloader needs an update. If the problem persists, the tool needs an update.",
     "No se pudo acceder al portal del IDEAM. Si el problema continúa, la herramienta necesita una actualización.":
         "The IDEAM portal could not be accessed. If the problem persists, the tool needs an update.",
+    # --- configuracion y modo desarrollador
+    "Falta configurar las claves de acceso. En tu computador van en `.streamlit/secrets.toml`; en "
+    "Streamlit Cloud, en Settings → Secrets de la app, así:":
+        "The access keys are not configured. On your computer they go in `.streamlit/secrets.toml`; on "
+        "Streamlit Cloud, in the app's Settings → Secrets, like this:",
+    "Herramienta": "Tool",
+    "Aún no hay herramientas. Aquí irán apareciendo las nuevas, antes de pasar al modo cliente.":
+        "There are no tools yet. New ones will show up here before they reach client mode.",
+    "Faltan las credenciales del portal DHIME (ver README).": "The DHIME portal credentials are missing (see README).",
+    "No hay estaciones con programa de aforos en el catálogo.":
+        "There are no stations with a gauging programme in the catalogue.",
+    "Estación con programa de aforos": "Station with a gauging programme",
+    "Escribe el nombre o el código": "Type the name or the code",
+    "Aforos": "Gaugings",
+    "Perfiles transversales": "Cross sections",
+    "Perfil": "Section",
+    "El IDEAM no tiene aforos publicados para esta estación.": "IDEAM has no published gaugings for this station.",
+    "{n} aforos entre {a} y {b}": "{n} gaugings between {a} and {b}",
+    "Periodo de los aforos (años)": "Gauging period (years)",
+    "Descargar aforos (CSV)": "Download gaugings (CSV)",
+    "El IDEAM no tiene perfiles transversales publicados para esta estación.":
+        "IDEAM has no published cross sections for this station.",
+    "Este perfil no trae puntos.": "This section has no points.",
+    "Descargar perfil (CSV)": "Download section (CSV)",
 }
 
 # Textos del guion del navegador (estilo._UI): literales completos, con sus comillas, para no tocar otra cosa. Los de

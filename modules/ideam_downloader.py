@@ -1159,10 +1159,33 @@ def zip_con_carpetas(resultado):
     return salida.getvalue()
 
 
+class DescargaDetenida(Exception):
+    """La persona detuvo la descarga (o cerro la pestaña): lo ya guardado queda en ui["parcial"]."""
+
+
+def html_avance(a, total):
+    """HTML del avance de la descarga a partir de las cifras que deja procesar_descargas (None: aun preparando)."""
+    if not a:
+        return estilo.progreso(0, tr("Preparando…"), tr("<span>Estaciones <b>{a} de {b}</b></span>", a=0, b=total))
+    if a["terminado"]:
+        principal = tr("Terminando…")
+    else:
+        principal = (tr("Faltan ≈ {t}", t=duracion_texto(a["restante"])) if a["restante"] >= 1
+                     else tr("Faltan unos segundos"))
+    meta = (tr("<span>Estaciones <b>{a} de {b}</b></span>", a=a["terminadas"], b=a["total"])
+            + tr("<span>Guardadas <b>{g}</b></span><span>Omitidas <b>{o}</b></span>", g=a["guardadas"],
+                 o=a["terminadas"] - a["guardadas"]))
+    if a["ahora"] and not a["terminado"]:
+        meta += f'<span class="ahora">{tr("Ahora")}: {escape(", ".join(a["ahora"]))}</span>'
+    return estilo.progreso(a["fraccion"], principal, meta)
+
+
 def procesar_descargas(estaciones_df, clasificar_en_carpetas, fecha_ini, fecha_fin, param, ui):
     """
-    Descarga todas las estaciones (4 a la vez) y arma el ZIP.
-    ui: dict con un st.empty() en "progreso", donde se dibuja el avance real (barra, tiempo que falta y cifras).
+    Descarga todas las estaciones (4 a la vez) y arma el ZIP. No toca Streamlit: corre en un hilo (modules/trabajo).
+    ui: dict con "avance" (funcion que recibe las cifras del avance, ver html_avance), "parcial" (dict donde queda
+    el ZIP de lo ya guardado si la descarga se corta) y "detener" (threading.Event: al activarse, la descarga para
+    con DescargaDetenida).
     Devuelve un dict con el zip y el resumen, o {"error": ...} si no hubo acceso al portal.
     """
     dias_bloque = param.get("dias_bloque", DIAS_POR_BLOQUE_DEFECTO)
@@ -1179,15 +1202,11 @@ def procesar_descargas(estaciones_df, clasificar_en_carpetas, fecha_ini, fecha_f
             print(f"[descarga] {texto}", flush=True)
 
     def pintar(fraccion, restante, terminado=False):
-        principal = tr("Terminando…") if terminado else (tr("Faltan ≈ {t}", t=duracion_texto(restante)) if restante >= 1
-                                                        else tr("Faltan unos segundos"))
-        meta = (tr("<span>Estaciones <b>{a} de {b}</b></span>", a=terminadas, b=total_estaciones)
-                + tr("<span>Guardadas <b>{g}</b></span><span>Omitidas <b>{o}</b></span>", g=guardadas,
-                     o=terminadas - guardadas))
-        ahora = [re.sub(r"\s*\[\d+\]\s*$", "", str(n)).strip() for n in list(en_curso.values())]
-        if ahora and not terminado:
-            meta += f'<span class="ahora">{tr("Ahora")}: {escape(", ".join(ahora))}</span>'
-        ui["progreso"].markdown(estilo.progreso(fraccion, principal, meta), unsafe_allow_html=True)
+        # Solo cifras: el HTML lo arma la pantalla (html_avance), en el idioma de la sesion. Este codigo corre en un
+        # hilo, donde no hay sesion de Streamlit
+        ui["avance"]({"fraccion": fraccion, "restante": restante, "terminado": terminado, "terminadas": terminadas,
+                      "total": total_estaciones, "guardadas": guardadas,
+                      "ahora": [re.sub(r"\s*\[\d+\]\s*$", "", str(n)).strip() for n in list(en_curso.values())]})
 
     token_auth = obtener_token()
     if not token_auth:
@@ -1227,14 +1246,14 @@ def procesar_descargas(estaciones_df, clasificar_en_carpetas, fecha_ini, fecha_f
         # Cita obligatoria segun los terminos de uso del IDEAM, ya armada con la fecha de hoy
         zip_file.writestr("CITACION.txt", texto_citacion(param, fecha_ini, fecha_fin, guardadas).encode("utf-8-sig"))
 
-    def armar_resultado(duracion):
+    def armar_resultado(segundos):
         return {
             "zip": zip_buffer.getvalue(),
             "carpetas": {} if clasificar_en_carpetas else carpetas,
             "resumen": resumen,
             "guardadas": guardadas,
             "omitidas": terminadas - guardadas,
-            "duracion": duracion,
+            "segundos": segundos,
             "colores": colores,
             "huecos": huecos,
             "frecuencia": param.get("frecuencia"),
@@ -1245,6 +1264,7 @@ def procesar_descargas(estaciones_df, clasificar_en_carpetas, fecha_ini, fecha_f
             "rango": (fecha_ini, fecha_fin),
         }
 
+    parar = ui.get("detener")
     completa = False
     pendientes = {}
     zip_buffer = io.BytesIO()
@@ -1260,6 +1280,8 @@ def procesar_descargas(estaciones_df, clasificar_en_carpetas, fecha_ini, fecha_f
             pintar(0.0, segundos_estimados)
 
             while pendientes:
+                if parar is not None and parar.is_set():
+                    raise DescargaDetenida()
                 listos, _ = wait(list(pendientes), timeout=0.5, return_when=FIRST_COMPLETED)
 
                 while True:
@@ -1345,9 +1367,7 @@ def procesar_descargas(estaciones_df, clasificar_en_carpetas, fecha_ini, fecha_f
         detener.set()
         pool.shutdown(wait=False, cancel_futures=True)
         if not completa and guardadas and ui.get("parcial") is not None:
-            # Descarga cortada con estaciones ya guardadas: se cierra el ZIP con lo que hay (antes se perdia todo).
-            # OJO: aqui la corrida de Streamlit ya esta detenida y tocar st.session_state (o tr(), que lo lee)
-            # vuelve a lanzar la excepcion de parada; por eso el resultado va a un dict que la app ya tiene guardado
+            # Descarga cortada con estaciones ya guardadas: se cierra el ZIP con lo que hay (antes se perdia todo)
             try:
                 for item in pendientes.values():
                     resumen.append({
@@ -1358,14 +1378,14 @@ def procesar_descargas(estaciones_df, clasificar_en_carpetas, fecha_ini, fecha_f
                     })
                 with zipfile.ZipFile(zip_buffer, "a", zipfile.ZIP_DEFLATED) as zip_file:
                     escribir_cierre(zip_file)
-                ui["parcial"].update(armar_resultado(""), parcial=True,
+                ui["parcial"].update(armar_resultado(time.time() - inicio), parcial=True,
                                      sin_descargar=len(pendientes))
             except Exception:
                 pass
 
     # Igual que el portal: el IDEAM registra cada serie descargada (sin datos de la persona)
     registrar_descargas_ideam(param, guardadas, token_auth)
-    duracion = duracion_texto(time.time() - inicio)
-    log(f"ZIP listo en {duracion} · incluye resumen_descarga.csv y CITACION.txt", "w")
+    segundos = time.time() - inicio
+    log(f"ZIP listo en {duracion_texto(segundos)} · incluye resumen_descarga.csv y CITACION.txt", "w")
     pintar(1.0, 0, terminado=True)
-    return armar_resultado(duracion)
+    return armar_resultado(segundos)

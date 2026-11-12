@@ -10,7 +10,8 @@ import streamlit as st
 from streamlit_folium import st_folium
 
 from modules import (escaner, estilo, geo_input, geo_utils, map_view, ideam_catalog, ideam_parameters,
-                     ideam_downloader, idioma, logica, mapa_huecos, panel_estadisticas, terreno, acceso, herramientas, guion)
+                     ideam_downloader, idioma, logica, mapa_huecos, panel_estadisticas, terreno, acceso, herramientas, guion,
+                     trabajo)
 from modules.calidad import CLASES_CALIDAD, filtrar_descargables, clasificar_calidad
 from modules.idioma import tr
 
@@ -28,14 +29,21 @@ ss = st.session_state
 # que sobrevivan a una recarga. Sin parametro = lo que pida el equipo (tema y contraste), calidad completa y espanol.
 _q = st.query_params
 for clave, valor in {"paso": "parametros", "vista": "2D", "cuenca": None, "version_mapa": 0, "version_subida": 0,
-                     "estacion_sel": None, "_prev_sel": {}, "consulta": None, "descarga": None, "resultado": None,
-                     "estado_descarga": None, "excluidas": set(), "version_lista": 0, "subida_abierta": False,
+                     "estacion_sel": None, "_prev_sel": {}, "consulta": None, "descarga": None, "trabajo": None,
+                     "excluidas": set(), "version_lista": 0, "subida_abierta": False,
                      "saltos": 0, "vista_dev": "descargador",
                      "tema": _q.get("tema") if _q.get("tema") in estilo.TEMAS else "sistema",
                      "contraste": _q.get("contraste") if _q.get("contraste") in estilo.CONTRASTES else "sistema",
                      "lite": _q.get("lite") == "1",
                      "idioma": _q.get("lang") if _q.get("lang") in idioma.IDIOMAS else "es"}.items():
     ss.setdefault(clave, valor)
+# Descarga en marcha o recien terminada de esta pestaña: si la pagina se recargo (sesion nueva), se retoma por el
+# id que viaja en la direccion (?descarga=). Ver modules/trabajo.py
+if ss.trabajo is None and _q.get("descarga"):
+    _retomado = trabajo.buscar(_q.get("descarga"))
+    if _retomado is not None:
+        ss.trabajo, ss.descarga, ss.paso = _retomado, _retomado.datos, "descarga"
+        ss.update(_retomado.sesion)
 if (ss.paso not in ("parametros", "mapa", "descarga") or (ss.paso == "mapa" and not ss.consulta)
         or (ss.paso == "descarga" and not ss.descarga)):
     ss.paso = "parametros"
@@ -74,9 +82,9 @@ with st.container(key="y2k_hipso"):
 # Aqui (arriba, sin alto) se pone despues el CSS que tapa el visor 3D mientras arranca la secuencia de entrada
 velo_3d = st.container(key="y2k_velo")
 PALETA = estilo.paleta(ss.tema)
-# Ajustes (arriba a la derecha, en todas las pantallas). Durante una descarga se bloquean: cambiar algo recargaria
-# la pagina y la detendria
-estilo.ajustes(bloqueado=ss.paso == "descarga" and ss.estado_descarga in ("pendiente", "en_curso"))
+# Ajustes (arriba a la derecha, en todas las pantallas). Durante una descarga se bloquean, para no rehacer la
+# pantalla (y el mapa de fondo) mientras se dibuja el avance
+estilo.ajustes(bloqueado=ss.paso == "descarga" and ss.trabajo is not None and ss.trabajo.estado == "en_curso")
 
 if acceso.es_desarrollador() and ss.vista_dev == "herramientas":
     herramientas.pantalla()
@@ -435,23 +443,26 @@ def _atajo_periodo(anios):
     ss.f_ini, ss.f_fin = logica.atajo_periodo(anios)
 
 
+def _lanzar_descarga(datos):
+    """Arranca la descarga en su hilo y deja su id en la direccion, para retomarla si la pagina se recarga."""
+    trabajo.olvidar(ss.trabajo)
+    ss.trabajo = trabajo.Trabajo(datos, {k: ss.get(k) for k in ("consulta", "cuenca", "excluidas")}).iniciar()
+    st.query_params["descarga"] = ss.trabajo.id
+
+
 def _preparar(datos):
     ss.descarga = datos
-    ss.resultado = None
-    ss._parcial = None
-    ss.estado_descarga = "pendiente"
     ss.pop("nombre_zip", None)  # cada descarga nueva arranca con su nombre sugerido
+    _lanzar_descarga(datos)
     ss.paso = "descarga"
 
 
 def _detener():
-    ss.estado_descarga = "detenida"
+    ss.trabajo.detener.set()
 
 
 def _reintentar_descarga():
-    ss.resultado = None
-    ss._parcial = None
-    ss.estado_descarga = "pendiente"
+    _lanzar_descarga(ss.descarga)
 
 
 def _volver_mapa():
@@ -460,10 +471,10 @@ def _volver_mapa():
 
 def _nueva_consulta():
     _borrar_cuenca()
+    trabajo.olvidar(ss.trabajo)
+    st.query_params.pop("descarga", None)
     ss.descarga = None
-    ss.resultado = None
-    ss._parcial = None
-    ss.estado_descarga = None
+    ss.trabajo = None
     ss.paso = "parametros"
 
 
@@ -1090,7 +1101,7 @@ def _recibo(d):
          + ([(tr("Carpetas por completitud"), "carpeta", tr("Alta, media, baja y crítica"))]
             if ss.get("carpetas", True) else [])
          + ([("mapa_de_huecos.png / .csv", "tabla", tr("Datos de cada estación por año"))]
-            if ss.get("incluir_huecos") and (ss.get("resultado") or {}).get("huecos") else [])
+            if ss.get("incluir_huecos") and ((ss.trabajo.resultado if ss.trabajo else None) or {}).get("huecos") else [])
          + [("resumen_descarga.csv", "tabla", tr("Cobertura y resultado por estación")),
             ("CITACION.txt", "cita", tr("Cita de la fuente"))], ""),
         (tr("Fuente"), "IDEAM · DHIME", ""),
@@ -1111,21 +1122,23 @@ def _entrega(resultado, carpetas, huecos=False):
 
 def pantalla_descarga():
     d = ss.descarga
-    if ss.estado_descarga == "en_curso":
-        # La corrida anterior se corto a mitad de la descarga ("Detener" u otra recarga): no se puede retomar
-        ss.estado_descarga = "detenida"
-    estado = ss.estado_descarga
-    if estado not in ("pendiente", "detenida", "error", "lista") or (estado == "lista" and not ss.resultado):
-        estado = ss.estado_descarga = "detenida"
-    # el mapa queda detras (velado); no se monta de cero si se va a descargar: al cargar podria recargar la pagina
-    mapa_de_fondo(nuevo_permitido=estado not in ("pendiente",))
+    t = ss.trabajo
+    if t is None:   # sin trabajo (no deberia pasar): se muestra como detenida, con "Reintentar"
+        t = ss.trabajo = trabajo.Trabajo(d)
+        t.estado = "detenida"
+    t.latido()
+    estado = t.estado
+    if estado == "lista" and not t.resultado:
+        estado = t.estado = "detenida"
+    # el mapa queda detras (velado); no se monta de cero mientras se descarga: al cargar podria recargar la pagina
+    mapa_de_fondo(nuevo_permitido=estado != "en_curso")
     n = len(d["estaciones"])
-    resultado = ss.resultado
+    resultado = t.resultado
     # Tarjeta de vidrio: a la izquierda el avance y lo que se hace con la descarga; a la derecha el recibo y las
     # condiciones de uso (en el celular, una debajo de la otra)
     # la tarjeta de vidrio no se desplaza: lo hace su cuerpo (el brillo y el borde quedan fijos)
     with hueco_exportar, st.container(key="y2k_exportar_cuerpo"):
-        if estado == "pendiente":
+        if estado == "en_curso":
             titulo, tono = tr("Descargando datos del IDEAM"), "vivo"
         elif estado == "lista":
             titulo, tono = tr("Descarga lista"), "hecho"
@@ -1156,24 +1169,19 @@ def pantalla_descarga():
                 _recibo(d)
             estilo.legal_exportar(TEXTO_LEGAL)
 
-        if estado == "pendiente":
+        if estado == "en_curso":
             with izq:
-                progreso = st.empty()
-                progreso.markdown(estilo.progreso(0, tr("Preparando…"),
-                                                  tr("<span>Estaciones <b>{a} de {b}</b></span>", a=0, b=n)),
-                                  unsafe_allow_html=True)
-                aviso = st.empty()
-                st.html('<p class="y2k-hint">' + tr("Puedes seguir mirando esta pantalla; si cierras la pestaña, la "
-                                                     "descarga se detiene.") + '</p>')
+                _avance_vivo(t, n)
+                st.html('<p class="y2k-hint">' + tr("La descarga sigue aunque recargues la página. Si cierras la "
+                                                     "pestaña, se detiene sola a los dos minutos.") + '</p>')
                 st.button(tr("Detener la descarga"), key="detener", icon=":material/stop_circle:", width="stretch",
                           on_click=_detener)
-            _descargar(d, progreso, aviso)
-            st.rerun()
+            return
 
         if estado in ("detenida", "error"):
             error = (resultado or {}).get("error")
             with izq:
-                parcial = ss.get("_parcial") if (ss.get("_parcial") or {}).get("parcial") and not error else None
+                parcial = t.parcial if t.parcial.get("parcial") and not error else None
                 if parcial:
                     hechas = parcial["guardadas"] + parcial["omitidas"]
                     st.markdown(estilo.progreso(hechas / max(n, 1), tr("Sin terminar"),
@@ -1217,7 +1225,7 @@ def pantalla_descarga():
                  tr("Datos que llegaron de verdad frente a los que caben en el periodo. La cobertura estimada no "
                     "descuenta los huecos internos.")),
             ])
-            estilo.resumen_final(tr("Completada en {t}", t=resultado['duracion']) + ".",
+            estilo.resumen_final(tr("Completada en {t}", t=ideam_downloader.duracion_texto(resultado["segundos"])) + ".",
                                  panel_estadisticas.reparto_cobertura(resultado["colores"]))
             hay_huecos = bool(resultado.get("huecos") and mapa_huecos.disponible(resultado.get("frecuencia")))
             # las casillas van debajo del boton: su valor se lee de la sesion (al cambiarlas la tarjeta se rehace)
@@ -1245,58 +1253,23 @@ def pantalla_descarga():
                           on_click=_nueva_consulta)
 
 
-def _descargar(d, progreso, aviso):
-    """Corre la descarga en esta misma corrida (la barra se actualiza en vivo) y deja el resultado en la sesion."""
-    # Turno: como mucho MAX_DESCARGAS_SIMULTANEAS descargas a la vez en el servidor (entre todos los usuarios), para
-    # no saturar al IDEAM. Si no hay cupo, se espera con aviso
-    cupos = ideam_downloader.cupos_descarga()
-    turnos = ideam_downloader.turnos_descarga()
-    _, _, segundos = ideam_downloader.plan_descarga(d["estaciones"], d["ini"], d["fin"], d["param"])
-    turno = object()
-    ss.estado_descarga = "en_curso"
-    # El cupo se toma DENTRO del try que lo devuelve: cualquier llamada a Streamlit (aviso.info, aviso.empty) puede
-    # cortar la corrida ("Detener", recarga, pestaña cerrada) y, si eso pasaba entre tomarlo y entrar al try, el
-    # cupo quedaba tomado hasta reiniciar el servidor
-    tomado = False
-    # Si la descarga se corta con estaciones ya guardadas, procesar_descargas deja aqui el ZIP parcial. Se guarda
-    # en la sesion ANTES de empezar: al cortarse la corrida ya no se puede escribir en st.session_state
-    parcial = ss._parcial = {}
-    try:
-        tomado = cupos.acquire(blocking=False)
-        if not tomado:
-            with turnos["candado"]:
-                turnos["fila"].append(turno)
-            inicio_espera = time.time()
-            while not tomado:
-                tomado = cupos.acquire(timeout=2)
-                if tomado:
-                    break
-                puesto, falta = ideam_downloader.espera_estimada(turno)
-                cuando = (tr("en ≈ {t}", t=ideam_downloader.duracion_texto(falta)) if falta >= 5
-                          else tr("en cualquier momento"))
-                aviso.info(tr("El servidor está ocupado: hay {n} descargas en curso. Eres el número {p} en la fila y "
-                              "la tuya empezará sola {cuando} (llevas {t}).",
-                              n=ideam_downloader.MAX_DESCARGAS_SIMULTANEAS, p=puesto, cuando=cuando,
-                              t=ideam_downloader.duracion_texto(time.time() - inicio_espera)),
-                           icon=":material/hourglass_top:")
-        with turnos["candado"]:
-            if turno in turnos["fila"]:
-                turnos["fila"].remove(turno)
-            turnos["en_curso"][turno] = (time.time(), segundos)
-        aviso.empty()
-        # el ZIP sale plano: las carpetas por cobertura se eligen al final, antes de descargarlo
-        resultado = ideam_downloader.procesar_descargas(d["estaciones"], False, d["ini"], d["fin"],
-                                                        d["param"], {"progreso": progreso, "parcial": parcial})
-        ss.resultado = resultado or {"error": tr("No se pudo completar la descarga.")}
-        ss.estado_descarga = "error" if "error" in ss.resultado else "lista"
-    finally:
-        # Se libera siempre: al terminar, al pulsar "Detener" o si se cierra la pestaña (tambien mientras espera turno)
-        with turnos["candado"]:
-            if turno in turnos["fila"]:
-                turnos["fila"].remove(turno)
-            turnos["en_curso"].pop(turno, None)
-        if tomado:
-            cupos.release()
+@st.fragment(run_every=1)
+def _avance_vivo(t, n):
+    """Avance de la descarga, que corre en su hilo (modules/trabajo): cada segundo se vuelve a dibujar solo este
+    trozo. Al terminar, se rehace la pantalla entera para mostrar el resultado."""
+    t.latido()
+    if t.estado != "en_curso":
+        st.rerun()
+    st.markdown(ideam_downloader.html_avance(t.avance, n), unsafe_allow_html=True)
+    espera = t.espera
+    if espera:
+        cuando = (tr("en ≈ {t}", t=ideam_downloader.duracion_texto(espera["falta"])) if espera["falta"] >= 5
+                  else tr("en cualquier momento"))
+        st.info(tr("El servidor está ocupado: hay {n} descargas en curso. Eres el número {p} en la fila y "
+                   "la tuya empezará sola {cuando} (llevas {t}).",
+                   n=ideam_downloader.MAX_DESCARGAS_SIMULTANEAS, p=espera["puesto"], cuando=cuando,
+                   t=ideam_downloader.duracion_texto(time.time() - espera["desde"])),
+                icon=":material/hourglass_top:")
 
 
 # ===========================================================================

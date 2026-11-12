@@ -491,8 +491,8 @@ EN = {
     "Faltan ≈ {t}": "≈ {t} left",
     "Faltan unos segundos": "A few seconds left",
     "<span>Estaciones <b>{a} de {b}</b></span>": "<span>Stations <b>{a} of {b}</b></span>",
-    "Puedes seguir mirando esta pantalla; si cierras la pestaña, la descarga se detiene.":
-        "You can keep this screen open; closing the tab stops the download.",
+    "La descarga sigue aunque recargues la página. Si cierras la pestaña, se detiene sola a los dos minutos.":
+        "The download keeps going if you reload the page. If you close the tab, it stops by itself after two minutes.",
     "Detener la descarga": "Stop the download",
     "Sin terminar": "Not finished",
     "No se guardó nada": "Nothing was saved",

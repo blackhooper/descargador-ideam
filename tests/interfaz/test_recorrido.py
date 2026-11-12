@@ -77,3 +77,18 @@ def test_celular_llega_hasta_el_zip(navegador, servidor, celular):
     pagina.wait_for_selector(".st-key-bajar_zip", timeout=180000)
     pagina.context.close()
     assert not errores
+
+
+def test_recargar_la_pagina_no_corta_la_descarga(pagina):
+    ir_al_mapa_con_area(pagina)
+    pagina.locator(".st-key-preparar button:visible").first.click()
+    pagina.wait_for_selector(".y2k-prog-meta .ahora", timeout=30000)
+    assert "descarga=" in pagina.url
+    pagina.reload()
+    pagina.wait_for_selector(".st-key-y2k_exportar .y2k-prog, .st-key-bajar_zip", timeout=60000)
+    pagina.wait_for_selector(".st-key-bajar_zip", timeout=180000)
+    _, archivo = _zip_descargado(pagina, "bajar_zip")
+    assert any(n.endswith(".xlsx") for n in archivo.namelist())
+    # la consulta sigue ahi: se puede volver al mapa y preparar otra descarga
+    pagina.locator(".st-key-volver_mapa button").click()
+    pagina.wait_for_selector(".st-key-preparar button:visible:not([disabled])", timeout=60000)

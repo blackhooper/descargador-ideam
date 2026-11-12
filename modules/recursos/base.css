@@ -254,6 +254,8 @@ __P_MAPA__[data-test-script-state="running"]::after{content:"";position:fixed;to
 .st-key-y2k_inicio [data-baseweb="select"] > div{min-height:46px}
 .st-key-y2k_inicio [data-baseweb="select"]:has(input:disabled) > div{opacity:.55;cursor:not-allowed}
 /* serie de tiempo: dos opciones del mismo ancho */
+/* el rotulo de la serie es de Streamlit (lleva su ayuda): se iguala a los demas rotulos de la tarjeta (.y2k-etq) */
+.st-key-serie [data-testid="stWidgetLabel"] p{font-size:16px !important;color:var(--y2k-ink-2) !important}
 .st-key-serie [data-testid="stButtonGroup"] > div{width:100%;flex-wrap:nowrap}
 .st-key-serie button[role="radio"]{flex:1 1 0 !important;min-height:40px}
 .st-key-serie button[aria-checked="true"]{background:var(--y2k-lente) !important;box-shadow:var(--y2k-lente-sombra) !important;
@@ -520,8 +522,37 @@ html[data-y2k-ficha="abierta"] .st-key-y2k_ficha{border-radius:var(--y2k-r)}
 .y2k-ficha-pil .x{width:32px;height:32px;justify-content:center;flex:none;color:var(--y2k-ink-2)}
 .y2k-ficha-pil .x svg{width:16px;height:16px}
 .y2k-ficha-cab{display:none}
-.y2k-ficha-dato,[data-testid="stMarkdownContainer"] p.y2k-ficha-dato{margin:0 !important;font-size:12.5px !important;color:var(--y2k-ink-3) !important;
-  font-variant-numeric:tabular-nums}
+/* datos de la ficha (estilo.ficha_datos): linea de identidad, casillas de cifra con su simbolo y filas de fichas */
+.y2k-ficha{display:flex;flex-direction:column;gap:10px;min-width:0}
+.y2k-ficha .id,[data-testid="stMarkdownContainer"] .y2k-ficha p.id{margin:0 !important;overflow:hidden;font-size:12.5px !important;
+  line-height:1.45 !important;color:var(--y2k-ink-3) !important;font-variant-numeric:tabular-nums}
+/* los puntos van delante de cada dato y el margen negativo esconde el del que empieza renglon */
+.y2k-ficha .id .en{display:flex;flex-wrap:wrap;margin-left:-15px}
+.y2k-ficha .id .en span{position:relative;padding-left:15px;white-space:nowrap}
+.y2k-ficha .id .en span::before{content:"·";position:absolute;left:5px}
+.y2k-ficha .id .cod{color:var(--y2k-ink-2);font-weight:600}
+/* columnas a la medida de cada cifra (los años de la serie piden mas que la altitud) y el sobrante, repartido */
+.y2k-ficha .cifras{display:grid;grid-template-columns:repeat(3,auto);gap:6px}
+.y2k-ficha .cifras.n2{grid-template-columns:auto minmax(0,1fr)}
+.y2k-ficha .cifras.n1{grid-template-columns:minmax(0,1fr)}
+.y2k-ficha .cifras > div{background:var(--y2k-campo);box-shadow:0 0 0 1px var(--y2k-campo-borde) inset;border-radius:14px;
+  padding:8px 7px 7px;min-width:0;display:flex;flex-direction:column;gap:3px}
+.y2k-ficha .cifras .l{display:flex;align-items:center;gap:4px;font-size:11px;font-weight:600;color:var(--y2k-ink-2);
+  line-height:1.25;min-width:0}
+.y2k-ficha .cifras svg{width:14px;height:14px;color:var(--y2k-ink-3);flex:none}
+.y2k-ficha .anillo .pista{stroke:var(--y2k-ink-3);opacity:.35}
+.y2k-ficha .cifras b{font-size:14.5px;font-weight:700;color:var(--y2k-ink);line-height:1.15;font-variant-numeric:tabular-nums;
+  white-space:nowrap;letter-spacing:-.02em}
+.y2k-ficha .cifras .sola{justify-content:center}
+.y2k-ficha .cifras .sola .l{font-weight:500;font-size:12px}
+.y2k-ficha dl{margin:0;display:flex;flex-direction:column;gap:8px}
+.y2k-ficha dl > div{display:grid;grid-template-columns:52px minmax(0,1fr);gap:8px;align-items:baseline}
+.y2k-ficha dt{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--y2k-ink-3);line-height:22px}
+.y2k-ficha dd{margin:0;display:flex;flex-wrap:wrap;gap:4px;min-width:0}
+.y2k-ficha dd span{display:inline-flex;align-items:center;gap:5px;min-height:22px;padding:2px 8px;border-radius:999px;
+  background:var(--y2k-campo);box-shadow:0 0 0 1px var(--y2k-campo-borde) inset;font-size:12px;font-weight:500;line-height:1.3;
+  color:var(--y2k-ink-2);font-variant-numeric:tabular-nums;min-width:0;overflow-wrap:anywhere}
+.y2k-ficha dd svg{width:13px;height:13px;flex:none;color:var(--y2k-accent-texto)}
 
 /* controles de Streamlit dentro del vidrio regular */
 :is(.st-key-y2k_panel,.st-key-y2k_ficha,.st-key-y2k_inicio,.st-key-y2k_exportar) .stButton > button,

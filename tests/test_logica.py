@@ -100,3 +100,27 @@ def test_zip_final_guarda_una_sola_variante(monkeypatch):
     assert logica.zip_final(resultado, True) is carpetas and len(llamadas) == 1   # no se rearma
     assert logica.zip_final(resultado, False) is plano
     assert "_zip_variante" not in resultado
+
+
+def test_anio_de_fechas_del_catalogo():
+    assert logica.anio_de(-1505761200000.0) == 1922     # las anteriores a 1970 vienen en negativo
+    assert logica.anio_de(1502740303000) == 2017
+    assert logica.anio_de(None) is None and logica.anio_de(float("nan")) is None and logica.anio_de("x") is None
+    assert logica.operacion({"fechainstalacion": -1505761200000.0, "fechasuspension": None}) == (1922, None)
+
+
+def test_lista_de_celdas_con_varios_valores():
+    assert logica.lista_de("Caudal; Nivel;Caudal") == ["Caudal", "Nivel"]
+    assert logica.lista_de("2120, 2121") == ["2120", "2121"]
+    assert logica.lista_de(None) == [] and logica.lista_de(float("nan")) == [] and logica.lista_de("") == []
+
+
+def test_la_ficha_tiene_nombre_y_simbolo_para_todo_lo_que_mide_una_estacion():
+    from modules import dhime_enriquecimiento, estilo, idioma
+    for variable in set(dhime_enriquecimiento.VARIABLE_POR_CODIGO.values()):
+        nombre, simbolo = logica.VARIABLES_FICHA[variable]
+        assert simbolo in estilo.ICONOS, variable
+        assert nombre in idioma.EN, nombre
+    assert logica.variables_ficha({"programas": "Precipitacion; Otra cosa"}) == [("Precipitación", "lluvia"),
+                                                                                ("Otra cosa", "punto")]
+    assert all(nombre in idioma.EN for nombre in logica.CATEGORIAS.values())

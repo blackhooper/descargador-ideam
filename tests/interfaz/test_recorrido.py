@@ -3,7 +3,7 @@ descarga, ZIP y detener a medias."""
 import io
 import zipfile
 
-from .conftest import CLAVE, abrir, ir_al_mapa_con_area
+from .conftest import CLAVE, abrir, ir_al_mapa_con_area, marco_mapa
 
 
 def _zip_descargado(pagina, boton):
@@ -92,3 +92,26 @@ def test_recargar_la_pagina_no_corta_la_descarga(pagina):
     # la consulta sigue ahi: se puede volver al mapa y preparar otra descarga
     pagina.locator(".st-key-volver_mapa button").click()
     pagina.wait_for_selector(".st-key-preparar button:visible:not([disabled])", timeout=60000)
+
+
+def test_ficha_de_la_estacion_y_escala_del_mapa(pagina):
+    ir_al_mapa_con_area(pagina)
+    marco = marco_mapa(pagina)
+    # la escala va con los creditos, no suelta en la otra esquina
+    marco.wait_for_selector(".leaflet-bottom.leaflet-right .leaflet-control-scale", state="attached", timeout=20000)
+    assert marco.locator(".leaflet-bottom.leaflet-left .leaflet-control-scale").count() == 0
+    pin = marco.evaluate("""() => { let r = null; map.eachLayer(l => {
+        if (r || !l.options || l.options.y2k !== 'pin' || l.options.interactive === false || !l.getTooltip()) return;
+        const p = map.latLngToContainerPoint(l.getLatLng());
+        if (p.x > 300 && p.x < 900 && p.y > 250 && p.y < 650) r = [p.x, p.y]; }); return r; }""")
+    pagina.mouse.click(*pin)
+    pagina.wait_for_selector("[data-y2k-ficha-btn]", state="attached", timeout=20000)
+    pagina.locator("[data-y2k-ficha-btn]").click()
+    ficha = pagina.locator(".st-key-y2k_ficha")
+    ficha.locator(".y2k-ficha .cifras b").first.wait_for(timeout=10000)
+    cifras = ficha.locator(".y2k-ficha .cifras b").all_inner_texts()
+    assert len(cifras) == 3 and cifras[0].endswith(" m") and cifras[1].endswith(" %"), cifras
+    assert ficha.locator(".y2k-ficha .id .cod").inner_text().isdigit()
+    # la ✕ de la pildora quita la seleccion (su boton va oculto)
+    pagina.locator("[data-y2k-ficha-quitar]").click()
+    pagina.wait_for_selector("[data-y2k-ficha-btn]", state="detached", timeout=20000)

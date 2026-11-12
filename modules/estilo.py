@@ -328,6 +328,28 @@ ICONOS = {
     "aguja": _svg('<path d="M12 3.5 15 12H9z" fill="#E5484D" stroke="none"/><path d="M12 20.5 9 12h6z" fill="currentColor" '
                   'opacity=".5" stroke="none"/><circle cx="12" cy="12" r="1.4" fill="currentColor" stroke="none"/>'),
     "chevron": _svg('<path d="M6 9l6 6 6-6"/>'),
+    # --- ficha de la estacion: cifras y lo que mide (logica.VARIABLES_FICHA) ---
+    "montana": _svg('<path d="M3 19 9.5 7l4 7 2.5-4L21 19z"/>'),
+    "calendario": _svg('<rect x="4" y="5" width="16" height="15" rx="3"/><path d="M4 10h16M9 3v4M15 3v4"/>'),
+    "lluvia": _svg('<path d="M7 15a4 4 0 0 1 .6-7.95A5.5 5.5 0 0 1 18 8.5 3.3 3.3 0 0 1 17.5 15"/><path d="M9 18v2M13 17v3M17 18v2"/>'),
+    "termometro": _svg('<path d="M14 14.5V5a2 2 0 0 0-4 0v9.5a4 4 0 1 0 4 0z"/><path d="M12 9v8"/>'),
+    "humedad": _svg('<path d="M12 3.5s6 6.2 6 10.6a6 6 0 0 1-12 0C6 9.7 12 3.5 12 3.5z"/><path d="M9.5 14.5a2.5 2.5 0 0 0 2.5 2.5"/>'),
+    "evaporacion": _svg('<path d="M4 20h16M4 16h16"/><path d="M8 12c-1.5-2 1.5-3 0-5M12 12c-1.5-2 1.5-3 0-5M16 12c-1.5-2 1.5-3 0-5"/>'),
+    "viento": _svg('<path d="M3 9h10a2.5 2.5 0 1 0-2.5-2.5M3 13h15a2.5 2.5 0 1 1-2.5 2.5M3 17h7"/>'),
+    "sol": _svg('<circle cx="12" cy="12" r="4"/><path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6 7 7M17 17l1.4 1.4M5.6 18.4 7 17M17 7l1.4-1.4"/>'),
+    "presion": _svg('<path d="M4.5 17a8.5 8.5 0 1 1 15 0"/><path d="M12 14l3.5-4.5"/><circle cx="12" cy="14" r="1"/><path d="M6 20h12"/>'),
+    "nube": _svg('<path d="M7 18a4.5 4.5 0 0 1 .7-8.95A5.5 5.5 0 0 1 18 10.5 3.8 3.8 0 0 1 17.5 18z"/>'),
+    "ojo": _svg('<path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z"/><circle cx="12" cy="12" r="2.8"/>'),
+    "nivel": _svg('<path d="M6 3v18M6 6h3M6 10h2M6 14h3M6 18h2"/><path d="M12 14c1.5-1.5 3-1.5 4.5 0s3 1.5 4.5 0M12 18c1.5-1.5 3-1.5 4.5 0s3 1.5 4.5 0"/>'),
+    "caudal": _svg('<path d="M3 8c2-2 4-2 6 0s4 2 6 0 4-2 6 0M3 13c2-2 4-2 6 0s4 2 6 0 4-2 6 0M3 18c2-2 4-2 6 0s4 2 6 0 4-2 6 0"/>'),
+    "aforo": _svg('<rect x="3" y="8" width="18" height="8" rx="2"/><path d="M7 8v3M11 8v4M15 8v3"/>'),
+    "perfil": _svg('<path d="M3 6h3l3 10c1 2.5 5 2.5 6 0l3-10h3"/><path d="M7.5 10h9" stroke-dasharray="2 2.5"/>'),
+    "gradiente": _svg('<path d="M3 19h18L21 7z"/><path d="M8 12l4-2.5"/>'),
+    "sonar": _svg('<path d="M12 4v3"/><path d="M8.5 10.5a5 5 0 0 1 7 0M5.5 14a9 9 0 0 1 13 0M3 18.5a12.5 12.5 0 0 1 18 0"/>'),
+    "sedimentos": _svg('<path d="M3 7c2-2 4-2 6 0s4 2 6 0 4-2 6 0"/><path d="M6 13h.01M11 12h.01M16 13.5h.01M8.5 17h.01M13.5 17.5h.01M18.5 17h.01M5 20h14"/>'),
+    "matraz": _svg('<path d="M9.5 3h5M10.5 3v6L5 18.5A1.7 1.7 0 0 0 6.5 21h11a1.7 1.7 0 0 0 1.5-2.5L13.5 9V3"/><path d="M7.5 15h9"/>'),
+    "suelo": _svg('<path d="M12 3 3 8l9 5 9-5z"/><path d="M3 12.5l9 5 9-5M3 17l9 5 9-5"/>'),
+    "punto": _svg('<circle cx="12" cy="12" r="3"/>'),
     "estacion": _svg('<path d="M12 21s-6.5-5.6-6.5-11a6.5 6.5 0 0 1 13 0c0 5.4-6.5 11-6.5 11z"/><circle cx="12" cy="10" r="2.3"/>'),
     "raton_izq": _svg('<rect x="6" y="2.5" width="12" height="19" rx="6"/><path d="M12 2.5v7M6 9.5h12"/>'
                       '<path class="on" d="M11.2 3.4A5.2 5.2 0 0 0 6.9 8.7h4.3z"/>'),
@@ -453,7 +475,7 @@ _UI = _recurso("ui.js")
 def instalar_ui():
     """Inyecta el guion de la interfaz en la pagina principal (sobrevive a las recargas de Streamlit)."""
     # la version lleva el idioma: al cambiarlo, el guion se instala de nuevo con sus textos
-    codigo = (idioma.traducir_js(_UI).replace("__V__", "37-" + idioma.actual())
+    codigo = (idioma.traducir_js(_UI).replace("__V__", "38-" + idioma.actual())
               .replace("__ICONO_ALERTA__", json.dumps(ICONOS["alerta"]))
               .replace("__MOVIL__", json.dumps(MOVIL)).replace("__VIDRIO__", json.dumps(VIDRIO)))
     cuerpo = ("(function(){var w=window.parent;var s=w.document.createElement('script');"
@@ -729,6 +751,33 @@ def ficha_pildora(nombre, codigo):
 
 def sobre_mapa(html, clase, material="lg-regular"):
     md(f'<div class="y2k-sobre {material} {clase}">{html}</div>')
+
+
+def anillo(porcentaje, color):
+    """Anillo que se llena con el porcentaje (la cobertura de la ficha), del color de su clase."""
+    largo = 2 * 3.14159 * 9
+    lleno = max(0.0, min(100.0, float(porcentaje))) / 100 * largo
+    return ('<svg class="anillo" viewBox="0 0 24 24" fill="none" aria-hidden="true" focusable="false">'
+            '<circle class="pista" cx="12" cy="12" r="9" stroke-width="3.5"/>'
+            f'<circle cx="12" cy="12" r="9" stroke="{color}" stroke-width="3.5" stroke-linecap="round" '
+            f'stroke-dasharray="{lleno:.2f} {largo:.2f}" transform="rotate(-90 12 12)"/></svg>')
+
+
+def ficha_datos(identidad, cifras, filas):
+    """Datos de la ficha de la estacion. `identidad`: textos de la linea de arriba (codigo, tipo, zona...).
+    `cifras`: [(simbolo en HTML, etiqueta, valor, ayuda)], una casilla cada una; sin valor, la etiqueta ocupa la
+    casilla. `filas`: [(titulo, [(texto, clave de ICONOS o None)], ayuda)], cada una con sus fichas."""
+    arriba = "".join(f'<span{" class=cod" if i == 0 else ""}>{escape(t)}</span>' for i, t in enumerate(identidad) if t)
+    casillas = "".join(
+        f'<div title="{escape(ayuda)}"{"" if valor else " class=sola"}><span class="l">{simbolo}{escape(etiqueta_)}</span>'
+        f'{f"<b>{escape(valor)}</b>" if valor else ""}</div>'
+        for simbolo, etiqueta_, valor, ayuda in cifras)
+    lineas = "".join(
+        f'<div title="{escape(ayuda)}"><dt>{escape(titulo)}</dt><dd>'
+        + "".join(f'<span>{ICONOS[icono] if icono else ""}{escape(texto)}</span>' for texto, icono in valores)
+        + "</dd></div>" for titulo, valores, ayuda in filas)
+    md(f'<div class="y2k-ficha"><p class="id"><span class="en">{arriba}</span></p>'
+       f'<div class="cifras n{len(cifras)}">{casillas}</div>{f"<dl>{lineas}</dl>" if lineas else ""}</div>')
 
 
 def detalles(resumen, cuerpo, ver="Ver detalles"):

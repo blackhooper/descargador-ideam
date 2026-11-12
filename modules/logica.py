@@ -105,6 +105,62 @@ def nombre_limpio(nombre):
     return re.sub(r"\s*\[\d+\]\s*$", "", str(nombre)).strip()
 
 
+# Categoria de la estacion en el catalogo del IDEAM (`idcategoria`). Los codigos que no estan aqui no se muestran
+CATEGORIAS = {
+    "PM": "Pluviométrica", "PG": "Pluviográfica", "LM": "Limnimétrica", "LG": "Limnigráfica",
+    "CO": "Climática ordinaria", "CP": "Climática principal", "AM": "Agrometeorológica", "ME": "Meteorológica especial",
+    "MM": "Mareográfica", "SP": "Sinóptica principal", "SS": "Sinóptica secundaria", "RS": "Radiosonda",
+}
+
+# Lo que mide una estacion (nombres de dhime_enriquecimiento.VARIABLE_POR_CODIGO, que van sin tildes) -> el nombre que
+# se muestra y su simbolo (clave de estilo.ICONOS)
+VARIABLES_FICHA = {
+    "Precipitacion": ("Precipitación", "lluvia"), "Temperatura": ("Temperatura", "termometro"),
+    "Temperatura del suelo": ("Temperatura del suelo", "termometro"),
+    "Temperatura del agua": ("Temperatura del agua", "termometro"), "Humedad": ("Humedad", "humedad"),
+    "Evaporacion": ("Evaporación", "evaporacion"), "Viento": ("Viento", "viento"),
+    "Brillo solar": ("Brillo solar", "sol"), "Radiacion": ("Radiación", "sol"), "Presion": ("Presión", "presion"),
+    "Nubosidad": ("Nubosidad", "nube"), "Fenomenos observados": ("Fenómenos observados", "ojo"),
+    "Nivel": ("Nivel", "nivel"), "Caudal": ("Caudal", "caudal"), "Aforos de caudal": ("Aforos", "aforo"),
+    "Perfiles de cauce": ("Perfiles de cauce", "perfil"), "Gradiente hidraulico": ("Gradiente hidráulico", "gradiente"),
+    "Ecosondeos": ("Ecosondeos", "sonar"), "Sedimentos": ("Sedimentos", "sedimentos"),
+    "Calidad de agua": ("Calidad de agua", "matraz"), "Suelo": ("Suelo", "suelo"),
+}
+
+
+def _texto(valor):
+    """Texto de una celda del catalogo ("" si viene vacia o sin dato)."""
+    return "" if valor is None or (isinstance(valor, float) and math.isnan(valor)) else str(valor).strip()
+
+
+def lista_de(valor):
+    """Trozos de una celda con varios valores ("Caudal; Nivel", "2120, 2121") sin vacios ni repetidos."""
+    vistos = []
+    for trozo in re.split(r"\s*[;,]\s*", _texto(valor)):
+        if trozo and trozo not in vistos:
+            vistos.append(trozo)
+    return vistos
+
+
+def anio_de(milisegundos):
+    """Año de una fecha del catalogo (milisegundos desde 1970; las anteriores vienen en negativo), o None."""
+    try:
+        ms = float(milisegundos)
+        return None if math.isnan(ms) else int((pd.Timestamp(0) + pd.Timedelta(milliseconds=ms)).year)
+    except (TypeError, ValueError, OverflowError):
+        return None
+
+
+def operacion(fila):
+    """(año de instalacion, año de suspension) de la estacion; None en lo que el catalogo no trae."""
+    return anio_de(fila.get("fechainstalacion")), anio_de(fila.get("fechasuspension"))
+
+
+def variables_ficha(fila):
+    """[(nombre, simbolo)] de lo que mide la estacion, lo conocido primero y en el orden del catalogo."""
+    return [VARIABLES_FICHA.get(v, (v, "punto")) for v in lista_de(fila.get("programas"))]
+
+
 def tabla_completitud(resultado):
     """Completitud real de cada estacion guardada frente a su cobertura estimada, de la mayor caida a la menor: es el
     dato nuevo de la descarga (antes solo estaba dentro de resumen_descarga.csv)."""

@@ -1,6 +1,6 @@
 import folium
 import pandas as pd
-from folium.plugins import Draw, FastMarkerCluster
+from folium.plugins import Draw, FastMarkerCluster, MarkerCluster
 from shapely.geometry import shape
 import geopandas as gpd
 from modules.estilo import ATRIB_ESRI_NOMBRES, ATRIB_ESRI_RELIEVE, ATRIB_ESRI_SATELITE, ATRIB_NASA
@@ -27,6 +27,10 @@ TINTA_2 = "#4F5D78"
 BORDE_PIN = "#FFFFFF"
 ALERTA = "#A4430F"
 HALO_DUDOSA = "#FFE08A"   # halo punteado de las estaciones con altitud dudosa (claro: se lee sobre el satelite)
+# Desde esta cantidad de estaciones los pines se agrupan al alejar el mapa (un departamento entero trae cientos y se
+# tapan unos a otros); de cerca (ZOOM_SIN_GRUPOS) vuelven a verse todos sueltos
+AGRUPAR_DESDE = 300
+ZOOM_SIN_GRUPOS = 11
 
 
 def mapa_base(cuenca_gdf=None, tema="claro"):
@@ -38,8 +42,9 @@ def mapa_base(cuenca_gdf=None, tema="claro"):
         centro, zoom = [4.6, -74.1], 6
 
     # Sin control de zoom de Leaflet: el zoom, las capas y el dibujo se manejan desde la capsula de herramientas
-    # de la pagina (estilo.herramientas_2d), que pulsa estos controles ocultos
-    m = folium.Map(location=centro, zoom_start=zoom, tiles=None, control_scale=True, prefer_canvas=True, zoom_control=False)
+    # de la pagina (estilo.herramientas_2d), que pulsa estos controles ocultos. La escala la pone el guion de la
+    # interfaz (recursos/ui.js, vigilar2d) junto a los creditos
+    m = folium.Map(location=centro, zoom_start=zoom, tiles=None, prefer_canvas=True, zoom_control=False)
     # Mapas base sin clave (CARTO ahora exige API key y muestra una marca de agua)
     esri = "https://server.arcgisonline.com/ArcGIS/rest/services/{}/MapServer/tile/{{z}}/{{y}}/{{x}}"
     # "Satelite con nombres" arranca visible: la imagen con los rotulos de lugares y limites de Esri encima (las dos
@@ -174,6 +179,12 @@ def capa_dinamica(area_gdf=None, estaciones=None, seleccionada=None, catalogo=No
 
     if estaciones is not None and not estaciones.empty:
         evaluadas = "Porcentaje (%)" in estaciones.columns
+        # Con muchas estaciones los pines van a un agrupador; la elegida queda fuera, siempre a la vista
+        grupos = None
+        if len(estaciones) >= AGRUPAR_DESDE:
+            grupos = MarkerCluster(name="Estaciones agrupadas", control=False, options={
+                "disableClusteringAtZoom": ZOOM_SIN_GRUPOS, "maxClusterRadius": 46, "showCoverageOnHover": False,
+                "spiderfyOnMaxZoom": False, "chunkedLoading": True}).add_to(fg)
         for idx, row in estaciones.iterrows():
             codigo = codigo_de_estacion(row, idx)
             pct = row["Porcentaje (%)"] if evaluadas else None
@@ -181,6 +192,8 @@ def capa_dinamica(area_gdf=None, estaciones=None, seleccionada=None, catalogo=No
             fuera = ok and codigo in excluidas
             color = clasificar_calidad(pct)["color"] if ok else GRIS
             es_sel = codigo == seleccionada
+            destino = fg if grupos is None or es_sel else grupos
+            dudosa = bool(row.get("altitud_dudosa"))
             if es_sel:
                 _marca(folium.CircleMarker(location=[row.geometry.y, row.geometry.x], radius=16, color=AZUL,
                                               weight=3, fill=True, fill_color="#FFFFFF", fill_opacity=0.35)).add_to(fg)
@@ -191,19 +204,22 @@ def capa_dinamica(area_gdf=None, estaciones=None, seleccionada=None, catalogo=No
                     dash_array="3 3", fill=True, fill_color="#FFFFFF", fill_opacity=0.35,
                     tooltip=folium.Tooltip(_tarjeta(row, codigo, excluida=True), sticky=True))
             else:
-                if row.get("altitud_dudosa"):
+                if dudosa and destino is fg:
                     # Altitud dudosa: un halo punteado oscuro alrededor del pin. Antes era un borde naranja, casi el
                     # mismo tono del relleno de la cobertura baja. No es interactivo: los clics pasan al pin
                     _marca(folium.CircleMarker(location=[row.geometry.y, row.geometry.x], radius=12, color=HALO_DUDOSA,
                                                weight=2, dash_array="2 5", fill=False, interactive=False)).add_to(fg)
+                # agrupada, el halo contaria como otra estacion: la duda va en el borde del propio pin, punteado
+                en_borde = dudosa and destino is not fg
                 marcador = folium.CircleMarker(
                     location=[row.geometry.y, row.geometry.x],
                     radius=9 if es_sel else 7 if ok else 5,
-                    color=BORDE_PIN if ok or es_sel else "#E6ECF7",   # borde claro: se lee sobre el satelite
-                    weight=2.5 if es_sel else 1.6 if ok else 1.4,
+                    color=HALO_DUDOSA if en_borde else BORDE_PIN if ok or es_sel else "#E6ECF7",   # borde claro: se lee sobre el satelite
+                    weight=2.5 if es_sel or en_borde else 1.6 if ok else 1.4,
+                    dash_array="3 4" if en_borde else None,
                     fill=ok or es_sel, fill_color=color, fill_opacity=0.95 if ok else 0.4,
                     tooltip=folium.Tooltip(_tarjeta(row, codigo), sticky=True))
-            _marca(marcador, pin=True).add_to(fg)
+            _marca(marcador, pin=True).add_to(destino)
     elif catalogo is not None and not catalogo.empty:
         # Sin cuenca todavia: el catalogo nacional agrupado, para ubicarse
         FastMarkerCluster(data=list(zip(catalogo.geometry.y, catalogo.geometry.x)), name="Catálogo nacional").add_to(fg)

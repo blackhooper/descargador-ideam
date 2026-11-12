@@ -56,7 +56,12 @@ html[data-y2k-hoja="abierta"] :is(.st-key-y2k_herr,.st-key-y2k_ficha,.st-key-y2k
 html[data-y2k-hoja="abierta"][data-y2k-p="mapa"] .y2k-cierre-hoja{display:block;position:fixed;inset:0;z-index:39;background:transparent;
   -webkit-tap-highlight-color:transparent}
 .st-key-y2k_ficha{top:var(--y2k-g) !important;left:var(--y2k-g);right:calc(var(--y2k-g) * 2 + var(--y2k-ajustes-w, 84px)) !important;width:auto !important;
-  max-height:38dvh}
+  max-height:50dvh}
+/* la ficha es mas angosta que en el escritorio: las cifras se aprietan para que quepan los años de la serie */
+.y2k-ficha .cifras > div{padding:7px 6px 6px}
+.y2k-ficha .cifras .l{font-size:10.5px;gap:3px}
+.y2k-ficha .cifras svg{width:13px;height:13px}
+.y2k-ficha .cifras b{font-size:13.5px}
 .stApp:has(.st-key-y2k_filtro .stPopover) .st-key-y2k_ficha{top:calc(var(--y2k-g) * 2 + var(--y2k-capsula)) !important}
 html:not([data-y2k-ficha="abierta"]) .st-key-y2k_ficha{right:auto !important}
 .st-key-y2k_ficha_cuerpo{padding:4px 14px 12px !important}

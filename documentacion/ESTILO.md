@@ -76,7 +76,7 @@ Estos nombres unen la estructura (Python), la estética (CSS) y el guion del nav
 
 **Claves de contenedores** (producen la clase `.st-key-<clave>`): `y2k_escenario`, `y2k_mapa2d`, `y2k_visor3d`, `y2k_ajustes`, `y2k_inicio` (cuerpo `y2k_inicio_cuerpo`), `y2k_fechas`, `y2k_panel`, `y2k_panel_cab`, `y2k_cuerpo`, `y2k_buffer`, `y2k_abrir`, `y2k_herr`, `y2k_filtro`, `y2k_dock`, `y2k_dock_izq`, `y2k_dock_der`, `y2k_ficha` (cuerpo `y2k_ficha_cuerpo`), `y2k_exportar` (cuerpo `y2k_exportar_cuerpo`), `alerta_altura`, `alerta_ficha` y los invisibles (`y2k_guiones`, `y2k_hipso`, `y2k_velo`, `y2k_ocultos`, `y2k_precal`, `y2k_orbita`, `y2k_escaner`).
 
-**Claves de widgets que usan el CSS o los guiones**: `vista` (también `static/intro_satelital/player.js` y `terreno.css_boton_3d_espera`), `serie`, `ir_mapa`, `preparar`, `filtro_cob`, `carpetas`, `y2k_repetir_intro`, `lite_menu`, `pref_tono`, `pref_alto`, `bajar_zip` y los ocultos `y2k_lite_reintentar`, `y2k_reintentar3d`, `y2k_pasar2d`, `y2k_borrar`, `y2k_subir`, `chip_param`, `y2k_tex_<n>`, `y2k_esc_<n>`. `textura` y `escala_altura` ya no son widgets: son claves de sesión que ponen esos botones.
+**Claves de widgets que usan el CSS o los guiones**: `vista` (también `static/intro_satelital/player.js` y `terreno.css_boton_3d_espera`), `serie`, `ir_mapa`, `preparar`, `filtro_cob`, `carpetas`, `y2k_repetir_intro`, `lite_menu`, `pref_tono`, `pref_alto`, `bajar_zip` y los ocultos `y2k_lite_reintentar`, `y2k_reintentar3d`, `y2k_pasar2d`, `y2k_borrar`, `y2k_subir`, `quitar_sel`, `chip_param`, `y2k_tex_<n>`, `y2k_esc_<n>`. `textura` y `escala_altura` ya no son widgets: son claves de sesión que ponen esos botones.
 
 **Atributos de las piezas HTML** (los pone `estilo.py`, los lee el guion):
 
@@ -91,7 +91,7 @@ Estos nombres unen la estructura (Python), la estética (CSS) y el guion del nav
 | `data-y2k-area` | «Usar el área visible» | Crea el área con la zona visible (`aria-disabled` hasta el zoom 10) |
 | `data-y2k-subir`, `data-y2k-2d` | «Subir un archivo», «Ver en 2D» | Pulsan los botones ocultos `y2k_subir`, `y2k_pasar2d` |
 | `data-y2k-borrar` | «Borrar» | En 2D quita el rectángulo en el navegador y avisa a `st_folium` con `draw:deleted` (Python recibe la lista vacía): el mapa no se rehace y conserva encuadre y zoom. En 3D (sin Leaflet) pulsa el oculto `y2k_borrar` |
-| `data-y2k-ficha-btn`, `data-y2k-ficha-quitar` | Píldora de la ficha y su ✕ | Despliegan o cierran la ficha (`data-y2k-ficha` en `<html>`); la ✕ pulsa `quitar_sel` |
+| `data-y2k-ficha-btn`, `data-y2k-ficha-quitar` | Píldora de la ficha y su ✕ | Despliegan o cierran la ficha (`data-y2k-ficha` en `<html>`); la ✕ pulsa el oculto `quitar_sel` |
 | `data-y2k-capa` | Opciones del menú Mapa base | Eligen la capa base (pulsan el control de capas oculto de Leaflet) |
 | `data-y2k-zoom` (`mas`, `menos`) | Zoom de la cápsula | Acercan o alejan el mapa |
 | `data-y2k-cam` (`acercar`, `alejar`, `izq`, `der`, `subir`, `bajar`, `norte`) | Cruceta y zoom del menú Cámara del 3D | Mueven la cámara (el menú no se cierra; inclinación hasta 70°, alejarse hasta `minZoom`) |

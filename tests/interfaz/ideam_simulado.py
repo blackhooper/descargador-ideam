@@ -118,6 +118,25 @@ def _tesela(z, x, y):
     return Image.new("RGB", (256, 256), (valor // 256, valor % 256, 0))
 
 
+def _tablas(*_a, **_k):
+    """Lo que mide cada estacion, su subred y sus codigos homologados (dhime_enriquecimiento.cargar_tablas): de todo
+    un poco, para ver la ficha llena, a medias y vacia."""
+    azar = random.Random("enriquecimiento")
+    variables = sorted(set(dhime_enriquecimiento.VARIABLE_POR_CODIGO.values()))
+    programas, subredes, homologacion = {}, {}, {}
+    for p in _estaciones():
+        codigo = str(p.get("idestacion") or "").split(".")[0]
+        suerte = azar.random()
+        if not codigo or suerte < .2:
+            continue
+        programas[codigo] = {"programas": sorted(azar.sample(variables, azar.choice([1, 2, 3, 6, 9]))), "tipos": []}
+        if suerte > .5:
+            subredes[codigo] = ["Red hidrometeorológica de la sabana"] + (["Alertas tempranas"] if suerte > .8 else [])
+        if suerte > .7:
+            homologacion[codigo] = {"homologa_con": [codigo[:-1] + "5", "21205000"][: 1 + (suerte > .9)], "grupo": codigo}
+    return {"creado": time.time(), "programas": programas, "subredes": subredes, "homologacion": homologacion}
+
+
 def instalar():
     """Cambia las salidas a internet por las simuladas (una sola vez por servidor)."""
     if getattr(ideam_downloader, "_simulado", False):
@@ -129,4 +148,4 @@ def instalar():
     ideam_downloader.descargar_excel_ideam = descargar_excel
     ideam_downloader.registrar_descargas_ideam = lambda *a, **k: None
     terreno._tile = _tesela
-    dhime_enriquecimiento.cargar_tablas = lambda *a, **k: None
+    dhime_enriquecimiento.cargar_tablas = _tablas

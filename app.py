@@ -1062,6 +1062,7 @@ def pantalla_mapa():
         st.button("Seguir intentando", key="y2k_reintentar3d", on_click=_recargar_3d)
         st.button("Ver en 2D", key="y2k_pasar2d", on_click=_pasar_a_2d)
         st.button("Borrar el área", key="y2k_borrar", on_click=_borrar_cuenca)
+        st.button("Quitar selección", key="quitar_sel", on_click=panel_estadisticas.quitar_seleccion)   # la ✕ de la ficha
         st.button("Quitar filtro", key="y2k_quitar_ubicacion", on_click=_quitar_filtro_mapa)
         st.button("Subir un archivo", key="y2k_subir", on_click=_abrir_subida)
         st.button("Cambiar la variable", key="chip_param", on_click=_volver_parametros)

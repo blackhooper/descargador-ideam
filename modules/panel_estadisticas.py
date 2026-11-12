@@ -3,9 +3,9 @@ from functools import partial
 from html import escape
 import pandas as pd
 import streamlit as st
-from modules import idioma, ideam_downloader
+from modules import idioma, ideam_downloader, logica
 from modules.calidad import CLASES_CALIDAD, clasificar_calidad
-from modules.estilo import aviso, detalles, ficha_pildora, kpis, md
+from modules.estilo import ICONOS, anillo, aviso, detalles, ficha_datos, ficha_pildora, kpis, md
 from modules.idioma import tr
 from modules.logica import nombre_limpio
 from modules.terreno import ALTITUD_DUDOSA_M
@@ -156,7 +156,7 @@ def _al_elegir_dudosa():
         _ver_en_3d()
 
 
-def _quitar_seleccion():
+def quitar_seleccion():
     st.session_state["estacion_sel"] = None
 
 
@@ -189,31 +189,59 @@ def _incluir(codigo):
 def tarjeta_seleccionada(fila, rango=None, vista="2D", descargable=False):
     """Ficha flotante de la estacion elegida (desde el mapa o la lista)."""
     codigo = str(ideam_downloader.codigo_de_estacion(fila))
-    try:
-        altitud = _num(float(fila.get("altitud"))) + " m"
-    except (TypeError, ValueError):
-        altitud = tr("altitud sin dato")
-    zona = tr({"cuenca": "en el área", "buffer": "en el buffer"}.get(fila.get("zona"), ""))
     # cerrada: una pildora con el nombre; al pulsarla se despliega el resto (estilo.ficha_pildora)
     ficha_pildora(nombre_limpio(fila.get("nombre", "")), codigo)
     with st.container(key="y2k_ficha_cuerpo"):   # se desplaza el cuerpo, no el vidrio
-        _cuerpo_ficha(fila, codigo, altitud, zona, rango, vista, descargable)
+        _cuerpo_ficha(fila, codigo, rango, vista, descargable)
 
 
-def _cuerpo_ficha(fila, codigo, altitud, zona, rango, vista, descargable):
-    ss = st.session_state
-    md(f'<p class="y2k-ficha-dato">{tr("Código")} {escape(codigo)} · {altitud}{f" · {zona}" if zona else ""}</p>')
+def _cifras_ficha(fila):
+    """Casillas de la ficha: altitud, cobertura (un anillo del color de su clase) y años de la serie."""
+    try:
+        altitud = _num(float(fila.get("altitud"))) + " m"
+    except (TypeError, ValueError):
+        altitud = "–"
+    cifras = [(ICONOS["montana"], tr("Altitud"), altitud, tr("Altitud de la estación en el catálogo del IDEAM"))]
     serie = fila.get("Serie DHIME") if "Serie DHIME" in fila.index else None
     if serie == "Sí":
-        st.caption(tr("Cobertura **{p} %** ({clase}) · serie {a}–{b}", p=f"{fila['Porcentaje (%)']:.0f}",
-                      clase=tr(str(fila.get('Clase calidad', ''))).lower(),
-                      a=str(fila.get('Inicio serie'))[:4], b=str(fila.get('Fin serie'))[:4]))
+        pct = float(fila["Porcentaje (%)"])
+        clase = clasificar_calidad(pct)
+        cifras += [
+            # la clase va en el color del anillo (el mismo del pin y la leyenda) y, con palabras, en la ayuda
+            (anillo(pct, clase["color"]), tr("Cobertura"), f"{pct:.0f} %",
+             tr("Cobertura estimada {clase}: qué parte del periodo cubre el registro de la estación",
+                clase=tr(clase["nombre"]).lower())),
+            (ICONOS["calendario"], tr("Serie"), f"{str(fila.get('Inicio serie'))[:4]}–{str(fila.get('Fin serie'))[:4]}",
+             tr("Primer y último año con datos de la serie en el IDEAM")),
+        ]
     elif serie == "No":
-        st.caption(tr("Sin serie de esta variable en DHIME"))
-    for etiqueta, columna in (("Mide", "programas"), ("Subred", "subredes"), ("Misma estación que", "homologa_con")):
-        valor = str(fila.get(columna) or "").strip()
-        if valor:
-            st.caption(f"{tr(etiqueta)}: {valor}")
+        cifras.append((ICONOS["calendario"], tr("Sin serie de esta variable"), "",
+                       tr("El IDEAM no tiene esta variable en la estación")))
+    return cifras, serie == "Sí"
+
+
+# Filas de la ficha que salen del catalogo enriquecido: (titulo, columna, ayuda y explicacion de «Ver más»)
+_FILAS_FICHA = (
+    ("Mide", "programas", "Variables que el IDEAM registra en la estación"),
+    ("Subred", "subredes", "Red regional del IDEAM a la que pertenece"),
+    ("Alias", "homologa_con", "Otros códigos con los que el IDEAM registra esta misma estación; su historial "
+                                    "puede estar repartido entre ellos"),
+)
+
+
+def _cuerpo_ficha(fila, codigo, rango, vista, descargable):
+    ss = st.session_state
+    zona = tr({"cuenca": "En el área", "buffer": "En el buffer"}.get(fila.get("zona"), ""))
+    cifras, con_serie = _cifras_ficha(fila)
+    filas = []
+    for titulo, columna, ayuda in _FILAS_FICHA:
+        valores = (logica.variables_ficha(fila) if columna == "programas"
+                   else [(v, None) for v in logica.lista_de(fila.get(columna))])
+        if valores:
+            filas.append((tr(titulo), [(tr(texto), icono) for texto, icono in valores], tr(ayuda)))
+    suspendida = logica.operacion(fila)[1]   # el catalogo trae la fecha solo si la estacion dejo de operar
+    ficha_datos([codigo, tr(logica.CATEGORIAS.get(str(fila.get("idcategoria") or "").strip(), "")), zona,
+                 tr("Suspendida en {a}", a=suspendida) if suspendida else ""], cifras, filas)
     if descargable:
         ss[f"incluir_{codigo}"] = codigo not in ss.get("excluidas", set())
         st.toggle(tr("Incluir en la descarga"), key=f"incluir_{codigo}", on_change=_incluir, args=(codigo,))
@@ -223,10 +251,15 @@ def _cuerpo_ficha(fila, codigo, altitud, zona, rango, vista, descargable):
                         f'{_explicacion_altitud(float(fila["altitud"]), float(fila["terreno"]), rango)}'
                         f'{tr(" En el mapa 3D, la marca naranja muestra dónde quedaría con la altitud del catálogo.") if vista == "3D" else ""}'
                         f'</p>', unsafe_allow_html=True)
-    with st.container(horizontal=True, gap="small"):
-        if vista != "3D":
-            st.button(tr("Ver en 3D"), key="ver_3d", icon=":material/landscape:", width="stretch", on_click=_ver_en_3d)
-        st.button(tr("Quitar selección"), key="quitar_sel", icon=":material/close:", width="stretch", on_click=_quitar_seleccion)
+    if vista != "3D":
+        st.button(tr("Ver en 3D"), key="ver_3d", icon=":material/landscape:", width="stretch", on_click=_ver_en_3d)
+    # Lo que no se explica solo va plegado, y solo lo que esta ficha muestra
+    glosa = ([(tr("Cobertura"), tr("Parte del periodo consultado que abarca el registro de la estación, entre su "
+                                   "primer y su último dato. No descuenta los huecos internos."))] if con_serie else [])
+    glosa += [(titulo, ayuda + ".") for titulo, _, ayuda in filas]
+    if glosa:
+        detalles(tr("Qué significa cada dato."), "".join(f"<p><b>{escape(t)}:</b> {escape(a)}</p>" for t, a in glosa),
+                 ver="Ver más")
 
 
 def tablero(zona, descargables, seleccion, param, cifras, dudosas=None, rango=None, ubicacion=None):

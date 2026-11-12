@@ -354,8 +354,10 @@
     var rinconL = function (sel) { var e = doc && doc.querySelector(sel); return e ? {w: e.offsetWidth, h: e.offsetHeight} : {w: 0, h: 0}; };
     var bl = rinconL(".leaflet-bottom.leaflet-left"), br = rinconL(".leaflet-bottom.leaflet-right");
     var blAbajo = sobreDock(izq, izq + Math.max(bl.w, 120));
-    // la leyenda va encima de la escala de Leaflet (y de la pildora, si comparten columna)
-    var leyAbajo = Math.max(abajo, ley ? sobreDock(izq, izq + ley.width) : abajo, bl.h ? blAbajo - 10 + bl.h + 4 : 0);
+    // la leyenda va encima de lo que Leaflet tenga en su esquina (y de la pildora, si comparten columna)
+    // (en el celular, encima de la escala y el credito, que ocupan todo el ancho)
+    var leyAbajo = Math.max(abajo, ley ? sobreDock(izq, izq + ley.width) : abajo, bl.h ? blAbajo - 10 + bl.h + 4 : 0,
+                            movil && br.h ? sobreDock(W - G - br.w, W - G) - 10 + br.h + 4 : 0);
     var atrib = caja(".y2k-atrib3d"), atribAbajo = atrib ? sobreDock(W - der - atrib.width, W - der) : sobreDock(W - 200, W - G);
     var atribDer = der, sello = num("--y2k-sello", 0);
     if (atrib && sello > 0 && !movil) {
@@ -390,7 +392,8 @@
       if (!movil && pIzq && credEl) {
         var aH = credEl.offsetHeight || 18, centro = (pIzq.top + pIzq.bottom) / 2, x0 = pIzq.right + G;
         var limite = pDer && pDer.top < centro + aH / 2 && pDer.bottom > centro - aH / 2 ? pDer.left - G : W - G - (sello > 0 ? SELLO_ANCHO : 0);
-        cred = {izq: x0, abajo: H - centro - aH / 2 - 4, ancho: Math.max(120, limite - x0)};
+        var esc = doc.querySelector(".leaflet-control-scale"), escW = esc ? esc.offsetWidth + 8 : 0;   // la escala va antes del credito
+        cred = {izq: x0, abajo: H - centro - aH / 2 - 4, ancho: Math.max(120, limite - x0 - escW)};
       }
       var claveIf = JSON.stringify([v, cred]);
       if (doc.__y2kClave !== claveIf) {
@@ -420,6 +423,10 @@
     // escritorio: credito abajo, a la derecha de la pildora 2D/3D (lo calcula distribuir)
     "html.y2k-credito-abajo .leaflet-bottom.leaflet-right{left:var(--cred-izq,auto);right:auto;bottom:var(--cred-abajo,0)}" +
     "html.y2k-credito-abajo .leaflet-control-attribution{float:left !important;max-width:var(--cred-ancho,60vw) !important}" +
+    // la escala, en el mismo renglon que el credito (escritorio) o encima de el (celular)
+    ".leaflet-control-scale{margin:0 6px 4px 0 !important}" +
+    "html.y2k-credito-abajo .leaflet-control-scale{float:left !important;clear:none !important;margin:0 8px 4px 0 !important}" +
+    "html.y2k-credito-abajo .leaflet-control-attribution{clear:none !important}" +
     // zoom, capas y dibujo se manejan desde la capsula de herramientas de la pagina: sus controles de Leaflet no se ven
     // (la barra de dibujo sigue ahi, invisible, para que sus acciones "Guardar"/"Cancelar" salgan junto a la capsula)
     ".leaflet-control-zoom,.leaflet-control-layers{display:none !important}" +
@@ -496,6 +503,9 @@
     if (c && !c.getAttribute("aria-label")) c.setAttribute("aria-label", "Mapa. Con el teclado: flechas para moverte, + y − para acercar o alejar");
     if (map.__y2kTeselas) return;
     map.__y2kTeselas = {lista: []};
+    // la escala va junto a los creditos (abajo a la izquierda quedaba suelta entre la leyenda y la pildora 2D/3D) y
+    // solo en kilometros
+    try { L.control.scale({position: "bottomright", imperial: false, maxWidth: 90}).addTo(map); } catch (e) {}
     if (L.drawLocal) fusionar(L.drawLocal, DRAW_ES);
     // la ayuda inicial del rectangulo se copia al crear la barra (en ingles): se repone al activar la herramienta
     if (L.Draw && L.Draw.Rectangle && !L.Draw.Rectangle.prototype.__y2k) {

@@ -1,0 +1,66 @@
+
+/* indicador de pasos: en el celular solo el paso actual lleva nombre */
+.y2k-pasos li:not([aria-current]) span{display:none}
+/* el boton principal de Parametros queda fijo abajo: al abrir "Filtrar por ubicacion" se salia de la pantalla */
+.st-key-y2k_inicio_cuerpo .st-key-ir_mapa{position:sticky;bottom:var(--y2k-fundido,14px);z-index:3}
+html{--y2k-libre-izq:0px !important;--y2k-g:10px}
+.st-key-y2k_abrir,.y2k-panel-cerrar{display:none !important}
+/* Parametros y Exportacion: tarjeta flotante abajo, con margen a los lados y libre la esquina del boton de Streamlit */
+.st-key-y2k_inicio,.st-key-y2k_exportar{top:auto !important;bottom:calc(var(--y2k-g) + var(--y2k-sello) + env(safe-area-inset-bottom));
+  left:var(--y2k-g);right:var(--y2k-g);transform:none !important;width:auto !important;border-radius:26px;
+  max-height:calc(100dvh - var(--y2k-capsula) - var(--y2k-g) * 3 - var(--y2k-sello) - env(safe-area-inset-bottom));
+  animation:y2k-entra-abajo .45s var(--y2k-curva) both}
+.st-key-y2k_inicio_cuerpo,.st-key-y2k_exportar_cuerpo{padding:22px 18px !important;--y2k-fundido:14px}
+.st-key-y2k_exportar_cuerpo > [data-testid="stLayoutWrapper"] > [data-testid="stHorizontalBlock"],
+.st-key-y2k_exportar_cuerpo > [data-testid="stHorizontalBlock"]{row-gap:14px !important}
+/* Mapa: barra flotante abajo (Consulta, 2D/3D y "Preparar descarga"), encima de la esquina del boton de Streamlit */
+.st-key-y2k_dock{left:var(--y2k-g) !important;right:var(--y2k-g);bottom:calc(var(--y2k-g) + var(--y2k-sello) + env(safe-area-inset-bottom));
+  padding:4px !important;align-items:center;border-radius:999px;flex-wrap:nowrap !important;gap:4px !important;
+  background:radial-gradient(240px 150px at var(--mx,22%) var(--my,-40%),var(--lg-especular),transparent 70%),var(--lg-brillo),var(--lg-regular);
+  -webkit-backdrop-filter:var(--lg-filtro-regular);backdrop-filter:var(--lg-filtro-regular);
+  box-shadow:inset 0 1px 0 var(--lg-luz),0 0 0 .5px var(--lg-filo),var(--lg-sombra);pointer-events:auto}
+.st-key-y2k_dock_izq{background:transparent !important;-webkit-backdrop-filter:none !important;backdrop-filter:none !important;box-shadow:none !important;
+  padding:0 !important;gap:2px !important}
+.st-key-y2k_dock_der{background:transparent !important;-webkit-backdrop-filter:none !important;backdrop-filter:none !important;box-shadow:none !important;
+  padding:0 !important;margin-bottom:0 !important}
+.st-key-y2k_dock_der::after,.st-key-y2k_dock_izq::after{display:none}
+.st-key-y2k_dock_izq [data-testid="stElementContainer"]:has(.y2k-consulta){display:block}
+.st-key-y2k_dock_izq [data-testid="stButtonGroup"]{background:var(--y2k-pista);border-radius:999px;padding:2px}
+.st-key-y2k_dock_izq button[role="radio"]{min-width:40px;padding:0 10px !important;min-height:34px !important}
+.st-key-y2k_repetir_intro{display:none !important}
+.st-key-y2k_dock_izq .stPopover button [data-testid="stMarkdownContainer"]{position:absolute !important;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+.st-key-preparar button{padding:0 12px !important;min-height:40px !important;height:40px;gap:6px}
+.st-key-preparar button p{font-size:14px !important}
+.y2k-consulta.con-texto{padding:0 11px 0 9px;height:40px}
+/* la consulta: tarjeta flotante sobre la barra, de hasta unas tres cuartas partes de la pantalla */
+.st-key-y2k_panel,html[data-y2k-panel="cerrado"] .st-key-y2k_panel{top:auto !important;left:var(--y2k-g) !important;right:var(--y2k-g);
+  bottom:calc(var(--y2k-dock-h) + 8px) !important;width:auto !important;height:auto !important;
+  max-height:min(75dvh,calc(100dvh - var(--y2k-dock-h) - var(--y2k-capsula) - var(--y2k-g) * 2 - 14px));border-radius:24px !important;
+  transform:none;opacity:1;visibility:visible;transform-origin:50% 100%;animation:none;
+  transition:transform var(--y2k-dur) var(--y2k-curva),opacity .2s ease,visibility 0s}
+html:not([data-y2k-hoja="abierta"]) .st-key-y2k_panel{transform:translateY(14px) scale(.98) !important;opacity:0 !important;visibility:hidden !important;
+  pointer-events:none;transition:transform var(--y2k-dur) var(--y2k-curva),opacity .2s ease,visibility 0s var(--y2k-dur) !important}
+html:not([data-y2k-hoja="abierta"]) .st-key-y2k_panel *{pointer-events:none !important}
+.st-key-y2k_panel_cab{padding:10px 8px 0 18px !important}
+html[data-y2k-3d="1"] .st-key-y2k_panel{-webkit-backdrop-filter:none !important;backdrop-filter:none !important;
+  background:var(--lg-brillo),var(--lg-denso) !important;will-change:transform}
+html[data-y2k-3d="1"] .st-key-y2k_cuerpo{-webkit-mask-image:none !important;mask-image:none !important}
+.y2k-hoja-cerrar{display:inline-flex !important}
+.st-key-y2k_cuerpo{padding:0 16px 16px !important}
+/* con la consulta abierta se aparta lo demas (herramientas, leyenda, escala y creditos del mapa, ficha, camara 3D) */
+/* con la consulta abierta se ocultan enseguida; al cerrarla vuelven cuando la tarjeta ya bajo, en su mismo lugar */
+:is(.st-key-y2k_herr,.st-key-y2k_ficha,.st-key-y2k_filtro,.y2k-leyenda,.y2k-atrib3d){transition:opacity .2s ease .28s,visibility 0s .28s}
+html[data-y2k-hoja="abierta"] :is(.st-key-y2k_herr,.st-key-y2k_ficha,.st-key-y2k_filtro,.y2k-leyenda,.y2k-atrib3d,.y2k-nota-mov,.y2k-aviso3d){
+  opacity:0 !important;visibility:hidden !important;pointer-events:none !important;transition:opacity .1s,visibility 0s .1s}
+.st-key-y2k_filtro,html[data-y2k-panel="cerrado"] .st-key-y2k_filtro{left:var(--y2k-g) !important}
+html[data-y2k-hoja="abierta"][data-y2k-p="mapa"] .y2k-cierre-hoja{display:block;position:fixed;inset:0;z-index:39;background:transparent;
+  -webkit-tap-highlight-color:transparent}
+.st-key-y2k_ficha{top:var(--y2k-g) !important;left:var(--y2k-g);right:calc(var(--y2k-g) * 2 + var(--y2k-ajustes-w, 84px)) !important;width:auto !important;
+  max-height:38dvh}
+.stApp:has(.st-key-y2k_filtro .stPopover) .st-key-y2k_ficha{top:calc(var(--y2k-g) * 2 + var(--y2k-capsula)) !important}
+html:not([data-y2k-ficha="abierta"]) .st-key-y2k_ficha{right:auto !important}
+.st-key-y2k_ficha_cuerpo{padding:4px 14px 12px !important}
+.y2k-menu{min-width:min(240px,calc(100vw - 90px))}
+.y2k-atrib3d{font-size:9.5px;max-width:62vw;padding:3px 9px}
+.y2k-leyenda{max-width:calc(100vw - 80px)}
+.y2k-vacio{top:35%}

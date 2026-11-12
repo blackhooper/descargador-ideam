@@ -1,0 +1,5 @@
+
+:root{--y2k-capsula:40px;--y2k-g:8px;--y2k-panel-w:300px}
+.st-key-y2k_inicio_cuerpo,.st-key-y2k_exportar_cuerpo{padding:16px 20px !important;gap:10px !important;--y2k-fundido:12px}
+.y2k-herr button.h{width:32px;height:32px}
+.st-key-preparar button{min-height:38px !important}

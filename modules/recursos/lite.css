@@ -1,0 +1,9 @@
+
+:root{--y2k-lite:1;--y2k-dur:0s;--lg-claro:var(--lg-denso);--lg-regular:var(--lg-denso);--lg-filtro-claro:none;--lg-filtro-regular:none;--lg-brillo:none;
+  --lg-especular:transparent;--y2k-boton-caustica:none}
+:is(.stButton button[kind="primary"],.stDownloadButton button[kind="primary"],.y2k-boton.prim,.y2k-dialogo button.prim){
+  -webkit-backdrop-filter:none !important;backdrop-filter:none !important}
+:is(__VIDRIO__){box-shadow:inset 0 1px 0 var(--lg-luz),0 0 0 1px var(--lg-filo),0 10px 24px -14px rgba(0,0,0,.5) !important}
+[data-testid="stPopoverBody"]{-webkit-backdrop-filter:none;backdrop-filter:none}
+.st-key-y2k_escenario::after{-webkit-backdrop-filter:none;backdrop-filter:none}
+*,*::before,*::after{transition-duration:0s !important;animation-duration:0s !important;animation-iteration-count:1 !important}

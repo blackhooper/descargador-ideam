@@ -1,0 +1,699 @@
+
+@import url("https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700&display=swap");
+:root{
+  --y2k-g:12px; --y2k-panel-w:440px; --y2k-capsula:44px; --y2k-r:22px; --y2k-r-ctl:12px;
+  --y2k-libre-izq:0px; --y2k-dock-h:64px; --y2k-hoja-h:62px;
+  --y2k-ov-top:12px; --y2k-ov-izq:12px; --y2k-ov-der:68px; --y2k-ov-abajo:72px;
+  --y2k-ley-abajo:72px; --y2k-atrib-abajo:72px;
+  /* esquina de abajo a la derecha reservada al boton de Streamlit Community Cloud ("Manage app" o su logo), que va
+     fuera de la app y no se puede mover: la pone aplicar(sello=True) */
+  --y2k-sello:0px;
+  --y2k-fundido:18px;
+  --y2k-lite:0; --y2k-dur:.32s; --y2k-curva:cubic-bezier(.2,.8,.2,1);
+  --y2k-centro:calc(var(--y2k-libre-izq) + (100vw - var(--y2k-libre-izq)) / 2);
+  color-scheme:light dark;
+}
+/* sin "jalar para recargar" del navegador del celular (recargaba la pagina sin querer) */
+html,body{overscroll-behavior:none}
+html, body, .stApp, [class*="st-"], button, input, textarea, select{font-family:"Figtree",system-ui,-apple-system,"Segoe UI",sans-serif}
+/* los iconos de Streamlit son una fuente: sin esto salen como texto ("dark_mode") */
+[data-testid="stIconMaterial"], [data-testid="stExpanderIcon"]{font-family:"Material Symbols Rounded" !important}
+.stApp{background:var(--y2k-bg);color:var(--y2k-ink)}
+[data-testid="stAppViewContainer"],[data-testid="stMain"]{background:transparent}
+/* el menu de Streamlit se oculta: tema y contraste se cambian en "Ajustes" */
+[data-testid="stMainMenu"]{visibility:hidden !important}
+header[data-testid="stHeader"]{background:transparent;pointer-events:none;height:0;min-height:0}
+[data-testid="stDecoration"]{display:none}
+[data-testid="stToolbar"]{pointer-events:none !important}
+header[data-testid="stHeader"] button,[data-testid="stToolbar"] button{pointer-events:auto !important}
+[data-testid="stStatusWidget"]{display:none !important}
+/* Streamlit atenua lo que recalcula (en oscuro parece una pantalla negra): cada pantalla avisa su propia carga */
+[data-stale="true"]{opacity:1 !important;transition:none !important}
+[data-testid="stMarkdownContainer"]:has(> .y2k-md){margin-bottom:0 !important}
+.y2k-md [data-testid="stHeaderActionElements"]{display:none}
+/* contenedores de guiones (alto cero): no ocupan lugar */
+.st-key-y2k_orbita,.st-key-y2k_escaner,.st-key-y2k_hipso,.st-key-y2k_velo,.st-key-y2k_precal,.st-key-y2k_guiones,
+.st-key-y2k_ocultos{height:0 !important;min-height:0 !important;overflow:hidden !important;margin:0 !important;
+  padding:0 !important;gap:0 !important;position:absolute !important;pointer-events:none}
+h1,h2,h3,h4{color:var(--y2k-ink);letter-spacing:-.01em}
+a{color:var(--y2k-accent-texto)}
+/* foco visible en todos los temas */
+:is(button,a,input,select,textarea,summary,[role="radio"],[role="tab"],[tabindex]):focus-visible{
+  outline:2px solid var(--y2k-foco) !important;outline-offset:2px !important;box-shadow:none !important}
+[data-testid="stCheckbox"] label:has(input:focus-visible) > span + div{outline:2px solid var(--y2k-foco);outline-offset:2px}
+.stMarkdown p,[data-testid="stMarkdownContainer"] p{color:var(--y2k-ink-2)}
+[data-testid="stWidgetLabel"] p{color:var(--y2k-ink) !important;font-weight:600;font-size:13px !important}
+/* Streamlit pinta los captions al 60 % de opacidad (quedan bajo 4,5:1): color del token, opaco */
+[data-testid="stCaptionContainer"],[data-testid="stCaptionContainer"] p{color:var(--y2k-ink-3) !important;opacity:1 !important}
+.y2k-hint,[data-testid="stMarkdownContainer"] p.y2k-hint{font-size:12.5px !important;line-height:1.45 !important;color:var(--y2k-ink-3) !important;margin:0 !important}
+.y2k-vh{position:absolute !important;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+
+/* barras de desplazamiento como las del celular: en reposo transparentes; se ven mientras se desplaza o con el puntero
+   sobre la barra (el guion marca [data-y2k-desplaza]). Solo con raton; en alto contraste se ven siempre */
+@media (hover: hover) and (pointer: fine){
+  :is(.st-key-y2k_cuerpo,.st-key-y2k_inicio_cuerpo,.st-key-y2k_exportar_cuerpo,.st-key-y2k_ficha_cuerpo,[data-testid="stPopoverBody"],
+      .y2k-menu,.dvn-scroller,[data-testid="stDialog"] [role="dialog"],[data-testid="stExpanderDetails"]){
+    scrollbar-width:thin !important;scrollbar-color:transparent transparent !important;transition:scrollbar-color .35s ease}
+  /* mismo :is (su peso es el de su selector mas pesado) mas el atributo, para ganarle a la regla de reposo */
+  :is(.st-key-y2k_cuerpo,.st-key-y2k_inicio_cuerpo,.st-key-y2k_exportar_cuerpo,.st-key-y2k_ficha_cuerpo,[data-testid="stPopoverBody"],
+      .y2k-menu,.dvn-scroller,[data-testid="stDialog"] [role="dialog"],[data-testid="stExpanderDetails"])[data-y2k-desplaza]{
+    scrollbar-color:var(--y2k-line-2) transparent !important;transition:none}
+}
+
+/* ================= MATERIAL: VIDRIO LIQUIDO ================= */
+/* brillo especular: una luz suave que sigue al puntero (la mueve el guion de la interfaz). Va en el fondo del
+   propio vidrio, que no se desplaza: la luz siempre queda bajo el puntero */
+:is(__VIDRIO_CLARO__){background:radial-gradient(240px 150px at var(--mx,22%) var(--my,-40%),var(--lg-especular),transparent 70%),
+  var(--lg-brillo),var(--lg-claro);-webkit-backdrop-filter:var(--lg-filtro-claro);backdrop-filter:var(--lg-filtro-claro)}
+:is(__VIDRIO_REGULAR__){background:radial-gradient(240px 150px at var(--mx,22%) var(--my,-40%),var(--lg-especular),transparent 70%),
+  var(--lg-brillo),var(--lg-regular);-webkit-backdrop-filter:var(--lg-filtro-regular);backdrop-filter:var(--lg-filtro-regular)}
+:is(__VIDRIO__){isolation:isolate;border-radius:var(--y2k-r);color:var(--y2k-ink);
+  box-shadow:inset 0 1px 0 var(--lg-luz),inset 0 -1px 0 var(--lg-borde),0 0 0 .5px var(--lg-filo),var(--lg-sombra);
+  transition:box-shadow var(--y2k-dur) ease}
+/* canto de luz: degradado diagonal solo en el contorno (mascara), como el borde de un vidrio */
+:is(__VIDRIO__)::after{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;padding:1px;
+  background:linear-gradient(135deg,var(--lg-luz),transparent 30%,transparent 64%,var(--lg-borde));
+  -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;
+  mask:linear-gradient(#000 0 0) content-box exclude,linear-gradient(#000 0 0)}
+:is(__VIDRIO__):hover{box-shadow:inset 0 1px 0 var(--lg-luz),inset 0 -1px 0 var(--lg-borde),0 0 0 .5px var(--lg-filo),var(--lg-sombra),
+  0 0 0 1px var(--lg-borde)}
+/* sin desenfoque en el navegador: el vidrio se vuelve casi opaco para que el texto se siga leyendo */
+@supports not ((backdrop-filter:blur(1px)) or (-webkit-backdrop-filter:blur(1px))){
+  :is(__VIDRIO__){background:var(--lg-denso)}
+}
+/* botones dentro del vidrio claro: transparentes; el elegido es una "lente" elevada */
+:is(__VIDRIO_CLARO__) button{background:transparent !important;border:0 !important;box-shadow:none !important;color:var(--y2k-ink) !important;
+  border-radius:999px !important;min-height:36px !important;transition:background var(--y2k-dur),transform .12s}
+:is(__VIDRIO_CLARO__) button p{color:inherit !important;font-weight:600 !important;font-size:13.5px !important}
+:is(__VIDRIO_CLARO__) button:hover{background:var(--y2k-hover) !important}
+:is(__VIDRIO_CLARO__) button:active{transform:scale(.96)}
+:is(__VIDRIO_CLARO__) button[kind="primary"]{color:var(--y2k-sobre-acento) !important}
+.st-key-y2k_dock_izq [data-testid="stButtonGroup"]{width:auto}
+.st-key-y2k_dock_izq [data-testid="stButtonGroup"] > div{gap:2px;background:transparent;border:0;flex-wrap:nowrap}
+.st-key-y2k_dock_izq button[role="radio"]{padding:0 14px !important;min-height:36px !important;min-width:52px}
+.st-key-y2k_dock_izq button[aria-checked="true"],[data-testid="stPopoverBody"] button[aria-checked="true"]{background:var(--y2k-lente) !important;
+  box-shadow:var(--y2k-lente-sombra) !important}
+.st-key-y2k_dock_izq button[aria-checked="true"] p{font-weight:700 !important}
+
+/* ================= ESCENARIO: EL MAPA, SIEMPRE DETRAS ================= */
+.stMain:has(.st-key-y2k_escenario){overflow:hidden !important}
+.stMainBlockContainer:has(.st-key-y2k_escenario){padding:0 !important;max-width:none;gap:0 !important}
+.st-key-y2k_escenario{position:fixed !important;inset:0;z-index:0;width:auto !important;gap:0 !important;background:var(--y2k-mapa-fondo)}
+.st-key-y2k_mapa2d,.st-key-y2k_visor3d{position:absolute !important;inset:0;width:auto !important;height:auto !important;min-height:0 !important;gap:0 !important}
+.st-key-y2k_mapa2d > [data-testid="stElementContainer"],.st-key-y2k_mapa2d > [data-testid="stElementContainer"] > div,
+.st-key-y2k_visor3d > [data-testid="stElementContainer"],.st-key-y2k_visor3d [data-testid="stFullScreenFrame"],
+.st-key-y2k_visor3d [data-testid="stDeckGlJsonChart"],.st-key-y2k_visor3d [data-testid="stDeckGlJsonChart"] > div{
+  height:100% !important;width:100% !important;max-height:none !important}
+.st-key-y2k_mapa2d > [data-testid="stElementContainer"],.st-key-y2k_visor3d > [data-testid="stElementContainer"]{flex:1 1 auto !important}
+.st-key-y2k_mapa2d iframe{height:100% !important;width:100% !important;display:block;border:0}
+/* al pasar a 3D, el mapa 2D viejo sigue un momento en el mismo lugar (ya con la clave del visor): que siga llenando */
+.st-key-y2k_visor3d > [data-testid="stElementContainer"]:has(iframe[title*="st_folium"]),
+.st-key-y2k_visor3d > [data-testid="stElementContainer"]:has(iframe[title*="st_folium"]) > div{height:100% !important;width:100% !important}
+.st-key-y2k_visor3d iframe[title*="st_folium"]{height:100% !important;width:100% !important;display:block;border:0}
+/* cielo detras del relieve 3D (el 3D no tiene mapa plano de fondo) */
+[data-testid="stDeckGlJsonChart"]{background:var(--y2k-cielo);overflow:hidden}
+/* neblina lejana: el relieve solo se pide alrededor de la zona y su borde se funde en ella. El guion calcula en que
+   altura de la pantalla queda ese borde (--n-y) y la franja de transicion (--n-banda); si el borde no se ve, no hay
+   neblina. Por encima del borde solo hay cielo, del mismo color */
+.y2k-neblina{position:absolute;inset:0;pointer-events:none;opacity:0;transition:opacity .3s linear;
+  background:linear-gradient(180deg,var(--y2k-niebla) 0,var(--y2k-niebla) var(--n-y,0px),
+    color-mix(in srgb,var(--y2k-niebla) 50%,transparent) calc(var(--n-y,0px) + var(--n-banda,80px) * .4),
+    transparent calc(var(--n-y,0px) + var(--n-banda,80px)))}
+@media (prefers-reduced-motion: reduce){.y2k-neblina{transition:none}}
+/* velo sobre el mapa en Parametros y Exportacion: se ve detras, desenfocado, y no recibe clics */
+.st-key-y2k_escenario::after{content:"";position:absolute;inset:0;z-index:30;pointer-events:none;opacity:0;visibility:hidden;
+  background:var(--y2k-velo);-webkit-backdrop-filter:blur(5px) saturate(125%);backdrop-filter:blur(5px) saturate(125%);
+  transition:opacity .6s var(--y2k-curva),visibility 0s .6s}
+:is(__P_PARAM__,__P_EXPORT__) .st-key-y2k_escenario::after{opacity:1;visibility:visible;pointer-events:auto;
+  transition:opacity .6s var(--y2k-curva),visibility 0s}
+/* piezas HTML sobre el mapa: el contenedor de Streamlit no debe ser su referencia de posicion */
+.st-key-y2k_escenario > [data-testid="stElementContainer"]:has(.y2k-sobre){position:absolute !important;inset:0;width:auto !important;
+  height:auto !important;pointer-events:none;z-index:25;margin:0}
+.st-key-y2k_escenario > [data-testid="stElementContainer"]:has(.y2k-sobre) *:has(.y2k-sobre){position:static !important}
+.y2k-sobre{position:absolute;pointer-events:auto;z-index:25}
+/* intro satelital (static/intro_satelital): cubre toda la ventana, encima de los controles */
+.y2k-sat{border-radius:0 !important}
+.y2k-sat > button{right:20px !important;bottom:calc(20px + var(--y2k-sello) + env(safe-area-inset-bottom)) !important;border-radius:999px !important;padding:10px 16px !important;
+  font-size:13px !important;-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px)}
+
+/* ================= AJUSTES (arriba a la derecha, en todas las pantallas) ================= */
+.st-key-y2k_ajustes{position:fixed !important;top:var(--y2k-g);right:var(--y2k-g);z-index:55;height:var(--y2k-capsula);
+  width:auto !important;border-radius:999px;padding:4px !important;margin:0 !important;display:flex !important;flex-direction:row !important;
+  align-items:center;gap:2px !important;flex-wrap:nowrap !important}
+.st-key-y2k_ajustes > div{width:auto !important;flex:none !important}
+/* capsulas flotantes: Streamlit pone overflow:auto a sus contenedores horizontales y, con el contenido justo del alto
+   de la capsula, un pixel de mas (fuente, zoom) abria una barra de desplazamiento al pasar el puntero */
+:is(.st-key-y2k_ajustes,.st-key-y2k_dock,.st-key-y2k_dock_izq,.st-key-y2k_dock_der),
+:is(.st-key-y2k_ajustes,.st-key-y2k_dock_izq) > div,.st-key-y2k_ajustes .stPopover{overflow:visible !important}
+.st-key-y2k_ajustes .stPopover button{width:36px;min-width:36px;padding:0 !important;justify-content:center}
+.st-key-y2k_ajustes .stPopover button [data-testid="stMarkdownContainer"]{position:absolute !important;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+.st-key-y2k_ajustes .stPopover button [data-testid="stIconMaterial"],.st-key-y2k_filtro .stPopover button [data-testid="stIconMaterial"]{
+  font-size:21px !important;width:21px;height:21px;line-height:21px !important;justify-content:center;overflow:visible}
+.st-key-y2k_ajustes [data-testid="stPopoverButton"] > div > div[aria-hidden="true"]{display:none !important}
+/* Streamlit deja un margen derecho negativo al contenido para acercar la flecha del menu; sin flecha corria el icono
+   2,5 px a la derecha. Ademas el icono (solo) se centra por posicion en el boton, sin depender de esos envoltorios */
+:is(.st-key-y2k_ajustes,.st-key-y2k_filtro) [data-testid="stPopoverButton"] > div{margin:0 !important}
+:is(.st-key-y2k_ajustes,.st-key-y2k_filtro:not(:has(.y2k-filtro-on))) .stPopover button{position:relative !important}
+:is(.st-key-y2k_ajustes,.st-key-y2k_filtro:not(:has(.y2k-filtro-on))) .stPopover button [data-testid="stIconMaterial"]{
+  position:absolute !important;left:50% !important;top:50% !important;transform:translate(-50%,-50%);margin:0 !important}
+.st-key-y2k_idioma button{min-width:36px;height:36px;min-height:36px;padding:0 8px !important;border-radius:999px;
+  font:700 12px/1 "Figtree",sans-serif !important;letter-spacing:.06em;color:var(--y2k-ink) !important}
+.st-key-y2k_idioma button p{font:inherit !important}
+.y2k-lite-chip{display:inline-flex;align-items:center;height:28px;padding:0 10px 0 8px;border-radius:999px;font:700 12px/1 "Figtree",sans-serif;
+  letter-spacing:.04em;color:var(--y2k-sobre-acento);background:var(--y2k-accent);gap:4px}
+.y2k-lite-chip svg{width:13px;height:13px}
+[data-testid="stPopoverBody"]{border-radius:18px !important;border:0 !important;background:var(--lg-brillo),var(--lg-denso) !important;
+  -webkit-backdrop-filter:var(--lg-filtro-regular);backdrop-filter:var(--lg-filtro-regular);
+  box-shadow:inset 0 1px 0 var(--lg-luz),0 0 0 .5px var(--lg-filo),var(--lg-sombra) !important}
+[data-testid="stPopoverBody"] .y2k-hint{margin-top:2px !important}
+.y2k-menu-tit,[data-testid="stMarkdownContainer"] p.y2k-menu-tit{font-size:11.5px !important;text-transform:uppercase;letter-spacing:.08em;
+  font-weight:700;color:var(--y2k-ink-3) !important;margin:0 0 -4px !important;line-height:1.3 !important}
+.y2k-enlace{display:flex;align-items:center;gap:8px;font-weight:600;font-size:13.5px;color:var(--y2k-accent-texto) !important;text-decoration:none !important;
+  padding:10px 0 2px;border-top:1px solid var(--y2k-line)}
+.y2k-enlace:hover{text-decoration:underline !important}
+.y2k-enlace svg{width:17px;height:17px}
+
+/* ================= ACCESO (clave) ================= */
+.st-key-y2k_acceso{position:fixed !important;z-index:40;left:50%;top:50%;transform:translate(-50%,-50%);
+  width:min(420px,calc(100vw - 32px)) !important;padding:26px 28px 24px !important;gap:10px !important;border-radius:30px;
+  animation:y2k-entra-centro .5s var(--y2k-curva) both}
+.st-key-y2k_acceso .y2k-cab-inicio{padding:0 0 12px !important}
+.st-key-y2k_acceso .stButton{margin-top:6px}
+/* el campo de clave trae fondos propios de Streamlit en sus piezas internas (no siguen el tema oscuro) */
+.st-key-y2k_acceso [data-testid="stTextInputRootElement"]{background:var(--y2k-campo) !important;
+  border-color:var(--y2k-campo-borde) !important;border-radius:var(--y2k-r-ctl) !important}
+.st-key-y2k_acceso [data-testid="stTextInputRootElement"] :is(input,button,div){background:transparent !important;color:var(--y2k-ink) !important}
+.st-key-y2k_acceso [data-testid="stTextInputRootElement"] input{caret-color:var(--y2k-ink);-webkit-text-fill-color:var(--y2k-ink)}
+.st-key-y2k_acceso_idioma{position:fixed !important;top:var(--y2k-g);right:var(--y2k-g);z-index:55;width:auto !important;
+  height:var(--y2k-capsula);padding:4px !important;border-radius:999px;display:flex !important;align-items:center}
+.st-key-y2k_acceso_idioma button{min-width:36px;height:36px;min-height:36px;padding:0 8px !important;border-radius:999px;
+  font:700 12px/1 "Figtree",sans-serif !important;letter-spacing:.06em;color:var(--y2k-ink) !important}
+.st-key-y2k_acceso_idioma button p{font:inherit !important}
+
+/* ================= PANTALLA 1: PARAMETROS ================= */
+.st-key-y2k_inicio{position:fixed !important;z-index:40;left:50%;top:50%;transform:translate(-50%,-50%);
+  width:min(580px,calc(100vw - 32px)) !important;max-height:calc(100dvh - 2 * (var(--y2k-g) + var(--y2k-capsula) + 8px));overflow:hidden;
+  padding:0 !important;gap:0 !important;border-radius:30px;display:flex !important;flex-direction:column;
+  animation:y2k-entra-centro .5s var(--y2k-curva) both}
+/* tarjetas centradas: el vidrio queda quieto y se desplaza su cuerpo; la barra, delgada y dentro de la curva */
+:is(.st-key-y2k_inicio,.st-key-y2k_exportar,.st-key-y2k_ficha) > [data-testid="stLayoutWrapper"]{flex:1 1 auto;min-height:0;display:flex;
+  flex-direction:column;width:100% !important}
+.st-key-y2k_inicio_cuerpo,.st-key-y2k_exportar_cuerpo,.st-key-y2k_ficha_cuerpo{flex:1 1 auto;min-height:0;overflow-y:auto;overscroll-behavior:contain;
+  scrollbar-width:thin;scrollbar-color:var(--y2k-line-2) transparent;scrollbar-gutter:auto;margin:0 !important;
+  /* el contenido se desvanece al llegar al borde (igual arriba y abajo), sin una franja ni un corte marcado */
+  -webkit-mask-image:linear-gradient(180deg,transparent 0,#000 var(--y2k-fundido),#000 calc(100% - var(--y2k-fundido)),transparent 100%);
+  mask-image:linear-gradient(180deg,transparent 0,#000 var(--y2k-fundido),#000 calc(100% - var(--y2k-fundido)),transparent 100%)}
+.st-key-y2k_inicio_cuerpo{padding:28px 30px !important;gap:14px !important}
+@keyframes y2k-entra-centro{from{opacity:0;transform:translate(-50%,calc(-50% + 14px)) scale(.985)}}
+.y2k-cab-inicio .eyebrow{font-size:12px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--y2k-accent-texto);margin:0}
+.y2k-cab-inicio h1{font-size:clamp(25px,3.1vw,32px) !important;line-height:1.12 !important;font-weight:700 !important;letter-spacing:-.022em;
+  margin:6px 0 0 !important;padding:0 !important;color:var(--y2k-ink)}
+/* Senal de carga del mapa: una linea delgada arriba que solo aparece si la corrida pasa de 3 s (con el filtro por
+   ubicacion no corre el escaner y la pantalla quedaba quieta). Sin textos: se va sola al terminar */
+__P_MAPA__[data-test-script-state="running"]::after{content:"";position:fixed;top:0;left:0;height:3px;width:34%;z-index:60;
+  border-radius:0 3px 3px 0;background:var(--y2k-accent);opacity:0;pointer-events:none;
+  animation:y2k-carga-ver .3s 3s forwards,y2k-carga 1.4s 3s ease-in-out infinite}
+@keyframes y2k-carga-ver{to{opacity:1}}
+@keyframes y2k-carga{0%{transform:translateX(-100%)}100%{transform:translateX(300%)}}
+.y2k-pasos{display:flex;align-items:center;gap:8px;list-style:none;margin:10px 0 0 !important;padding:0 !important;counter-reset:paso;
+  font-size:12.5px;line-height:1;color:var(--y2k-ink-3);flex-wrap:nowrap;min-width:0}
+.y2k-pasos li{display:flex;align-items:center;gap:6px;margin:0 !important;padding:0 !important;min-width:0;white-space:nowrap}
+.y2k-pasos li span{overflow:hidden;text-overflow:ellipsis}
+.y2k-pasos li::before{counter-increment:paso;content:counter(paso);width:18px;height:18px;border-radius:50%;flex:none;display:grid;
+  place-items:center;font-size:11px;font-weight:700;color:var(--y2k-ink-2);box-shadow:inset 0 0 0 1px var(--y2k-campo-borde)}
+.y2k-pasos li + li{flex:0 1 auto}
+.y2k-pasos li:not(:last-child)::after{content:"";width:14px;height:1px;background:var(--y2k-line-2);flex:none;margin-left:2px}
+.y2k-pasos li[aria-current]{color:var(--y2k-ink);font-weight:700}
+.y2k-pasos li[aria-current]::before{background:var(--y2k-accent);color:var(--y2k-sobre-acento);box-shadow:none}
+.y2k-pasos li.hecho::before{background:var(--y2k-campo);color:var(--y2k-ink)}
+/* en el panel del mapa (angosto) solo el paso actual lleva nombre */
+.st-key-y2k_cuerpo .y2k-pasos{margin:0 0 2px !important}
+.st-key-y2k_cuerpo .y2k-pasos li:not([aria-current]) span{display:none}
+.st-key-y2k_atajos{gap:6px !important;margin-top:-6px;flex-wrap:wrap}
+.st-key-y2k_atajos button{min-height:28px !important;height:28px;padding:0 11px !important;border-radius:999px !important;
+  background:var(--y2k-campo) !important;border:0 !important;box-shadow:inset 0 0 0 1px var(--y2k-campo-borde) !important}
+.st-key-y2k_atajos button p{font-size:12.5px !important;font-weight:600 !important;color:var(--y2k-ink-2) !important}
+.st-key-y2k_atajos button:hover{background:var(--y2k-hover) !important}
+.y2k-etq{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;color:var(--y2k-ink);margin:0 0 -8px;min-height:18px}
+.y2k-etq .opc{font-weight:500;color:var(--y2k-ink-3)}
+.st-key-y2k_fechas [data-testid="stHorizontalBlock"]{flex-wrap:nowrap !important}
+.st-key-y2k_fechas [data-testid="stColumn"]{min-width:0 !important;flex:1 1 0 !important;width:auto !important}
+/* punto de estado de la lista de parametros: gris mientras carga, se enciende al estar lista */
+.y2k-punto{width:7px;height:7px;border-radius:50%;background:var(--y2k-line-2);flex:none;margin-left:2px}
+.y2k-punto[data-estado="cargando"]{animation:y2k-respira 1.6s ease-in-out infinite}
+.y2k-punto[data-estado="listo"]{background:var(--y2k-accent);box-shadow:0 0 0 2.5px color-mix(in srgb,var(--y2k-accent) 24%,transparent),
+  0 0 9px 1px color-mix(in srgb,var(--y2k-accent) 70%,transparent);animation:y2k-enciende 1s ease-out 1}
+.y2k-punto[data-estado="error"]{background:var(--y2k-peligro)}
+@keyframes y2k-respira{50%{opacity:.3}}
+@keyframes y2k-enciende{0%{transform:scale(.3);opacity:.4}55%{transform:scale(1.5);opacity:1}100%{transform:scale(1)}}
+.st-key-y2k_inicio [data-baseweb="select"] > div,.st-key-y2k_inicio [data-baseweb="input"],.st-key-y2k_inicio [data-baseweb="base-input"],
+:is(.st-key-y2k_panel,.st-key-y2k_ficha,.st-key-y2k_exportar) [data-baseweb="select"] > div,
+:is(.st-key-y2k_panel,.st-key-y2k_ficha,.st-key-y2k_exportar) [data-baseweb="input"],
+:is(.st-key-y2k_panel,.st-key-y2k_ficha,.st-key-y2k_exportar) [data-baseweb="base-input"]{background:var(--y2k-campo) !important;
+  border-color:var(--y2k-campo-borde) !important;border-radius:var(--y2k-r-ctl) !important}
+.st-key-y2k_inicio [data-baseweb="select"] > div{min-height:46px}
+.st-key-y2k_inicio [data-baseweb="select"]:has(input:disabled) > div{opacity:.55;cursor:not-allowed}
+/* serie de tiempo: dos opciones del mismo ancho */
+.st-key-serie [data-testid="stButtonGroup"] > div{width:100%;flex-wrap:nowrap}
+.st-key-serie button[role="radio"]{flex:1 1 0 !important;min-height:40px}
+.st-key-serie button[aria-checked="true"]{background:var(--y2k-lente) !important;box-shadow:var(--y2k-lente-sombra) !important;
+  border-color:transparent !important}
+.st-key-serie button[aria-checked="true"] p{font-weight:700 !important}
+/* boton principal: siempre azul. Si se pulsa antes de que el mapa y los datos esten listos no avanza y da dos
+   destellos rojos (el guion le pone .y2k-parpadeo); la senal de la carga es el punto de "Variable" */
+.st-key-ir_mapa button{min-height:52px !important;font-size:15.5px !important;border-radius:999px !important;position:relative;overflow:hidden}
+.st-key-ir_mapa button p{font-size:15.5px !important}
+.st-key-ir_mapa button > *{position:relative;z-index:1}
+.st-key-ir_mapa button::after{content:"";position:absolute;inset:0;border-radius:inherit;background:var(--y2k-peligro);opacity:0;pointer-events:none}
+.st-key-ir_mapa button.y2k-parpadeo::after{animation:y2k-rojo .9s ease-in-out}
+@keyframes y2k-rojo{0%,50%,100%{opacity:0}22%,72%{opacity:.95}}
+/* marcas para el guion: no ocupan lugar */
+[data-testid="stElementContainer"]:has(.y2k-oculto){display:none !important}
+/* avisos discretos: una linea con su icono; el detalle, al abrirla */
+.y2k-aviso{margin:0;font-size:12.5px;line-height:1.45;color:var(--y2k-ink-2)}
+p.y2k-aviso,details.y2k-aviso > summary{display:flex;align-items:flex-start;gap:7px}
+details.y2k-aviso > summary{cursor:pointer;list-style:none;border-radius:6px}
+details.y2k-aviso > summary::-webkit-details-marker{display:none}
+.y2k-aviso svg{width:15px;height:15px;flex:none;margin-top:1px;color:var(--y2k-alerta)}
+.y2k-aviso[data-tono="error"] svg{color:var(--y2k-peligro)}
+.y2k-aviso[data-tono="info"] svg{color:var(--y2k-accent-texto)}
+.y2k-aviso summary > span:first-of-type,p.y2k-aviso > span{flex:1 1 auto;min-width:0}
+.y2k-aviso .ver{color:var(--y2k-accent-texto);font-weight:600;text-decoration:underline;text-underline-offset:2px;white-space:nowrap;flex:none}
+.y2k-aviso .ver::after{content:" ▾"}
+details.y2k-aviso[open] .ver::after{content:" ▴"}
+details.y2k-aviso > div{margin:5px 0 0 22px}
+details.y2k-aviso > div p{margin:0 !important;font-size:12.5px !important;color:var(--y2k-ink-3) !important}
+.y2k-pie-inicio{display:flex;flex-direction:column;gap:6px;padding-top:12px;border-top:1px solid var(--y2k-line);font-size:12px;line-height:1.5;color:var(--y2k-ink-3)}
+.y2k-pie-inicio p{margin:0;font-size:12px;color:var(--y2k-ink-3)}
+.st-key-y2k_inicio [data-testid="stExpander"] details,.st-key-y2k_exportar [data-testid="stExpander"] details{border-radius:16px !important;border:0 !important;
+  background:var(--y2k-campo);box-shadow:0 0 0 1px var(--y2k-campo-borde) inset}
+/* el titulo del desplegable no lleva franja propia al abrirse (Streamlit le pone un fondo gris con esquinas de 8 px que
+   no casan con la caja de 16 px): abierto y cerrado se ven igual */
+.st-key-y2k_inicio [data-testid="stExpander"] summary{background:transparent !important;border-radius:16px !important}
+
+/* ================= PANTALLA 2: MAPA ================= */
+/* panel lateral */
+html[data-y2k-panel="abierto"],html:not([data-y2k-panel]){--y2k-libre-izq:calc(var(--y2k-panel-w) + var(--y2k-g) * 2)}
+.st-key-y2k_panel{position:fixed !important;z-index:40;top:var(--y2k-g);bottom:var(--y2k-g);left:var(--y2k-g);
+  width:var(--y2k-panel-w) !important;padding:0 !important;gap:0 !important;display:flex !important;flex-direction:column;overflow:hidden;
+  transform-origin:10% 0;transition:transform var(--y2k-dur) var(--y2k-curva),opacity var(--y2k-dur) ease,visibility 0s;
+  animation:y2k-entra-izq .45s var(--y2k-curva) both}
+@keyframes y2k-entra-izq{from{opacity:0;transform:translateX(-18px)}}
+html[data-y2k-panel="cerrado"] .st-key-y2k_panel{transform:translate(-12px,-8px) scale(.94);opacity:0;visibility:hidden;
+  transition:transform var(--y2k-dur) var(--y2k-curva),opacity .2s ease,visibility 0s var(--y2k-dur)}
+/* cerrada no recibe toques: algunos elementos de Streamlit (textos con ayuda) se fuerzan visibles y, aunque
+   transparentes, tapaban la leyenda y el mapa */
+html[data-y2k-panel="cerrado"]:not([data-y2k-hoja="abierta"]) :is(.st-key-y2k_panel,.st-key-y2k_panel *){pointer-events:none !important}
+html[data-y2k-panel="cerrado"]{--y2k-libre-izq:0px}
+.st-key-y2k_panel > div{width:100% !important}
+.st-key-y2k_panel > [data-testid="stElementContainer"]{flex:none}
+.st-key-y2k_panel > [data-testid="stLayoutWrapper"]{flex:1 1 auto;min-height:0;display:flex;flex-direction:column}
+.st-key-y2k_panel > [data-testid="stLayoutWrapper"]:has(> .st-key-y2k_panel_cab){flex:none}
+.st-key-y2k_panel_cab{padding:12px 12px 2px 20px !important;gap:0 !important}
+.y2k-panel-cab{display:flex;align-items:center;justify-content:space-between;gap:8px;min-height:36px}
+.y2k-panel-cab .t,[data-testid="stMarkdownContainer"] .y2k-panel-cab p.t{margin:0;font-size:17px !important;font-weight:700;letter-spacing:-.01em;
+  color:var(--y2k-ink) !important;line-height:1.2 !important}
+.y2k-hoja-cerrar{display:none !important}
+.st-key-y2k_cuerpo{flex:1 1 auto;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding:6px 18px 18px !important;
+  gap:12px !important;scrollbar-width:thin;scrollbar-color:var(--y2k-line-2) transparent;
+  -webkit-mask-image:linear-gradient(180deg,transparent 0,#000 12px,#000 calc(100% - 14px),transparent 100%);
+  mask-image:linear-gradient(180deg,transparent 0,#000 12px,#000 calc(100% - 14px),transparent 100%)}
+/* secciones del panel: titulo y, a la derecha, su dato (cifra en capsula o la variable consultada) */
+.y2k-sec{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:10px 0 -2px;min-height:30px}
+.y2k-sec .t{font-size:11.5px;text-transform:uppercase;letter-spacing:.08em;font-weight:700;color:var(--y2k-ink-3);margin:0;flex:none}
+.y2k-sec .valor{font-size:13px;font-weight:600;color:var(--y2k-ink-3);white-space:nowrap}
+/* area marcada: su cifra en una capsula propia */
+.y2k-km{display:inline-flex;align-items:center;gap:6px;height:28px;padding:0 11px 0 9px;border-radius:999px;white-space:nowrap;
+  font:700 13px/1 "Figtree",sans-serif;font-variant-numeric:tabular-nums;color:var(--y2k-accent-texto);
+  background:color-mix(in srgb,var(--y2k-accent) 14%,var(--lg-denso));box-shadow:inset 0 0 0 1px color-mix(in srgb,var(--y2k-accent) 34%,transparent)}
+.y2k-km svg{width:15px;height:15px;flex:none}
+/* la variable consultada: al pulsarla se vuelve a Parametros */
+.y2k-chip{all:unset;box-sizing:border-box;display:inline-flex;align-items:center;gap:6px;min-width:0;max-width:60%;height:30px;padding:0 12px 0 8px;
+  border-radius:999px;cursor:pointer;font:600 13px/1 "Figtree",sans-serif;color:var(--y2k-ink);background:var(--y2k-campo);
+  box-shadow:inset 0 0 0 1px var(--y2k-campo-borde);transition:box-shadow var(--y2k-dur),transform .12s}
+.y2k-chip span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.y2k-chip svg{width:16px;height:16px;flex:none;color:var(--y2k-accent-texto)}
+.y2k-chip:hover{box-shadow:inset 0 0 0 1.5px var(--y2k-accent)}
+.y2k-chip:active{transform:scale(.96)}
+/* buffer: una pildora pequena; al pulsarla se cambia el ancho */
+.st-key-y2k_buffer{margin-top:-2px}
+.st-key-y2k_buffer [data-testid="stPopoverButton"],.st-key-y2k_buffer .stPopover button{min-height:32px !important;height:32px;padding:0 10px 0 8px !important;
+  border-radius:999px !important;background:var(--y2k-campo) !important;border:0 !important;box-shadow:inset 0 0 0 1px var(--y2k-campo-borde) !important;
+  color:var(--y2k-ink) !important;gap:6px}
+.st-key-y2k_buffer .stPopover button p{font-size:13px !important;font-weight:600 !important;color:var(--y2k-ink) !important}
+.st-key-y2k_buffer .stPopover button [data-testid="stIconMaterial"]{font-size:17px !important;color:var(--y2k-accent-texto)}
+.st-key-y2k_buffer .stPopover button:hover{box-shadow:inset 0 0 0 1.5px var(--y2k-accent) !important}
+.y2k-acciones{display:flex;flex-wrap:wrap;gap:6px}
+[data-testid="stMarkdownContainer"] p.y2k-hint.y2k-ubic{display:flex;align-items:flex-start;gap:6px;margin:0 0 8px !important}
+.y2k-ubic svg{width:15px;height:15px;flex:none;margin-top:2px}
+/* nombres largos en las listas desplegables (estaciones): se cortan con «…» en vez de en seco */
+[role="listbox"] [role="option"] > div{display:block !important;align-self:center;min-width:0;overflow:hidden;text-overflow:ellipsis;
+  white-space:nowrap}
+.y2k-acciones .y2k-boton{flex:1 1 auto;justify-content:center}
+/* con un area marcada: tres acciones compactas en una fila (icono arriba, texto abajo) */
+.y2k-acciones.fichas{display:grid;grid-template-columns:repeat(3,minmax(0,1fr))}
+.y2k-acciones.fichas .y2k-boton{flex-direction:column;height:auto;padding:9px 4px 8px;gap:5px;border-radius:14px;font-size:12.5px;font-weight:600}
+.y2k-acciones.fichas .y2k-boton svg{width:18px;height:18px}
+.y2k-boton{all:unset;box-sizing:border-box;display:inline-flex;align-items:center;gap:8px;height:40px;padding:0 14px;border-radius:999px;cursor:pointer;
+  font:700 13.5px/1 "Figtree",sans-serif;white-space:nowrap;transition:transform .12s,filter var(--y2k-dur),box-shadow var(--y2k-dur)}
+.y2k-boton svg{width:17px;height:17px;flex:none}
+.y2k-boton.prim{color:var(--y2k-sobre-acento)}
+.y2k-boton.sec{color:var(--y2k-ink);box-shadow:0 0 0 1px var(--y2k-campo-borde) inset;background:var(--y2k-campo)}
+.y2k-boton.sec svg{color:var(--y2k-accent-texto)}
+.y2k-boton.sec:hover{box-shadow:0 0 0 1.5px var(--y2k-accent) inset}
+.y2k-boton.peligro svg{color:var(--y2k-peligro)}
+.y2k-boton:hover{filter:brightness(1.05)}
+.y2k-boton:active{transform:scale(.96)}
+/* tablero de calidad */
+.y2k-kpis{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px}
+.y2k-kpi{background:var(--y2k-campo);box-shadow:0 0 0 1px var(--y2k-campo-borde) inset;border-radius:14px;padding:9px 10px 8px;min-width:0}
+.y2k-kpi .v{font-size:19px;font-weight:700;color:var(--y2k-ink);line-height:1.1;font-variant-numeric:tabular-nums;white-space:nowrap;letter-spacing:-.02em}
+.y2k-kpi .l{font-size:11.5px;font-weight:700;color:var(--y2k-ink-2);line-height:1.25;margin-top:4px}
+.y2k-kpi .s{font-size:11.5px;color:var(--y2k-ink-3);line-height:1.3}
+.y2k-lista-cab{display:flex;align-items:baseline;justify-content:space-between;gap:8px;font-size:12.5px;color:var(--y2k-ink-3);margin:2px 0 -6px}
+.y2k-lista-cab b{color:var(--y2k-ink);font-variant-numeric:tabular-nums}
+.st-key-y2k_panel [data-testid="stDataFrame"]{border-radius:12px;overflow:hidden}
+/* avisos discretos: una linea con su icono; el detalle, al abrirla */
+.st-key-alerta_altura [data-testid="stExpander"] details,.st-key-alerta_ficha [data-testid="stExpander"] details{
+  background:transparent !important;box-shadow:0 0 0 1px color-mix(in srgb,var(--y2k-alerta-borde) 45%,transparent) inset !important;border-radius:12px !important}
+.st-key-alerta_altura [data-testid="stExpander"] summary,.st-key-alerta_ficha [data-testid="stExpander"] summary{min-height:0;padding-top:5px;padding-bottom:5px}
+.st-key-alerta_altura [data-testid="stIconMaterial"],.st-key-alerta_ficha [data-testid="stIconMaterial"]{color:var(--y2k-alerta) !important}
+.st-key-alerta_altura summary p,.st-key-alerta_ficha summary p{font-size:12.5px !important;font-weight:500 !important;color:var(--y2k-ink-2) !important}
+/* filtro de estaciones por cobertura: boton circular arriba a la izquierda del mapa; activo, muestra el rango */
+.st-key-y2k_filtro{position:fixed !important;top:var(--y2k-g);left:max(var(--y2k-g),var(--y2k-libre-izq));z-index:50;width:auto !important;
+  height:var(--y2k-capsula);border-radius:999px;padding:4px !important;margin:0 !important;display:flex !important;flex-direction:row !important;
+  align-items:center;gap:0 !important;overflow:visible !important;transition:left var(--y2k-dur) var(--y2k-curva);animation:y2k-menu .3s var(--y2k-curva) backwards}
+html[data-y2k-panel="cerrado"] .st-key-y2k_filtro{left:calc(var(--y2k-g) * 2 + var(--y2k-abrir-w,120px))}
+.st-key-y2k_filtro > div{width:auto !important;flex:none !important}
+.st-key-y2k_filtro:not(:has(.stPopover)){display:none !important}
+.st-key-y2k_filtro .stPopover button{min-height:36px !important;height:36px;padding:0 13px 0 9px !important;justify-content:center;gap:6px}
+.st-key-y2k_filtro .stPopover button p{font-size:13.5px !important;font-weight:700 !important;font-variant-numeric:tabular-nums}
+.st-key-y2k_filtro:not(:has(.y2k-filtro-on)) .stPopover button{width:36px;min-width:36px;padding:0 !important}
+.st-key-y2k_filtro:not(:has(.y2k-filtro-on)) .stPopover button [data-testid="stMarkdownContainer"]{position:absolute !important;width:1px;height:1px;
+  overflow:hidden;clip:rect(0 0 0 0)}
+.st-key-y2k_filtro:has(.y2k-filtro-on) .stPopover button [data-testid="stIconMaterial"]{color:var(--y2k-accent-texto)}
+.st-key-y2k_filtro [data-testid="stPopoverButton"] > div > div[aria-hidden="true"]{display:none !important}
+/* boton para volver a mostrar el panel (escritorio) */
+.st-key-y2k_abrir{position:fixed !important;top:var(--y2k-g);left:var(--y2k-g);z-index:50;height:var(--y2k-capsula);width:auto !important;
+  border-radius:999px;padding:4px !important;margin:0 !important}
+html:not([data-y2k-panel="cerrado"]) .st-key-y2k_abrir{display:none !important}
+.y2k-ico{all:unset;box-sizing:border-box;min-width:36px;height:36px;display:inline-flex;align-items:center;justify-content:center;gap:6px;border-radius:999px;
+  cursor:pointer;flex:none;color:var(--y2k-ink);transition:background var(--y2k-dur),transform .12s;font:600 13.5px/1 "Figtree",sans-serif}
+.y2k-ico.con-texto{padding:0 12px 0 9px}
+.y2k-ico:hover{background:var(--y2k-hover)}
+.y2k-ico:active{transform:scale(.94)}
+.y2k-ico svg{width:19px;height:19px;transition:transform var(--y2k-dur)}
+/* capsula de herramientas (derecha, bajo Ajustes): dibujo, capas y zoom en 2D; camara en 3D */
+.st-key-y2k_herr{position:fixed !important;right:var(--y2k-g);top:calc(var(--y2k-g) + var(--y2k-capsula) + 8px);z-index:50;width:auto !important;
+  padding:4px !important;margin:0 !important;border-radius:24px;gap:0 !important;animation:y2k-menu .3s var(--y2k-curva) backwards}
+.st-key-y2k_herr:not(:has(.y2k-herr)),.st-key-y2k_abrir:not(:has([data-y2k-panel-btn])),.st-key-y2k_dock:not(:has(.st-key-y2k_dock_izq)),
+.st-key-y2k_panel:not(:has(.st-key-y2k_panel_cab)),.st-key-y2k_inicio:not(:has(.y2k-cab-inicio)),
+.st-key-y2k_exportar:not(:has(.y2k-cab-export)){display:none !important}
+.y2k-herr{display:flex;flex-direction:column;align-items:center;gap:2px}
+.y2k-herr button.h{all:unset;box-sizing:border-box;width:36px;height:36px;display:grid;place-items:center;border-radius:50%;cursor:pointer;
+  color:var(--y2k-ink);transition:background var(--y2k-dur),transform .12s}
+.y2k-herr button.h:hover{background:var(--y2k-hover)}
+.y2k-herr button.h[aria-expanded="true"]{box-shadow:var(--y2k-lente-sombra);background:var(--y2k-lente)}
+.y2k-herr button.h:active{transform:scale(.92)}
+.y2k-herr button.h:focus-visible{outline:2px solid var(--y2k-foco);outline-offset:-2px}
+.y2k-herr svg{width:19px;height:19px}
+.y2k-herr hr{width:20px;border:0;border-top:1px solid var(--y2k-line);margin:3px 0}
+.y2k-grupo{position:relative}
+.y2k-menu{position:absolute;right:calc(100% + 12px);top:-4px;min-width:240px;padding:6px;border-radius:18px;display:flex;flex-direction:column;gap:1px;
+  background:var(--lg-brillo),var(--lg-denso);box-shadow:inset 0 1px 0 var(--lg-luz),0 0 0 .5px var(--lg-filo),var(--lg-sombra);
+  transform-origin:100% 0;animation:y2k-menu .18s var(--y2k-curva) both}
+@keyframes y2k-menu{from{opacity:0;transform:translateX(6px) scale(.97)}}
+.y2k-menu[hidden]{display:none}
+.y2k-menu .tit{font-size:11px;text-transform:uppercase;letter-spacing:.08em;font-weight:700;color:var(--y2k-ink-3);padding:6px 10px 4px;margin:0}
+.y2k-menu hr{border:0;border-top:1px solid var(--y2k-line);margin:4px 6px}
+.y2k-menu button{all:unset;box-sizing:border-box;display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:12px;cursor:pointer;
+  font:600 13.5px/1.25 "Figtree",sans-serif;color:var(--y2k-ink)}
+.y2k-menu button:hover,.y2k-menu button:focus-visible{background:var(--y2k-hover)}
+.y2k-menu button:focus-visible{outline:2px solid var(--y2k-foco);outline-offset:-2px}
+.y2k-menu button[aria-disabled="true"]{cursor:not-allowed}
+.y2k-menu button[aria-disabled="true"] > span{opacity:.6}
+.y2k-menu button svg{width:18px;height:18px;color:var(--y2k-accent-texto);flex:none}
+.y2k-menu button > span{display:flex;flex-direction:column;gap:1px;min-width:0}
+.y2k-menu button small{font-weight:500;font-size:11.5px;color:var(--y2k-ink-3)}
+.y2k-menu button[role="menuitemradio"]::after{content:"";margin-left:auto;width:16px;height:16px;flex:none}
+.y2k-menu button[role="menuitemradio"][aria-checked="true"]::after{content:"✓";color:var(--y2k-accent-texto);font-weight:700;text-align:center}
+.y2k-menu button.peligro svg{color:var(--y2k-peligro)}
+.y2k-menu.y2k-cam-menu{min-width:0;width:248px;padding:8px 8px 10px}
+.y2k-pad{display:flex;align-items:center;justify-content:center;gap:16px;padding:6px 0 2px}
+.y2k-cruz{display:grid;grid-template-columns:repeat(3,38px);grid-template-rows:repeat(3,38px);gap:2px;padding:6px;border-radius:50%;
+  background:var(--y2k-pista);box-shadow:inset 0 0 0 1px var(--y2k-line)}
+.y2k-menu .y2k-cruz button,.y2k-menu .y2k-zoom-cam button{width:38px;height:38px;padding:0;justify-content:center;border-radius:50%}
+.y2k-menu .y2k-cruz button svg,.y2k-menu .y2k-zoom-cam button svg{color:var(--y2k-ink)}
+.y2k-cruz [data-y2k-cam="subir"]{grid-area:1 / 2}.y2k-cruz [data-y2k-cam="izq"]{grid-area:2 / 1}
+.y2k-cruz [data-y2k-cam="norte"]{grid-area:2 / 2;background:var(--y2k-lente);box-shadow:var(--y2k-lente-sombra)}
+.y2k-cruz [data-y2k-cam="der"]{grid-area:2 / 3}.y2k-cruz [data-y2k-cam="bajar"]{grid-area:3 / 2}
+.y2k-menu .y2k-cruz [data-y2k-cam="norte"] svg{width:26px;height:26px;transition:transform .15s linear}
+.y2k-zoom-cam{display:flex;flex-direction:column;gap:2px;padding:4px;border-radius:999px;background:var(--y2k-pista);box-shadow:inset 0 0 0 1px var(--y2k-line)}
+.y2k-cam-lectura,.y2k-menu p.y2k-cam-lectura{margin:6px 0 2px !important;text-align:center;font:600 12px/1.3 "Figtree",sans-serif !important;
+  color:var(--y2k-ink-3) !important;font-variant-numeric:tabular-nums}
+.y2k-guia{display:grid;gap:7px;padding:4px 6px 0;margin:0}
+.y2k-guia > div{display:flex;align-items:center;gap:10px;font-size:12px;line-height:1.3;color:var(--y2k-ink-2)}
+.y2k-guia svg{width:24px;height:24px;flex:none;color:var(--y2k-ink-2)}
+.y2k-guia svg .on{fill:var(--y2k-accent-texto);stroke:none}
+.y2k-guia b{display:block;color:var(--y2k-ink);font-weight:700}
+@media (hover: none){.y2k-guia .raton{display:none}}
+@media (hover: hover){.y2k-guia .tactil{display:none}}
+/* pildoras de abajo: 2D/3D (y textura del 3D) a la izquierda, "Preparar descarga" a la derecha */
+.st-key-y2k_dock{position:fixed !important;z-index:45;bottom:var(--y2k-g);left:max(var(--y2k-g),var(--y2k-libre-izq));right:var(--y2k-g);
+  width:auto !important;display:flex !important;flex-direction:row !important;justify-content:space-between;align-items:flex-end;gap:10px !important;
+  pointer-events:none;margin:0 !important;padding:0 !important;transition:left var(--y2k-dur) var(--y2k-curva);
+  animation:y2k-entra-abajo .45s var(--y2k-curva) both}
+@keyframes y2k-entra-abajo{from{opacity:0;transform:translateY(14px)}}
+.st-key-y2k_dock > div{pointer-events:auto;width:auto !important;flex:none !important;min-width:0}
+.st-key-y2k_dock_izq,.st-key-y2k_dock_der{border-radius:999px;padding:4px !important;display:flex !important;flex-direction:row !important;
+  align-items:center;gap:4px !important;flex-wrap:nowrap !important;margin:0 !important;width:auto !important}
+/* "Preparar descarga" es la capsula: el boton de vidrio azul, sin otro contenedor alrededor y del mismo alto que la
+   de 2D/3D. Sube por encima del boton de Streamlit Community Cloud (abajo a la derecha) */
+.st-key-y2k_dock_der{padding:0 !important;background:none !important;box-shadow:none !important;-webkit-backdrop-filter:none !important;
+  backdrop-filter:none !important;margin-bottom:var(--y2k-sello) !important;min-width:0}
+/* boton "Consulta": solo en el celular */
+.st-key-y2k_dock_izq [data-testid="stElementContainer"]:has(.y2k-consulta){display:none}
+.y2k-consulta[aria-expanded="true"]{background:var(--y2k-lente);box-shadow:var(--y2k-lente-sombra)}
+/* capa invisible sobre el mapa con la consulta abierta (celular): tocar el mapa la cierra */
+.y2k-cierre-hoja{display:none}
+.st-key-y2k_dock_izq > div,.st-key-y2k_dock_der > div{width:auto !important;flex:none !important}
+.st-key-y2k_dock_izq .stPopover button{padding:0 12px !important}
+.st-key-y2k_dock_izq .stPopover button p{font-size:13.5px !important}
+.st-key-y2k_repetir_intro button{width:36px;min-width:36px;padding:0 !important}
+.st-key-y2k_repetir_intro button [data-testid="stMarkdownContainer"]{position:absolute !important;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+.st-key-preparar button{min-height:var(--y2k-capsula) !important;height:var(--y2k-capsula);padding:0 20px !important;font-size:15px !important;gap:8px;
+  max-width:100%}
+.st-key-preparar button p{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+/* la pildora de la derecha cede espacio si la barra no alcanza (antes se salia por la derecha en celulares angostos):
+   toda la cadena de envoltorios de Streamlit puede encogerse y el texto, en ultimo caso, termina en "..." */
+.st-key-y2k_dock > [data-testid="stLayoutWrapper"]:has(.st-key-y2k_dock_der){flex:0 1 auto !important;min-width:0 !important}
+:is(.st-key-y2k_dock_der,.st-key-preparar,.st-key-preparar .stButton,.st-key-preparar .stButton > div){min-width:0 !important;max-width:100%;
+  flex-shrink:1 !important}
+.st-key-preparar button,.st-key-preparar button *{min-width:0 !important}
+/* si no cabe, el texto se recorta por la derecha con "..." (centrado sin mas, se cortaba por los dos lados) */
+.st-key-preparar button > div{overflow:hidden;justify-content:safe center !important}
+.st-key-preparar button [data-testid="stMarkdownContainer"]{overflow:hidden}
+.st-key-preparar button p{font-size:15px !important;font-weight:700 !important}
+.st-key-preparar button:disabled{opacity:.55 !important;filter:saturate(.35)}
+.st-key-y2k_dock_der .stButton button[kind="primary"]{box-shadow:var(--y2k-boton-canto),0 10px 22px -10px var(--y2k-accent) !important}
+/* ficha de la estacion seleccionada (arriba a la derecha, junto a la columna de Ajustes) */
+.st-key-y2k_ficha{position:fixed !important;z-index:42;top:var(--y2k-g);right:calc(var(--y2k-g) * 2 + var(--y2k-ajustes-w, 84px));
+  width:320px !important;max-height:calc(100dvh - var(--y2k-dock-h) - var(--y2k-g) * 3);overflow:hidden;display:flex !important;
+  flex-direction:column;padding:0 !important;gap:0 !important;animation:y2k-menu .25s var(--y2k-curva) backwards}
+.st-key-y2k_ficha_cuerpo{padding:14px 16px !important;gap:8px !important;--y2k-fundido:10px}
+.st-key-y2k_ficha:not(:has(.y2k-ficha-cab)){display:none !important}
+/* cerrada (al elegir una estacion): solo la pildora con el nombre; se despliega al pulsarla y se cierra al tocar afuera */
+html:not([data-y2k-ficha="abierta"]) .st-key-y2k_ficha{width:auto !important;max-width:min(340px,calc(100vw - var(--y2k-g) * 4 - var(--y2k-ajustes-w, 84px)));
+  border-radius:999px}
+html:not([data-y2k-ficha="abierta"]) .st-key-y2k_ficha_cuerpo{display:none !important}
+html[data-y2k-ficha="abierta"] .st-key-y2k_ficha{border-radius:var(--y2k-r)}
+.st-key-y2k_ficha_cuerpo{padding-top:4px !important}
+.y2k-ficha-pil{display:flex;align-items:center;gap:2px;padding:4px;min-width:0}
+.y2k-ficha-pil button{all:unset;box-sizing:border-box;cursor:pointer;display:flex;align-items:center;color:var(--y2k-ink);border-radius:999px}
+.y2k-ficha-pil button:hover{background:var(--y2k-hover)}
+.y2k-ficha-pil button:focus-visible{outline:2px solid var(--y2k-foco);outline-offset:-2px}
+.y2k-ficha-pil .abrir{gap:8px;height:36px;padding:0 10px 0 8px;min-width:0;flex:1 1 auto;font:700 13.5px/1.2 "Figtree",sans-serif}
+.y2k-ficha-pil .abrir > svg{width:18px;height:18px;flex:none;color:var(--y2k-accent-texto)}
+.y2k-ficha-pil .abrir .nom{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.y2k-ficha-pil .abrir .flecha{width:14px;height:14px;flex:none;color:var(--y2k-ink-3);transition:transform var(--y2k-dur)}
+.y2k-ficha-pil .abrir[aria-expanded="true"] .flecha{transform:rotate(180deg)}
+.y2k-ficha-pil .x{width:32px;height:32px;justify-content:center;flex:none;color:var(--y2k-ink-2)}
+.y2k-ficha-pil .x svg{width:16px;height:16px}
+.y2k-ficha-cab{display:none}
+.y2k-ficha-dato,[data-testid="stMarkdownContainer"] p.y2k-ficha-dato{margin:0 !important;font-size:12.5px !important;color:var(--y2k-ink-3) !important;
+  font-variant-numeric:tabular-nums}
+
+/* controles de Streamlit dentro del vidrio regular */
+:is(.st-key-y2k_panel,.st-key-y2k_ficha,.st-key-y2k_inicio,.st-key-y2k_exportar) .stButton > button,
+:is(.st-key-y2k_inicio,.st-key-y2k_exportar) .stDownloadButton > button{border-radius:999px !important;font-weight:600 !important;min-height:40px}
+:is(.st-key-y2k_panel,.st-key-y2k_ficha,.st-key-y2k_inicio,.st-key-y2k_exportar) .stButton > button[kind="secondary"]{background:var(--y2k-campo) !important;
+  border:0 !important;box-shadow:0 0 0 1px var(--y2k-campo-borde) inset !important;color:var(--y2k-ink) !important}
+:is(.st-key-y2k_panel,.st-key-y2k_ficha,.st-key-y2k_inicio,.st-key-y2k_exportar) .stButton > button[kind="secondary"] p{color:var(--y2k-ink) !important}
+:is(.st-key-y2k_panel,.st-key-y2k_ficha,.st-key-y2k_inicio,.st-key-y2k_exportar) .stButton > button[kind="secondary"]:hover{
+  box-shadow:0 0 0 1.5px var(--y2k-accent) inset !important}
+/* botones principales: vidrio liquido azul, con la misma textura que el resto (tinte del acento que deja pasar un poco
+   del fondo desenfocado, brillo superior, caustica abajo y canto de luz). El texto mantiene AA sobre el tinte */
+:is(.stButton button[kind="primary"],.stDownloadButton button[kind="primary"],.y2k-boton.prim,.y2k-dialogo button.prim){
+  background:var(--y2k-boton-brillo),var(--y2k-boton-caustica),var(--y2k-boton-tinte) !important;
+  -webkit-backdrop-filter:blur(10px) saturate(170%);backdrop-filter:blur(10px) saturate(170%);border:0 !important;
+  color:var(--y2k-sobre-acento) !important;border-radius:999px !important;font-weight:700 !important;
+  box-shadow:var(--y2k-boton-canto),0 10px 22px -12px var(--y2k-accent),0 2px 6px -3px rgba(0,0,0,.28) !important;
+  transition:filter var(--y2k-dur),transform .12s}
+:is(.stButton button[kind="primary"],.stDownloadButton button[kind="primary"],.y2k-boton.prim,.y2k-dialogo button.prim):active{transform:scale(.97)}
+.stButton button[kind="primary"] p,.stDownloadButton button[kind="primary"] p{color:var(--y2k-sobre-acento) !important;font-weight:700 !important}
+.stButton button[kind="primary"]:hover,.stDownloadButton button[kind="primary"]:hover{filter:brightness(1.07)}
+.stButton button:disabled,.stButton button[kind="primary"]:disabled{opacity:.5;filter:saturate(.3);box-shadow:none !important}
+.stButton > button[kind="tertiary"]{color:var(--y2k-accent-texto) !important;min-height:32px;padding:0 6px !important}
+:is(.st-key-y2k_panel,.st-key-y2k_ficha) [data-testid="stExpander"] details{border-radius:14px !important;
+  border:0 !important;background:var(--y2k-campo);box-shadow:0 0 0 1px var(--y2k-campo-borde) inset}
+[data-testid="stExpander"] summary p{font-weight:600;color:var(--y2k-ink) !important}
+[data-testid="stAlert"]{border-radius:14px}
+[data-testid="stFileUploaderDropzone"]{border-radius:14px;background:var(--y2k-campo);border:1px dashed var(--y2k-campo-borde)}
+[data-testid="stDataFrame"]{border-radius:12px;overflow:hidden}
+:is(.st-key-y2k_panel,.st-key-y2k_ficha) [data-testid="stMarkdownContainer"] p{font-size:13.5px;line-height:1.5}
+:is(.st-key-y2k_panel,.st-key-y2k_ficha) [data-testid="stCaptionContainer"] p{font-size:12.5px;line-height:1.45}
+[data-testid="stDialog"] [role="dialog"]{border-radius:24px !important;background:var(--lg-brillo),var(--lg-denso) !important;
+  box-shadow:inset 0 1px 0 var(--lg-luz),0 0 0 .5px var(--lg-filo),var(--lg-sombra) !important}
+
+/* detalles desplegables propios: resumen breve siempre visible y el detalle al pulsar */
+details.y2k-det{font-size:12px;line-height:1.45;color:var(--y2k-ink-3);margin:0}
+details.y2k-det summary{cursor:pointer;list-style:none;display:flex;flex-wrap:wrap;gap:2px 8px;align-items:baseline;border-radius:6px}
+details.y2k-det summary::-webkit-details-marker{display:none}
+details.y2k-det summary .ver{color:var(--y2k-accent-texto);font-weight:600;text-decoration:underline;text-underline-offset:2px;white-space:nowrap}
+details.y2k-det summary .ver::after{content:" ▾";display:inline-block}
+details.y2k-det[open] summary .ver::after{content:" ▴"}
+details.y2k-det > div{margin-top:6px;color:var(--y2k-ink-2)}
+details.y2k-det > div p{margin:0 0 6px !important;font-size:12.5px !important;color:var(--y2k-ink-2) !important}
+details.y2k-det b{color:var(--y2k-ink)}
+.y2k-pie{margin-top:8px;padding-top:12px;font-size:12px;line-height:1.5;color:var(--y2k-ink-3);border-top:1px solid var(--y2k-line)}
+.y2k-pie p{margin:0 0 4px;color:var(--y2k-ink-3);font-size:12px}
+.y2k-pie b{color:var(--y2k-ink);font-weight:600}
+.y2k-pie a{color:var(--y2k-accent-texto) !important;text-decoration:none}
+.y2k-pie a:hover{text-decoration:underline}
+
+/* piezas sobre el mapa */
+.y2k-leyenda{left:var(--y2k-ley-izq,var(--y2k-ov-izq));bottom:var(--y2k-ley-abajo);max-width:min(340px,calc(100vw - var(--y2k-ov-izq) - 20px));border-radius:18px}
+.y2k-leyenda summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:8px;padding:9px 14px;font-size:13px;font-weight:700;border-radius:18px;color:var(--y2k-ink)}
+.y2k-leyenda summary::-webkit-details-marker{display:none}
+.y2k-leyenda summary::after{content:"▴";font-size:10px;color:var(--y2k-ink-3)}
+.y2k-leyenda[open] summary::after{content:"▾"}
+.y2k-leyenda ul{list-style:none;margin:0;padding:0 14px 11px;display:grid;grid-template-columns:auto auto;gap:4px 14px;font-size:12.5px;color:var(--y2k-ink-2)}
+.y2k-leyenda li{display:flex;align-items:center;gap:8px;margin:0}
+.y2k-leyenda .pin{width:12px;height:12px;border-radius:50%;flex:none;border:2px solid #fff;box-shadow:0 0 0 1px rgba(0,0,0,.5)}
+.y2k-leyenda .pin.hueco{background:transparent !important;border-color:#E6ECF7}
+.y2k-leyenda .pin.fuera{background:rgba(255,255,255,.35) !important;border:2px dashed #7C87A3}
+.y2k-leyenda .pin.duda{border-color:#fff;box-shadow:0 0 0 1px rgba(0,0,0,.5);outline:2px dotted #B98900;outline-offset:2px}
+.y2k-leyenda .linea{width:18px;height:0;border-top:3px solid;flex:none}
+.y2k-leyenda .nota{grid-column:1 / -1;font-size:12px;color:var(--y2k-ink-3);margin-top:2px}
+.y2k-leyenda li.titulo{grid-column:1 / -1;font-size:12px;font-weight:700;color:var(--y2k-ink);line-height:1.3;margin:0 0 2px}
+.y2k-leyenda li.sep{grid-column:1 / -1;height:0;border-top:1px solid var(--y2k-line);margin:3px 0 1px}
+.y2k-leyenda summary .muestras{display:inline-flex;gap:3px}
+.y2k-leyenda summary .muestras i{width:9px;height:9px;border-radius:50%;box-shadow:0 0 0 1px rgba(0,0,0,.4)}
+.y2k-leyenda[open] summary .muestras{display:none}
+.y2k-leyenda .tit{margin:0;padding:2px 14px 4px;font-size:12.5px;font-weight:600;color:var(--y2k-ink-2)}
+.y2k-leyenda .rampa{height:10px;border-radius:5px;margin:2px 14px;box-shadow:0 0 0 1px var(--y2k-line) inset}
+.y2k-leyenda .marcas{display:flex;justify-content:space-between;font-size:12px;color:var(--y2k-ink-3);padding:0 14px 10px;font-variant-numeric:tabular-nums}
+.y2k-atrib3d{right:var(--y2k-atrib-der,var(--y2k-ov-der));bottom:var(--y2k-atrib-abajo);font-size:10.5px;line-height:1.3;padding:4px 10px;border-radius:999px;color:var(--y2k-ink);
+  max-width:min(460px,50vw)}
+.y2k-vacio{left:var(--y2k-centro);top:45%;transform:translate(-50%,-50%);padding:14px 18px;border-radius:18px;font-size:14px;font-weight:600;
+  text-align:center;color:var(--y2k-ink);max-width:min(420px,80vw)}
+/* aviso para quien pidio reducir el movimiento: la intro del 3D no se reproduce sola */
+.y2k-nota-mov{display:none;left:var(--y2k-centro);top:var(--y2k-g);transform:translateX(-50%);padding:9px 14px;border-radius:14px;font-size:12.5px;
+  line-height:1.4;color:var(--y2k-ink);max-width:min(440px,calc(100vw - var(--y2k-libre-izq) - 140px));text-align:center}
+@media (prefers-reduced-motion: reduce){.y2k-nota-mov{display:block;animation:y2k-ocultar 0s linear 14s forwards}}
+@keyframes y2k-ocultar{to{visibility:hidden}}
+/* aviso de navegador que altera los pixeles (terreno.AVISO_NAVEGADOR): una pildora minima arriba, en la zona libre;
+   al tocarla se despliega la explicacion. Es un elemento aside y no un div: el visor estira sus div a pantalla completa.
+   (Ojo: en el CSS no puede haber nada con forma de etiqueta HTML; Streamlit sanea el bloque style y lo descarta entero) */
+.y2k-aviso3d{position:absolute;left:var(--y2k-centro);top:var(--y2k-ov-top);transform:translateX(-50%);z-index:26;
+  width:max-content;max-width:min(340px,calc(100vw - var(--y2k-g) * 4 - var(--y2k-capsula) * 2));
+  display:flex;align-items:flex-start;gap:0;padding:0 0 0 10px;border-radius:17px;font:600 12px/1.3 "Figtree",sans-serif;
+  background:var(--y2k-alerta-bg);color:var(--y2k-ink);border:1px solid var(--y2k-alerta-borde);
+  -webkit-backdrop-filter:var(--lg-filtro-claro);backdrop-filter:var(--lg-filtro-claro);box-shadow:0 6px 16px -8px rgba(0,0,0,.45)}
+.y2k-aviso3d details{min-width:0}
+.y2k-aviso3d summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:5px;min-height:32px;white-space:nowrap}
+.y2k-aviso3d summary::-webkit-details-marker{display:none}
+.y2k-aviso3d summary svg{width:15px;height:15px;flex:none;color:var(--y2k-alerta)}
+.y2k-aviso3d summary span{overflow:hidden;text-overflow:ellipsis}
+.y2k-aviso3d details[open] summary span{white-space:normal}
+.y2k-aviso3d p{margin:0 0 9px;font-weight:500;font-size:12px;line-height:1.4;color:var(--y2k-ink-2);white-space:normal}
+.y2k-aviso3d button{all:unset;box-sizing:border-box;cursor:pointer;width:30px;height:32px;display:grid;place-items:center;border-radius:50%;
+  flex:none;color:var(--y2k-ink);font:600 16px/1 "Figtree",sans-serif}
+.y2k-aviso3d button:hover{background:var(--y2k-hover)}
+.y2k-aviso3d :is(button,summary):focus-visible{outline:2px solid var(--y2k-foco);outline-offset:-2px;border-radius:12px}
+/* avisos de fallo (los pone el guion de la interfaz) */
+.y2k-dialogo{position:fixed;z-index:70;left:var(--y2k-centro);top:45%;transform:translate(-50%,-50%);
+  width:min(420px,calc(100vw - 28px));display:flex;flex-direction:column;gap:8px;padding:18px 20px;font-size:14px;line-height:1.45}
+.y2k-dialogo h3{font-size:16px !important;margin:0 !important;padding:0 !important;display:flex;gap:8px;align-items:center;color:var(--y2k-ink)}
+.y2k-dialogo h3 svg{width:19px;height:19px;color:var(--y2k-alerta);flex:none}
+.y2k-dialogo p{margin:0;color:var(--y2k-ink-2)}
+.y2k-dialogo .tipo{font-size:11.5px;text-transform:uppercase;letter-spacing:.07em;font-weight:700;color:var(--y2k-alerta)}
+.y2k-dialogo .botones{display:flex;flex-wrap:wrap;gap:8px;margin-top:6px}
+.y2k-dialogo button{all:unset;box-sizing:border-box;cursor:pointer;font:600 13.5px/1 "Figtree",sans-serif;border-radius:999px;padding:11px 16px;
+  color:var(--y2k-ink);background:var(--y2k-campo);box-shadow:0 0 0 1px var(--y2k-campo-borde) inset}
+.y2k-dialogo button.prim{color:var(--y2k-sobre-acento)}
+.y2k-dialogo button:focus-visible{outline:2px solid var(--y2k-foco);outline-offset:2px}
+
+/* ================= PANTALLA 3: EXPORTACION ================= */
+.st-key-y2k_exportar{position:fixed !important;z-index:40;left:50%;top:50%;transform:translate(-50%,-50%);
+  width:min(960px,calc(100vw - 32px)) !important;max-height:calc(100dvh - 2 * (var(--y2k-g) + var(--y2k-capsula) + 8px));overflow:hidden;
+  padding:0 !important;gap:0 !important;border-radius:30px;display:flex !important;flex-direction:column;
+  animation:y2k-entra-centro .5s var(--y2k-curva) both}
+.st-key-y2k_exportar_cuerpo{padding:26px 30px !important;gap:16px !important}
+.y2k-cab-export .eyebrow{font-size:12px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--y2k-accent-texto);margin:0;
+  display:flex;align-items:center;gap:8px}
+.y2k-cab-export h1{font-size:clamp(23px,2.8vw,29px) !important;line-height:1.15 !important;font-weight:700 !important;letter-spacing:-.02em;
+  margin:4px 0 0 !important;padding:0 !important;color:var(--y2k-ink)}
+.y2k-cab-export .eyebrow .vivo{width:7px;height:7px;border-radius:50%;background:var(--y2k-accent);animation:y2k-respira 1.4s ease-in-out infinite}
+.y2k-cab-export .eyebrow .hecho{width:7px;height:7px;border-radius:50%;background:var(--y2k-ok-luz)}
+/* avance real: barra de vidrio con relleno luminoso */
+.y2k-prog{display:flex;flex-direction:column;gap:10px}
+.y2k-prog-cifras{display:flex;align-items:baseline;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.y2k-prog-cifras b{font-size:clamp(36px,5.2vw,48px);font-weight:700;letter-spacing:-.03em;line-height:1;font-variant-numeric:tabular-nums;color:var(--y2k-ink)}
+.y2k-prog-cifras span{font-size:14.5px;font-weight:600;color:var(--y2k-ink-2);font-variant-numeric:tabular-nums}
+.y2k-barra{position:relative;height:14px;border-radius:999px;background:var(--y2k-pista);overflow:hidden;
+  box-shadow:inset 0 1px 3px rgba(0,0,0,.22),inset 0 0 0 1px var(--y2k-line)}
+.y2k-barra i{position:absolute;left:0;top:0;bottom:0;width:var(--p);min-width:14px;border-radius:inherit;
+  background:linear-gradient(90deg,var(--y2k-accent-2),var(--y2k-accent));
+  box-shadow:inset 0 1px 0 rgba(255,255,255,.55),inset 0 -1px 0 rgba(0,0,0,.12),0 0 16px -2px var(--y2k-accent);transition:width .7s var(--y2k-curva)}
+.y2k-barra i::after{content:"";position:absolute;inset:0;border-radius:inherit;
+  background:linear-gradient(100deg,transparent 35%,rgba(255,255,255,.5) 50%,transparent 65%);background-size:220% 100%;animation:y2k-brillo 1.9s linear infinite}
+.y2k-barra.fin i::after,.y2k-barra.alto i::after{display:none}
+.y2k-barra.fin i{background:linear-gradient(90deg,var(--y2k-ok-luz),var(--y2k-ok))}
+.y2k-barra.alto i{background:var(--y2k-line-2);box-shadow:none}
+@keyframes y2k-brillo{from{background-position:160% 0}to{background-position:-60% 0}}
+.y2k-prog-meta{display:flex;flex-wrap:wrap;gap:4px 16px;font-size:13px;color:var(--y2k-ink-3);font-variant-numeric:tabular-nums}
+.y2k-prog-meta b{color:var(--y2k-ink);font-weight:700}
+.y2k-prog-meta .ahora{flex-basis:100%;min-height:2.9em;line-height:1.45;font-size:12.5px}
+/* recibo de la descarga */
+.y2k-recibo{display:grid;grid-template-columns:max-content 1fr;gap:9px 18px;margin:0;padding:14px 16px;border-radius:18px;background:var(--y2k-campo);
+  box-shadow:inset 0 0 0 1px var(--y2k-campo-borde)}
+.y2k-recibo dt{font-size:11.5px;text-transform:uppercase;letter-spacing:.07em;font-weight:700;color:var(--y2k-ink-3);padding-top:2px;margin:0}
+.y2k-recibo dd{margin:0;font-size:14px;color:var(--y2k-ink);font-weight:600;line-height:1.35;min-width:0;overflow-wrap:anywhere}
+.y2k-recibo dd small{display:block;font-weight:500;color:var(--y2k-ink-3);font-size:12.5px}
+/* contenido del ZIP: una lista ordenada, un archivo por linea */
+.y2k-archivo{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:7px}
+.y2k-archivo li{display:grid;grid-template-columns:18px 1fr;column-gap:8px;align-items:start;margin:0}
+.y2k-archivo svg{width:17px;height:17px;color:var(--y2k-accent-texto);margin-top:1px}
+.y2k-archivo b{font-weight:600;font-size:13.5px;color:var(--y2k-ink);overflow-wrap:anywhere}
+.y2k-archivo small{grid-column:2;display:block;font-weight:500;font-size:12px;color:var(--y2k-ink-3);line-height:1.35}
+/* resumen general de lo descargado */
+.y2k-final{display:flex;flex-direction:column;gap:8px}
+.y2k-final p{margin:0;font-size:14px;color:var(--y2k-ink-2)}
+.y2k-final p b{color:var(--y2k-ink)}
+.y2k-reparto{display:flex;height:10px;border-radius:999px;overflow:hidden;gap:2px;background:var(--y2k-pista)}
+.y2k-reparto i{display:block;height:100%}
+.y2k-reparto-ley{display:flex;flex-wrap:wrap;gap:4px 14px;margin:0;padding:0;list-style:none;font-size:12.5px;color:var(--y2k-ink-3)}
+.y2k-reparto-ley li{display:flex;align-items:center;gap:6px;margin:0}
+.y2k-reparto-ley li i{width:9px;height:9px;border-radius:50%;flex:none}
+.y2k-reparto-ley b{color:var(--y2k-ink);font-variant-numeric:tabular-nums}
+.y2k-legal-bloque{display:flex;flex-direction:column;gap:4px;padding-top:12px;border-top:1px solid var(--y2k-line);font-size:12.5px;line-height:1.5;color:var(--y2k-ink-3)}
+.y2k-legal-bloque p{margin:0;font-size:12.5px;color:var(--y2k-ink-3)}
+.y2k-legal-bloque p b{color:var(--y2k-ink-2);font-weight:600}
+.st-key-y2k_exportar .stDownloadButton > button{min-height:48px !important;font-size:15px !important}
+.st-key-y2k_exportar [data-testid="stColumn"] > div{gap:14px}
+
+/* cambio de pantalla: lo de la pantalla anterior se esconde en cuanto llega la nueva (Streamlit lo quita al terminar) */
+:is(__P_PARAM__,__P_EXPORT__) :is(.st-key-y2k_panel,.st-key-y2k_dock,.st-key-y2k_herr,.st-key-y2k_ficha,.st-key-y2k_abrir,.st-key-y2k_filtro),
+:is(__P_PARAM__,__P_EXPORT__) :is(.st-key-y2k_escenario .y2k-sobre,.st-key-y2k_visor3d){display:none !important}
+:is(__P_MAPA__,__P_EXPORT__) .st-key-y2k_inicio,:is(__P_MAPA__,__P_PARAM__) .st-key-y2k_exportar{display:none !important}

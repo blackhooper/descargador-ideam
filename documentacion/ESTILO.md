@@ -4,7 +4,7 @@ El sistema visual y el guion de la interfaz. La guía de uso e instalación est�
 
 ## Sistema visual: cómo cambiar la estética
 
-Todo lo visual de la app sale de `modules/estilo.py`. Este es el mapa del archivo, en orden:
+Todo lo visual de la app sale de `modules/estilo.py` y de `modules/recursos/`. En `estilo.py` quedan los tokens, los iconos y las piezas HTML; las hojas de estilo y los guiones del navegador son archivos de verdad en `recursos/` (CSS y JavaScript, para editarlos con resaltado y sin escapar nada), que `estilo.py` lee al arrancar con `_recurso()`. Este es el mapa, en orden:
 
 | Sección | Qué es | ¿Se toca al cambiar la estética? |
 |---|---|---|
@@ -14,13 +14,13 @@ Todo lo visual de la app sale de `modules/estilo.py`. Este es el mapa del archiv
 | `MOVIL`, `BAJO` | Puntos de quiebre (celular, pantalla baja). `MOVIL` lo usa también el guion | Con cuidado |
 | `TOKENS`, `TOKENS_ALTO` | **Tokens de color y material** para claro, oscuro y alto contraste | **Sí** |
 | `VIDRIO_CLARO`, `VIDRIO_REGULAR` | Qué superficies llevan cada material | Solo para agregar o quitar superficies |
-| `CSS` | Estilos base: medidas (`:root`), material, escenario, Ajustes, las tres pantallas, componentes y el cambio de pantalla | **Sí** |
-| `CSS_MEDIO`, `CSS_MOVIL`, `CSS_ANGOSTO`, `CSS_ESTRECHO`, `CSS_BAJO` | Ajustes por tamaño: 761–1100 px, ≤ 760 px, ≤ 400 px, ≤ 380 px, alto ≤ 560 px | **Sí** |
-| `CSS_ALTO`, `CSS_LITE`, `CSS_MOVIMIENTO`, `CSS_FORZADOS` | Alto contraste, modo Lite, movimiento reducido y colores forzados | **Sí** |
+| `CSS` (`recursos/base.css`) | Estilos base: medidas (`:root`), material, escenario, Ajustes, las tres pantallas, componentes y el cambio de pantalla | **Sí** |
+| `CSS_MEDIO`, `CSS_MOVIL`, `CSS_ANGOSTO`, `CSS_ESTRECHO`, `CSS_BAJO` (`medio.css`, `movil.css`, `sello_movil.css`, `angosto.css`, `estrecho.css`, `bajo.css`) | Ajustes por tamaño: 761–1100 px, ≤ 760 px, ≤ 400 px, ≤ 380 px, alto ≤ 560 px | **Sí** |
+| `CSS_ALTO`, `CSS_LITE`, `CSS_MOVIMIENTO`, `CSS_FORZADOS` (`alto_contraste.css`, `lite.css`, `movimiento.css`, `colores_forzados.css`) | Alto contraste, modo Lite, movimiento reducido y colores forzados | **Sí** |
 | `aplicar()`, `_tokens_css()`, `_vidrio()` | Arman y ordenan todo el CSS | No |
 | `ICONOS` | Iconos SVG de línea (heredan el color del texto) | **Sí** |
 | `ajustes()`, `cabecera_inicio()`, `etiqueta()`, `pasos()`, `pie_inicio()`, `cabecera_panel()`, `boton_consulta()`, `boton_abrir_panel()`, `seccion()`, `acciones_area()`, `kpis()`, `aviso()`, `marca_listo()`, `marca_filtro()`, `herramientas_2d()`, `herramientas_3d()`, `leyenda_*()`, `pie()`, `cabecera_exportar()`, `progreso()`, `recibo()`, `resumen_final()`, `legal_exportar()` | Piezas HTML: definen la estructura y las clases de cada pieza | Solo sus clases decorativas; no los `data-y2k-*` ni la estructura |
-| `_UI` (dentro, `CSS_IFRAME`) | Guion de la interfaz del navegador; `CSS_IFRAME` es el estilo de los controles de Leaflet dentro de su iframe | Solo `CSS_IFRAME` |
+| `_UI` (`recursos/ui.js`; dentro, `CSS_IFRAME`) y `_SINCRONIZAR_TEMA` (`sincronizar_tema.html`) | Guion de la interfaz del navegador; `CSS_IFRAME` es el estilo de los controles de Leaflet dentro de su iframe | Solo `CSS_IFRAME` |
 
 ### Pasos para cambiar la estética
 
@@ -30,8 +30,9 @@ Todo lo visual de la app sale de `modules/estilo.py`. Este es el mapa del archiv
 4. **Forma de los componentes**: las reglas de `CSS` y de los bloques por tamaño. Están agrupadas por zona y comentadas (material, escenario, Ajustes, pantalla 1, pantalla 2: panel, tablero, herramientas, píldoras y ficha; pantalla 3: avance, recibo y resumen; cambio de pantalla).
 5. **Colores que no son CSS**: `PALETAS` (gráficas y 3D) y `.streamlit/config.toml` (widgets de Streamlit: listas, deslizadores, fechas). Deben coincidir con los tokens.
 6. **Controles de Leaflet**: `CSS_IFRAME`, dentro de `_UI`. Vive en el iframe del mapa, que no hereda las variables de la página: sus colores están escritos a mano para cada caso (clases `y2k-oscuro`, `y2k-alto`, `y2k-lite`, `y2k-bajo` que el guion pone en el `<html>` del iframe).
-7. Sube la versión del guion (`_UI.replace("__V__", "…")` en `instalar_ui`) si cambiaste `_UI`, para que no siga corriendo la versión vieja en una pestaña abierta.
-8. Revisa con la [lista de comprobación](#lista-de-comprobación-tras-un-cambio-estético).
+7. Sube la versión del guion (`_UI.replace("__V__", "…")` en `instalar_ui`) si cambiaste `recursos/ui.js`, para que no siga corriendo la versión vieja en una pestaña abierta.
+8. En las hojas de `recursos/` siguen valiendo las marcas `__VIDRIO__`, `__VIDRIO_CLARO__`, `__VIDRIO_REGULAR__`, `__P_PARAM__`, `__P_MAPA__` y `__P_EXPORT__`, que `estilo._vidrio()` cambia por los selectores de verdad; y no se escribe nada con forma de etiqueta HTML en un comentario (Streamlit descartaría el bloque).
+9. Revisa con la [lista de comprobación](#lista-de-comprobación-tras-un-cambio-estético).
 
 ### Los tokens
 

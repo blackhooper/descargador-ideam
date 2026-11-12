@@ -152,18 +152,33 @@ def pagina(navegador, servidor):
 
 
 def marco_mapa(pagina):
-    return next(f for f in pagina.frames if "streamlit_folium" in f.url)
+    return next((f for f in pagina.frames if "streamlit_folium" in f.url), None)
+
+
+def encuadrar_mapa(pagina, lat, lon, zoom, segundos=60):
+    """Lleva el mapa 2D a ese encuadre y espera a que se quede ahi. Al llegar a la pantalla, Streamlit puede volver
+    a montar el mapa (su marco se reemplaza y el encuadre se pierde): por eso se repite hasta que aguante."""
+    limite = time.time() + segundos
+    while time.time() < limite:
+        try:
+            marco = marco_mapa(pagina)
+            if marco is None or not marco.evaluate("() => !!(window.map && window.map.setView)"):
+                pagina.wait_for_timeout(300)
+                continue
+            marco.evaluate("([lat, lon, z]) => window.map.setView([lat, lon], z, {animate: false})", [lat, lon, zoom])
+            pagina.wait_for_timeout(1500)
+            if marco_mapa(pagina) is marco and marco.evaluate("() => window.map.getZoom()") == zoom:
+                return
+        except playwright_sync.Error:
+            pagina.wait_for_timeout(300)    # el marco se reemplazo a mitad de la llamada
+    raise AssertionError("El mapa 2D no se quedo en el encuadre pedido")
 
 
 def ir_al_mapa_con_area(pagina):
     """De Parametros al mapa, con el area visible (Bogota y alrededores) como zona de estudio."""
     pagina.click(".st-key-ir_mapa button")
     pagina.wait_for_selector('[data-y2k-menu="dibujo"]:visible', timeout=30000)
-    pagina.wait_for_function("() => [...document.querySelectorAll('iframe')].some(f => /streamlit_folium/.test(f.src))")
-    marco = marco_mapa(pagina)
-    marco.wait_for_function("() => window.map && window.map.setView")
-    marco.evaluate("() => window.map.setView([4.9, -74.0], 11, {animate: false})")
-    pagina.wait_for_timeout(1200)
+    encuadrar_mapa(pagina, 4.9, -74.0, 11)
     pagina.locator('[data-y2k-menu="dibujo"]:visible').click()
     pagina.locator("[data-y2k-area]:visible").first.click()
     pagina.wait_for_selector(".st-key-preparar button:visible:not([disabled])", timeout=60000)

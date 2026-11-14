@@ -3,649 +3,762 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="description" content="Manual de usuario del Descargador IDEAM: consulta y descarga de series del portal DHIME por área.">
+<meta name="description" content="Manual de usuario del Descargador IDEAM: consulta y descarga de las series hidrometeorológicas del portal DHIME para todas las estaciones de una cuenca o zona.">
 <title>Manual Descargador IDEAM</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Figtree:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Silkscreen&display=swap">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
 <style>
 :root{
   color-scheme: light;
-  --bg:#EDF1F7; --dots:#DCE3EE; --surface:#FBFCFE; --surface-2:#F3F6FB;
-  --ink:#16213A; --ink-2:#4A5673; --ink-3:#6E7996; --line:#CFD8E6; --line-2:#B8C4D8;
-  --accent:#1C6FD8; --accent-soft:rgba(28,111,216,.10);
-  --holo:linear-gradient(100deg,#C9B8FF 0%,#B8D8FF 35%,#A8F0DC 65%,#E9D5FF 100%);
-  --titulo:#16213A;
-  --alta:#0CA30C; --media:#FAB219; --baja:#EC835A; --critica:#D03B3B;
-  --aviso-bg:rgba(236,131,90,.12); --aviso-borde:#EC835A;
-  --sombra:0 1px 0 #fff inset,0 18px 40px -26px rgba(22,33,58,.35);
+  --bg:#FFFFFF; --surface:#F5F7FA; --surface-2:#EDF1F6; --card:#FFFFFF;
+  --ink:#122038; --ink-2:#42506A; --ink-3:#66738A; --line:#DCE2EB; --line-2:#C6CFDC;
+  --accent:#0B5CAD; --accent-ink:#FFFFFF; --accent-soft:#E8F1FB; --accent-line:#B9D3EF;
+  --verde:#0E7A3E; --verde-soft:#E7F5EC;
+  --hero:linear-gradient(135deg,#0B2A55 0%,#0B4E93 55%,#0C7A8A 100%);
+  --alta:#0CA30C; --media:#E7A20F; --baja:#EC835A; --critica:#D03B3B;
+  --aviso-bg:#FFF4EC; --aviso-line:#F2B48F;
+  --sombra:0 1px 2px rgba(18,32,56,.06),0 8px 24px -12px rgba(18,32,56,.18);
 }
 @media (prefers-color-scheme: dark){
   :root:not([data-theme="light"]){
     color-scheme: dark;
-    --bg:#0C1220; --dots:#18223A; --surface:#131B2E; --surface-2:#182238;
-    --ink:#E6ECF7; --ink-2:#B4C0D8; --ink-3:#8C98B4; --line:#26324D; --line-2:#34436A;
-    --accent:#6AADF7; --accent-soft:rgba(106,173,247,.14);
-    --holo:linear-gradient(100deg,#3A2C6E 0%,#1F3F73 35%,#1B5A55 65%,#4B2D6B 100%);
-    --titulo:#EEF2FA;
-    --aviso-bg:rgba(236,131,90,.14);
-    --sombra:0 1px 0 rgba(255,255,255,.04) inset,0 18px 40px -26px rgba(0,0,0,.6);
+    --bg:#0D1422; --surface:#131C2D; --surface-2:#18233A; --card:#111A2A;
+    --ink:#E7ECF5; --ink-2:#B5C0D3; --ink-3:#8D99AF; --line:#25324A; --line-2:#33425E;
+    --accent:#6FAEF2; --accent-ink:#0D1422; --accent-soft:#16294A; --accent-line:#2C4C7C;
+    --verde:#5CCB8A; --verde-soft:#14301F;
+    --hero:linear-gradient(135deg,#0A1E3E 0%,#0B3A6E 55%,#0A5A66 100%);
+    --aviso-bg:#2A1C14; --aviso-line:#7A4A2E;
+    --sombra:0 1px 2px rgba(0,0,0,.3),0 8px 24px -12px rgba(0,0,0,.6);
   }
 }
 :root[data-theme="dark"]{
   color-scheme: dark;
-  --bg:#0C1220; --dots:#18223A; --surface:#131B2E; --surface-2:#182238;
-  --ink:#E6ECF7; --ink-2:#B4C0D8; --ink-3:#8C98B4; --line:#26324D; --line-2:#34436A;
-  --accent:#6AADF7; --accent-soft:rgba(106,173,247,.14);
-  --holo:linear-gradient(100deg,#3A2C6E 0%,#1F3F73 35%,#1B5A55 65%,#4B2D6B 100%);
-  --titulo:#EEF2FA;
-  --aviso-bg:rgba(236,131,90,.14);
-  --sombra:0 1px 0 rgba(255,255,255,.04) inset,0 18px 40px -26px rgba(0,0,0,.6);
+  --bg:#0D1422; --surface:#131C2D; --surface-2:#18233A; --card:#111A2A;
+  --ink:#E7ECF5; --ink-2:#B5C0D3; --ink-3:#8D99AF; --line:#25324A; --line-2:#33425E;
+  --accent:#6FAEF2; --accent-ink:#0D1422; --accent-soft:#16294A; --accent-line:#2C4C7C;
+  --verde:#5CCB8A; --verde-soft:#14301F;
+  --hero:linear-gradient(135deg,#0A1E3E 0%,#0B3A6E 55%,#0A5A66 100%);
+  --aviso-bg:#2A1C14; --aviso-line:#7A4A2E;
+  --sombra:0 1px 2px rgba(0,0,0,.3),0 8px 24px -12px rgba(0,0,0,.6);
 }
 
 *{box-sizing:border-box}
-body{
-  background-color:var(--bg);
-  background-image:radial-gradient(circle at 1px 1px,var(--dots) 1px,transparent 0);
-  background-size:14px 14px;
-  color:var(--ink);
-  font:16px/1.65 "Figtree",system-ui,-apple-system,"Segoe UI",sans-serif;
-  padding-inline:16px; padding-block:24px 64px;
-}
-.hoja{max-width:1140px;margin:0 auto}
-a{color:var(--accent)}
-a:focus-visible,summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:4px}
+html{scroll-behavior:smooth}
+@media (prefers-reduced-motion: reduce){html{scroll-behavior:auto}}
+body{margin:0;background:var(--bg);color:var(--ink);
+  font:16px/1.65 "Inter",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  -webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
+a{color:var(--accent);text-underline-offset:2px}
+a:focus-visible,summary:focus-visible,button:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:4px}
+img{max-width:100%;height:auto;display:block}
 
-/* ventana */
-.barra{display:flex;align-items:center;gap:12px;padding:10px 14px;background:var(--holo);
-  border:1px solid var(--line-2);border-radius:14px 14px 0 0}
-.puntos{display:flex;gap:7px}
-.puntos i{width:12px;height:12px;border-radius:50%;display:block;box-shadow:0 0 0 1px rgba(0,0,0,.18)}
-.puntos i:nth-child(1){background:#e0443e}.puntos i:nth-child(2){background:#f0b400}.puntos i:nth-child(3){background:#3cb83a}
-.barra .nombre{flex:1;text-align:center;font-family:"Silkscreen","Courier New",monospace;font-size:13px;letter-spacing:.08em;color:var(--titulo)}
-.barra .espacio{width:50px}
-.portada{background:var(--surface);border:1px solid var(--line-2);border-top:0;border-radius:0 0 14px 14px;
-  padding:28px clamp(18px,4vw,40px) 26px;box-shadow:var(--sombra)}
-.eyebrow{font-family:"Silkscreen",monospace;font-size:12px;letter-spacing:.1em;color:var(--accent);margin:0 0 8px}
-h1{font-family:"Silkscreen","Courier New",monospace;font-weight:400;font-size:clamp(26px,4.2vw,42px);line-height:1.1;
-  margin:0 0 12px;text-wrap:balance;letter-spacing:.01em}
-.bajada{font-size:18px;color:var(--ink-2);max-width:62ch;margin:0}
+/* ---------- cabecera ---------- */
+.barra{position:sticky;top:0;z-index:20;background:color-mix(in srgb,var(--bg) 92%,transparent);
+  backdrop-filter:saturate(1.4) blur(8px);-webkit-backdrop-filter:saturate(1.4) blur(8px);border-bottom:1px solid var(--line)}
+.barra .in{max-width:1180px;margin:0 auto;padding:12px 24px;display:flex;align-items:center;gap:12px}
+.marca{display:flex;align-items:center;gap:10px;font-weight:700;letter-spacing:-.01em;color:var(--ink);text-decoration:none}
+.marca svg{flex:none}
+.marca small{font-weight:500;color:var(--ink-3);font-size:14px}
+.barra .der{margin-left:auto;font-size:13px;color:var(--ink-3)}
 
-/* pasos (misma barra que la app) */
-.pasos{display:flex;flex-wrap:wrap;gap:10px 0;align-items:center;margin-top:22px;padding:12px 14px;
-  background:var(--surface-2);border:1px solid var(--line);border-radius:12px}
-.paso{display:flex;align-items:center;gap:8px;white-space:nowrap;color:var(--ink-2);font-weight:600;font-size:14px;text-decoration:none}
-.paso .n{width:26px;height:26px;border-radius:50%;display:grid;place-items:center;font-family:"Silkscreen",monospace;font-size:12px;
-  color:#fff;background:linear-gradient(180deg,#8CC4FF 0%,#3C8CF0 48%,#1C6FD8 52%,#2A86EE 100%)}
-.paso:hover{color:var(--accent)}
-.linea{flex:1;min-width:18px;height:2px;margin:0 10px;background:repeating-linear-gradient(90deg,var(--line-2) 0 4px,transparent 4px 8px)}
+/* ---------- portada ---------- */
+.portada{background:var(--hero);color:#fff}
+.portada .in{max-width:1180px;margin:0 auto;padding:64px 24px 56px}
+.sobre{display:inline-block;font-size:13px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;
+  color:#CFE3FA;margin:0 0 14px}
+.portada h1{font-size:clamp(32px,5vw,52px);line-height:1.08;letter-spacing:-.025em;margin:0 0 16px;max-width:18ch;text-wrap:balance}
+.portada .bajada{font-size:clamp(17px,2vw,20px);line-height:1.55;color:#E3EEFB;max-width:60ch;margin:0 0 28px}
+.acciones{display:flex;flex-wrap:wrap;gap:12px}
+.btn{display:inline-flex;align-items:center;gap:8px;padding:11px 18px;border-radius:10px;font-weight:600;font-size:15px;text-decoration:none}
+.btn.primario{background:#fff;color:#0B3A6E}
+.btn.secundario{color:#fff;border:1px solid rgba(255,255,255,.45)}
+.btn:hover{filter:brightness(1.06)}
+.portada .rejilla{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.05fr);gap:48px;align-items:center}
+.portada .captura img{border-radius:14px;border:1px solid rgba(255,255,255,.25);box-shadow:0 30px 60px -24px rgba(0,0,0,.55)}
+.cifras{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:1px;margin-top:44px;
+  background:rgba(255,255,255,.18);border-radius:14px;overflow:hidden;border:1px solid rgba(255,255,255,.18)}
+.cifra{background:rgba(6,24,52,.35);padding:18px 20px}
+.cifra b{display:block;font-size:24px;letter-spacing:-.02em;line-height:1.2}
+.cifra span{display:block;font-size:14px;color:#D5E5F8;margin-top:4px;line-height:1.45}
 
-/* cuerpo: indice + contenido */
-.cuerpo{display:grid;grid-template-columns:240px minmax(0,1fr);gap:36px;margin-top:28px;align-items:start}
-.indice{position:sticky;top:calc(env(safe-area-inset-top,0px) + 16px);font-size:14px}
-.indice p{font-family:"Silkscreen",monospace;font-size:11px;letter-spacing:.1em;color:var(--ink-3);margin:0 0 8px}
-.indice ol{list-style:none;margin:0;padding:0;display:grid;gap:2px}
-.indice a{display:block;padding:5px 10px;border-radius:8px;color:var(--ink-2);text-decoration:none}
-.indice a:hover{background:var(--accent-soft);color:var(--ink)}
+/* ---------- cuerpo ---------- */
+.cuerpo{max-width:1180px;margin:0 auto;padding:48px 24px 80px;display:grid;grid-template-columns:232px minmax(0,1fr);gap:56px;align-items:start}
+.indice{position:sticky;top:76px;font-size:14px;max-height:calc(100vh - 96px);overflow:auto;padding-right:4px}
+.indice p{font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3);margin:0 0 10px}
+.indice ol{list-style:none;margin:0;padding:0;counter-reset:i}
+.indice li{margin:0}
+.indice a{display:flex;gap:10px;padding:6px 10px;border-radius:8px;color:var(--ink-2);text-decoration:none;line-height:1.4}
+.indice a::before{counter-increment:i;content:counter(i,decimal-leading-zero);font-variant-numeric:tabular-nums;color:var(--ink-3);font-size:12px;padding-top:2px}
+.indice a:hover{background:var(--surface);color:var(--ink)}
+.indice a[aria-current="true"]{background:var(--accent-soft);color:var(--accent);font-weight:600}
+.indice a[aria-current="true"]::before{color:var(--accent)}
 .indice-movil{display:none}
 
 main{min-width:0}
-section{padding-bottom:10px;margin-bottom:34px;border-bottom:1px dashed var(--line-2);scroll-margin-top:16px}
-section:last-of-type{border-bottom:0}
-h2{font-family:"Silkscreen","Courier New",monospace;font-weight:400;font-size:clamp(19px,2.4vw,24px);line-height:1.2;
-  margin:0 0 14px;text-wrap:balance;letter-spacing:.02em}
-h2 .etiqueta{display:block;font-size:12px;letter-spacing:.12em;color:var(--accent);margin-bottom:6px}
-h3{font-size:17px;font-weight:700;margin:26px 0 8px;text-wrap:balance}
-p,li{max-width:68ch}
-p{margin:0 0 12px}
-ul,ol{padding-left:1.25em;margin:0 0 14px}
-li{margin-bottom:6px}
+section{scroll-margin-top:84px;padding-bottom:40px;margin-bottom:44px;border-bottom:1px solid var(--line)}
+section:last-of-type{border-bottom:0;margin-bottom:0}
+.etiqueta{display:block;font-size:12.5px;font-weight:700;letter-spacing:.09em;text-transform:uppercase;color:var(--accent);margin-bottom:8px}
+h2{font-size:clamp(25px,3vw,32px);line-height:1.18;letter-spacing:-.02em;margin:0 0 14px;text-wrap:balance}
+h3{font-size:19px;line-height:1.3;letter-spacing:-.01em;margin:32px 0 10px;text-wrap:balance}
+p,li{max-width:70ch}
+p{margin:0 0 14px}
+.intro{font-size:18px;color:var(--ink-2)}
+ul,ol{padding-left:1.3em;margin:0 0 16px}
+li{margin-bottom:8px}
 li::marker{color:var(--ink-3)}
-strong{font-weight:700}
+strong{font-weight:650}
 
-/* nombres de botones y controles tal como aparecen en la app */
-.ui{display:inline-block;font-size:.88em;font-weight:600;line-height:1.35;padding:1px 8px;border-radius:999px;
+/* nombres de botones tal como aparecen en la app */
+.ui{display:inline-block;font-size:.9em;font-weight:600;line-height:1.35;padding:1px 8px;border-radius:6px;
   border:1px solid var(--line-2);background:var(--surface);color:var(--ink);white-space:nowrap}
-.ui.primario{color:#fff;border-color:rgba(0,50,120,.35);
-  background:linear-gradient(180deg,#8CC4FF 0%,#3C8CF0 48%,#1C6FD8 52%,#2A86EE 100%)}
-
-/* recuadros */
-.nota,.aviso{border-radius:12px;padding:12px 16px;margin:16px 0;max-width:72ch}
-.nota{background:var(--accent-soft);border:1px solid color-mix(in srgb,var(--accent) 35%,transparent)}
-.aviso{background:var(--aviso-bg);border:1px solid var(--aviso-borde)}
-.nota p:last-child,.aviso p:last-child{margin:0}
-.nota strong:first-child,.aviso strong:first-child{display:block;margin-bottom:2px}
-
-/* tablas */
-.tabla{overflow-x:auto;margin:12px 0 18px;border:1px solid var(--line);border-radius:12px;background:var(--surface)}
-table{border-collapse:collapse;width:100%;font-size:14.5px}
-th,td{text-align:left;padding:9px 14px;border-bottom:1px solid var(--line);vertical-align:top}
-tr:last-child td{border-bottom:0}
-th{font-size:12px;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3);font-weight:600;background:var(--surface-2)}
-td.num{font-variant-numeric:tabular-nums;white-space:nowrap}
-code{font:14px/1.4 ui-monospace,"Cascadia Mono",Consolas,monospace;background:var(--surface-2);border:1px solid var(--line);
+code{font:14px/1.4 ui-monospace,"Cascadia Mono",Consolas,monospace;background:var(--surface);border:1px solid var(--line);
   padding:1px 6px;border-radius:6px;overflow-wrap:anywhere}
 
-/* clases de calidad */
-.clases{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin:14px 0 18px}
-.clase{border:1px solid var(--line);background:var(--surface);border-radius:12px;padding:12px 14px}
-.clase .punto{display:inline-block;width:12px;height:12px;border-radius:50%;margin-right:6px;vertical-align:-1px}
-.clase b{font-size:15px}
-.clase span{display:block;font-size:13px;color:var(--ink-3);font-variant-numeric:tabular-nums}
-.clase code{font-size:12px;display:inline-block;margin-top:6px}
+/* comparativa */
+.comparativa{margin:22px 0 10px;border:1px solid var(--line);border-radius:14px;overflow:hidden;background:var(--card);box-shadow:var(--sombra)}
+.comparativa table{border-collapse:collapse;width:100%;font-size:15px}
+.comparativa th,.comparativa td{text-align:left;vertical-align:top;padding:14px 18px;border-bottom:1px solid var(--line)}
+.comparativa tr:last-child td{border-bottom:0}
+.comparativa thead th{font-size:13px;letter-spacing:.04em;text-transform:uppercase;color:var(--ink-3);background:var(--surface);font-weight:700}
+.comparativa thead th.app{color:var(--accent);background:var(--accent-soft)}
+.comparativa td:first-child{font-weight:650;width:24%}
+.comparativa td.portal{color:var(--ink-2);width:30%}
+.comparativa td.app{background:color-mix(in srgb,var(--accent-soft) 45%,transparent)}
+.comparativa td.app::before{content:"";display:inline-block;width:16px;height:16px;margin:0 8px -3px 0;border-radius:50%;
+  background:var(--verde) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Cpath d='M4.5 8.2l2.2 2.2 4.8-4.8' fill='none' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center/16px no-repeat}
+.sin{color:var(--ink-3)}
 
-/* arbol del ZIP */
-pre{margin:12px 0 18px;overflow-x:auto;border-radius:12px}
-.arbol{font:14px/1.6 ui-monospace,"Cascadia Mono",Consolas,monospace;background:var(--surface);border:1px solid var(--line);padding:14px 16px;color:var(--ink)}
+/* figuras */
+figure{margin:22px 0 26px}
+figure img{border:1px solid var(--line);border-radius:12px;box-shadow:var(--sombra);background:var(--surface)}
+figure.angosta{max-width:520px}
+figcaption{font-size:14px;color:var(--ink-3);margin-top:10px;max-width:70ch}
+figcaption b{color:var(--ink-2)}
+
+/* pasos */
+.pasos{list-style:none;padding:0;margin:20px 0;counter-reset:p}
+.pasos > li{position:relative;padding-left:46px;margin-bottom:16px;max-width:72ch}
+.pasos > li::before{counter-increment:p;content:counter(p);position:absolute;left:0;top:0;width:30px;height:30px;border-radius:50%;
+  display:grid;place-items:center;background:var(--accent);color:var(--accent-ink);font-weight:700;font-size:14px}
+
+/* tarjetas */
+.tarjetas{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin:18px 0 22px}
+.tarjetas.dos{grid-template-columns:repeat(2,minmax(0,1fr))}
+.tarjeta{border:1px solid var(--line);background:var(--card);border-radius:12px;padding:16px 18px}
+.tarjeta h4{margin:0 0 6px;font-size:16px}
+.tarjeta p{margin:0;font-size:15px;color:var(--ink-2)}
+.tarjeta .num{display:inline-grid;place-items:center;width:26px;height:26px;border-radius:7px;background:var(--accent-soft);color:var(--accent);font-weight:700;font-size:13px;margin-bottom:10px}
+
+/* recuadros */
+.nota,.aviso,.ejemplo{border-radius:12px;padding:14px 18px;margin:18px 0;max-width:74ch}
+.nota{background:var(--accent-soft);border:1px solid var(--accent-line)}
+.aviso{background:var(--aviso-bg);border:1px solid var(--aviso-line)}
+.ejemplo{background:var(--verde-soft);border:1px solid color-mix(in srgb,var(--verde) 40%,transparent)}
+.nota p:last-child,.aviso p:last-child,.ejemplo p:last-child{margin:0}
+.nota > strong:first-child,.aviso > strong:first-child,.ejemplo > strong:first-child{display:block;margin-bottom:4px}
+
+/* tablas */
+.tabla{overflow-x:auto;margin:14px 0 20px;border:1px solid var(--line);border-radius:12px;background:var(--card)}
+.tabla table{border-collapse:collapse;width:100%;font-size:15px}
+.tabla th,.tabla td{text-align:left;padding:10px 16px;border-bottom:1px solid var(--line);vertical-align:top}
+.tabla tr:last-child td{border-bottom:0}
+.tabla th{font-size:12.5px;letter-spacing:.05em;text-transform:uppercase;color:var(--ink-3);font-weight:700;background:var(--surface)}
+td.num{font-variant-numeric:tabular-nums;white-space:nowrap}
+
+/* clases de cobertura */
+.clases{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin:16px 0 20px}
+.clase{border:1px solid var(--line);background:var(--card);border-radius:12px;padding:12px 14px}
+.clase i{display:inline-block;width:12px;height:12px;border-radius:50%;margin-right:7px;vertical-align:-1px}
+.clase b{font-size:15px}
+.clase span{display:block;font-size:14px;color:var(--ink-3);font-variant-numeric:tabular-nums}
+
+/* árbol del ZIP */
+pre.arbol{margin:14px 0 20px;overflow-x:auto;font:14px/1.65 ui-monospace,"Cascadia Mono",Consolas,monospace;
+  background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px 18px;color:var(--ink)}
 .arbol .c{color:var(--ink-3)}
 
 /* preguntas */
-details{border:1px solid var(--line);background:var(--surface);border-radius:12px;padding:0 16px;margin-bottom:8px;max-width:72ch}
-summary{cursor:pointer;font-weight:600;padding:12px 0;list-style-position:outside}
-details[open] summary{border-bottom:1px dashed var(--line-2);margin-bottom:10px}
-details > p:last-child,details > ul:last-child{margin-bottom:14px}
-
-dl.glosario{display:grid;grid-template-columns:max-content minmax(0,1fr);gap:8px 18px;margin:0;max-width:74ch}
-dl.glosario dt{font-weight:700}
+details{border:1px solid var(--line);background:var(--card);border-radius:12px;padding:0 18px;margin-bottom:10px;max-width:76ch}
+summary{cursor:pointer;font-weight:600;padding:14px 0;list-style-position:outside}
+details[open] summary{border-bottom:1px solid var(--line);margin-bottom:12px}
+details > :last-child{margin-bottom:16px}
+dl.glosario{display:grid;grid-template-columns:max-content minmax(0,1fr);gap:10px 22px;margin:0;max-width:78ch}
+dl.glosario dt{font-weight:650}
 dl.glosario dd{margin:0;color:var(--ink-2)}
 
-.pie{margin-top:10px;font-size:14px;color:var(--ink-3)}
+.pie{border-top:1px solid var(--line);background:var(--surface)}
+.pie .in{max-width:1180px;margin:0 auto;padding:28px 24px 40px;font-size:14px;color:var(--ink-3)}
+.pie p{max-width:none}
 
-/* contacto */
-.contacto{background:var(--surface);border:1px solid var(--line-2);border-radius:14px;padding:18px 20px;max-width:72ch;box-shadow:var(--sombra)}
-.contacto .quien{font-size:17px}
-.canales{list-style:none;padding:0;margin:14px 0 0;display:grid;gap:8px}
-.canales li{display:grid;grid-template-columns:90px minmax(0,1fr);gap:12px;align-items:baseline;margin:0;max-width:none}
-.canal{font-family:"Silkscreen",monospace;font-size:11px;letter-spacing:.1em;color:var(--ink-3)}
-.canales a,.canales .dato{overflow-wrap:anywhere;font-weight:600}
-.canales .dato{user-select:all}
-
-@media (max-width:860px){
-  .cuerpo{grid-template-columns:minmax(0,1fr);gap:18px}
+/* ---------- pantallas medianas y celular ---------- */
+@media (max-width: 1000px){
+  .cuerpo{grid-template-columns:minmax(0,1fr);gap:0;padding-top:28px}
   .indice{display:none}
-  .indice-movil{display:block;margin-top:18px;max-width:none}
-  .indice-movil ol{margin:0 0 12px;padding-left:1.3em}
+  .indice-movil{display:block;margin:0 0 32px;border:1px solid var(--line);border-radius:12px;background:var(--card);padding:0 16px}
+  .indice-movil summary{padding:12px 0}
+  .indice-movil ol{margin:0 0 14px;padding-left:1.4em;columns:2;column-gap:28px}
+  .indice-movil li{margin-bottom:6px;break-inside:avoid}
+  .cifras{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .portada .rejilla{grid-template-columns:minmax(0,1fr);gap:32px}
+  .portada h1{max-width:none}
+  .tarjetas{grid-template-columns:repeat(2,minmax(0,1fr))}
+}
+@media (max-width: 680px){
+  .barra .in,.portada .in,.cuerpo,.pie .in{padding-left:16px;padding-right:16px}
+  .barra .der{display:none}
+  .portada .in{padding-top:40px;padding-bottom:36px}
+  .cifras{margin-top:32px}
+  .cifra{padding:14px 14px}
+  .cifra b{font-size:20px}
+  .tarjetas,.tarjetas.dos{grid-template-columns:minmax(0,1fr)}
   .clases{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .indice-movil ol{columns:1}
+  /* la comparativa pasa a fichas apiladas */
+  .comparativa thead{display:none}
+  .comparativa table,.comparativa tbody,.comparativa tr,.comparativa td{display:block;width:auto !important}
+  .comparativa tr{border-bottom:1px solid var(--line);padding:14px 16px}
+  .comparativa tr:last-child{border-bottom:0}
+  .comparativa td{border:0;padding:4px 0}
+  .comparativa td:first-child{font-size:16px;margin-bottom:4px}
+  .comparativa td.portal::before{content:"Portal DHIME: ";font-weight:600;color:var(--ink-3)}
+  .comparativa td.app{background:none}
+  dl.glosario{grid-template-columns:minmax(0,1fr);gap:2px}
+  dl.glosario dd{margin-bottom:12px}
 }
-@media (max-width:520px){
-  .pasos .linea{display:none}
-  .pasos{gap:10px 16px}
-  dl.glosario{grid-template-columns:minmax(0,1fr)}
-  dl.glosario dd{margin-bottom:8px}
+
+/* ---------- impresión (PDF) ---------- */
+@media print{
+  :root{color-scheme:light}
+  .barra,.indice,.indice-movil,.acciones{display:none !important}
+  .cuerpo{display:block;padding:0}
+  .portada{background:none;color:var(--ink);border-bottom:2px solid var(--ink)}
+  .portada .bajada,.sobre{color:var(--ink-2)}
+  .cifras{background:none;border:1px solid var(--line)}
+  .cifra{background:none;color:var(--ink)} .cifra span{color:var(--ink-2)}
+  section{break-inside:auto;border:0;margin-bottom:20px}
+  h2,h3,figure,details,.tabla,.comparativa tr{break-inside:avoid}
+  details{border:0;padding:0} details > *{display:block}
+  figure img,.comparativa{box-shadow:none}
+  a{color:inherit;text-decoration:none}
 }
-@media (prefers-reduced-motion:no-preference){html{scroll-behavior:smooth}}
 </style>
-<style>body{margin:0}</style>
 </head>
 <body>
 
-<div class="hoja"><p style="margin:0 0 12px"><a href="../../" style="display:inline-block;padding:6px 14px;border-radius:999px;border:1px solid var(--line-2);background:var(--surface);font-weight:600;font-size:14px;text-decoration:none">← Abrir el Descargador IDEAM</a></p>
-  <header>
-    <div class="barra" aria-hidden="true">
-      <div class="puntos"><i></i><i></i><i></i></div>
-      <div class="nombre">MANUAL · DESCARGADOR IDEAM</div>
-      <div class="espacio"></div>
+<header class="barra">
+  <div class="in">
+    <a class="marca" href="#inicio">
+      <svg width="28" height="28" viewBox="0 0 28 28" aria-hidden="true"><rect width="28" height="28" rx="7" fill="#0B5CAD"/><path d="M14 5.5c-3.6 4.4-5.6 7.7-5.6 10.2a5.6 5.6 0 0 0 11.2 0c0-2.5-2-5.8-5.6-10.2z" fill="#fff"/><path d="M11.4 16.2a2.8 2.8 0 0 0 2.6 2.7" stroke="#0B5CAD" stroke-width="1.6" fill="none" stroke-linecap="round"/></svg>
+      <span>Descargador IDEAM <small>· Manual de usuario</small></span>
+    </a>
+    <span class="der">Datos del portal DHIME del IDEAM</span>
+  </div>
+</header>
+
+<div class="portada" id="inicio">
+  <div class="in">
+    <div class="rejilla"><div>
+    <p class="sobre">Manual de usuario</p>
+    <h1>Los datos del IDEAM de toda tu cuenca, en una sola descarga</h1>
+    <p class="bajada">El Descargador IDEAM consulta el portal DHIME por ti: encuentra todas las estaciones de tu área de estudio, te dice antes de descargar cuánto del periodo cubre cada una y entrega un Excel por estación, ya unido, ordenado y listo para citar.</p>
+    <div class="acciones">
+      <a class="btn primario" href="#por-que">Por qué usarlo</a>
+      <a class="btn secundario" href="#consulta">Empezar en tres pasos →</a>
     </div>
-    <div class="portada">
-      <p class="eyebrow">MANUAL DE USUARIO</p>
-      <h1>Descargador IDEAM</h1>
-      <p class="bajada">Cómo descargar información meteorológica e hidrológica del IDEAM con el Descargador IDEAM. Herramienta independiente, no oficial del IDEAM.</p>
-      <nav class="pasos" aria-label="Los cuatro pasos de la app">
-        <a class="paso" href="#parametro"><span class="n">1</span>Consulta</a><span class="linea"></span>
-        <a class="paso" href="#cuenca"><span class="n">2</span>Área en el mapa</a><span class="linea"></span>
-        <a class="paso" href="#revisar"><span class="n">3</span>Estaciones</a><span class="linea"></span>
-        <a class="paso" href="#descarga"><span class="n">4</span>Exportación</a>
-      </nav>
     </div>
-  </header>
-
-  <div class="cuerpo">
-    <nav class="indice" aria-label="Contenido">
-      <p>CONTENIDO</p>
-      <ol>
-        <li><a href="#que-es">Qué ofrece el IDEAM</a></li>
-          <li><a href="#limitaciones">El problema</a></li>
-          <li><a href="#solucion">La solución</a></li>
-        <li><a href="#parametro">1 · Parámetro y fechas</a></li>
-        <li><a href="#cuenca">2 · Marcar el área</a></li>
-        <li><a href="#estaciones">Estaciones en el mapa</a></li>
-        <li><a href="#vista-3d">El mapa 3D y los ajustes</a></li>
-        <li><a href="#cobertura">Cobertura del periodo</a></li>
-        <li><a href="#revisar">3 · Revisar las estaciones</a></li>
-        <li><a href="#altitud">Altitud dudosa</a></li>
-        <li><a href="#descarga">4 · Exportación</a></li>
-        <li><a href="#zip">Qué trae el ZIP</a></li>
-          <li><a href="#uso-datos">Uso de los datos y citación</a></li>
-        <li><a href="#problemas">Problemas frecuentes</a></li>
-        <li><a href="#glosario">Glosario</a></li>
-      </ol>
-    </nav>
-
-    <main>
-      <details class="indice-movil">
-        <summary>Contenido del manual</summary>
-        <ol>
-          <li><a href="#que-es">Qué ofrece el IDEAM</a></li>
-          <li><a href="#limitaciones">El problema</a></li>
-          <li><a href="#solucion">La solución</a></li>
-          <li><a href="#parametro">1 · Parámetro y fechas</a></li>
-        <li><a href="#cuenca">2 · Marcar el área</a></li>
-        <li><a href="#estaciones">Estaciones en el mapa</a></li>
-        <li><a href="#vista-3d">El mapa 3D y los ajustes</a></li>
-        <li><a href="#cobertura">Cobertura del periodo</a></li>
-        <li><a href="#revisar">3 · Revisar las estaciones</a></li>
-        <li><a href="#altitud">Altitud dudosa</a></li>
-        <li><a href="#descarga">4 · Exportación</a></li>
-          <li><a href="#zip">Qué trae el ZIP</a></li>
-          <li><a href="#uso-datos">Uso de los datos y citación</a></li>
-          <li><a href="#problemas">Problemas frecuentes</a></li>
-          <li><a href="#glosario">Glosario</a></li>
-        </ol>
-      </details>
-
-      <section id="que-es">
-        <h2><span class="etiqueta">CONTEXTO</span>Qué ofrece el IDEAM</h2>
-        <p>El IDEAM publica en su portal <strong>DHIME</strong> la información de su red de estaciones en todo el país: precipitación, temperatura, caudal, nivel de los ríos, humedad, viento, radiación y otras variables. Cualquier persona puede descargarla, de la estación que necesite y para el rango de tiempo que le interese, en archivos Excel.</p>
-      </section>
-
-      <section id="limitaciones">
-        <h2><span class="etiqueta">EL PROBLEMA</span>Descargarla a mano toma horas</h2>
-        <p>Para un estudio de cuenca, con muchas estaciones y muchos años de datos, el portal se queda corto:</p>
-        <ul>
-          <li><strong>Volumen de consultas:</strong> hay un máximo de estaciones por consulta, que según el parámetro puede ser de solo 10. Una cuenca con 60 estaciones exige al menos 6 rondas de descarga.</li>
-          <li><strong>Límite de tiempo por consulta:</strong> cada consulta admite un máximo de años según la frecuencia de los datos: 10 años para datos horarios, 30 para diarios y 50 para mensuales. Quien necesite 30 años de datos horarios tiene que hacer <strong>tres descargas separadas por estación</strong>. Con 20 estaciones, son 60 descargas.</li>
-          <li><strong>Unir todo a mano:</strong> después hay que unir, estación por estación y en orden, los archivos de cada tramo de años, y renombrarlos para saber cuál es cuál.</li>
-          <li><strong>Sin saber qué esperar:</strong> hasta no descargar no se sabe si el registro de una estación alcanza a cubrir el periodo que se necesita.</li>
-        </ul>
-      </section>
-
-      <section id="solucion">
-        <h2><span class="etiqueta">LA SOLUCIÓN</span>El Descargador IDEAM lo hace por ti</h2>
-        <ul>
-          <li><strong>Todas las estaciones de tu cuenca, de una vez:</strong> dibujas tu cuenca o subes su archivo, y aparecen todas las estaciones del IDEAM que contiene, más las cercanas si quieres.</li>
-          <li><strong>Sin límite de estaciones ni de años:</strong> el Descargador divide el periodo en los tramos que permite el portal y hace todas las consultas por su cuenta.</li>
-          <li><strong>Un solo Excel por estación, ya unido:</strong> los tramos se unen automáticamente, con el formato original del IDEAM, y cada archivo lleva el nombre de su estación.</li>
-          <li><strong>Sabes qué vas a recibir antes de descargar:</strong> para cada estación ves qué parte de tu periodo cubre su registro; quitas las que no quieras y, si prefieres, las descargas ordenadas en carpetas según esa cobertura.</li>
-          <li><strong>Revisión de altitudes en 3D:</strong> un mapa 3D con el relieve real ubica cada estación y marca las que tienen la altitud mal registrada en el catálogo.</li>
-          <li><strong>Lista para citar:</strong> cada descarga incluye la cita de la fuente que exigen los términos de uso del IDEAM.</li>
-        </ul>
-        <div class="nota">
-          <strong>Ejemplo</strong>
-          <p>20 estaciones con 30 años de datos horarios: a mano son 60 descargas y 60 archivos por unir y renombrar. Con el Descargador es una sola descarga que entrega 20 Excel listos.</p>
-        </div>
-        <h3>Requisitos</h3>
-        <ul>
-          <li>Un navegador web actualizado y conexión a internet. No hay que instalar nada.</li>
-          <li>La <strong>clave de acceso</strong> que te entregaron. Se pide una sola vez por navegador: después entras directo. Tras varios intentos fallidos seguidos hay que esperar unos segundos para volver a probar. Para salir, usa <span class="ui">Cerrar sesión</span> en el menú de Ajustes.</li>
-          <li>El área de estudio (una cuenca, un municipio o cualquier zona): trazada sobre el mapa o como archivo (Shapefile, GeoJSON, KML/KMZ o GeoPackage).</li>
-        </ul>
-        <p class="pie">Si la aplicación lleva un rato sin uso, la primera carga puede tardar hasta un minuto; las siguientes son inmediatas. Arriba a la derecha, el menú <span class="ui">Ajustes</span> (el botón ◐) cambia el tema (claro u oscuro), activa el alto contraste y el modo Lite, y abre este manual (ver <a href="#vista-3d">El mapa 3D y los ajustes</a>).</p>
-      </section>
-
-      <section id="parametro">
-        <h2><span class="etiqueta">PASO 1</span>Consulta: serie, variable y fechas</h2>
-        <p>La app abre con la tarjeta <em>Consulta y descarga de datos hidrometeorológicos</em> sobre el mapa de Colombia. Mientras la llenas, el mapa y la lista de variables del IDEAM se cargan por detrás, así que al pasar al mapa no hay que esperar.</p>
-        <ol>
-          <li><span class="ui">Serie de tiempo y frecuencia</span>, como en la página del IDEAM:
-            <ul>
-              <li><span class="ui">Estándar</span> (por defecto): series diarias, mensuales, anuales, horarias y de alta frecuencia. Eliges la <span class="ui">Variable</span> y luego el <span class="ui">Parámetro</span>. Por ejemplo, en <em>Precipitación</em> el IDEAM ofrece <em>Día pluviométrico (convencional)</em>, <em>Precipitación total mensual</em> y <em>Precipitación total anual</em>.</li>
-              <li><span class="ui">Especial</span>: series que el IDEAM calcula a partir de otra. Eliges la <span class="ui">Frecuencia</span> (<em>Decadal</em> o <em>Multianual</em>), la <span class="ui">Variable</span> y el <span class="ui">Parámetro</span>, que trae su cálculo y su código, como en la página del IDEAM: <em>Día pluviométrico |SUM [PTPM_CON]</em> o <em>Precipitación máxima diaria |MAX [PT_10_MX_D]</em> (ver <a href="#serie-especial">La serie especial</a>).</li>
-            </ul>
-          </li>
-          <li><span class="ui">Variable</span> y <span class="ui">Parámetro</span>: solo aparecen las variables que tienen series en la opción elegida. Puedes abrir cada lista o <strong>escribir</strong> para buscar. Mientras la lista del IDEAM carga, los desplegables están en gris; un punto pequeño junto a la palabra «Variable» se enciende en azul cuando ya cargó.</li>
-          <li><span class="ui">Desde</span> y <span class="ui">Hasta</span>: el periodo, en formato día/mes/año (por defecto del 01/01/2000 al 31/12/2020). La fecha inicial debe ser anterior a la final. Si con esa frecuencia el periodo daría más de un millón de filas por estación, más de lo que admite Excel, la tarjeta te pide acortarlo.</li>
-          <li><span class="ui">Filtrar por ubicación · opcional</span> (ver <a href="#ubicacion">Elegir las estaciones por ubicación</a>): otra forma de elegir las estaciones, sin dibujar un área.</li>
-        </ol>
-        <p>Cuando el mapa y los datos de la variable elegida terminaron de cargar, <span class="ui primario">Seleccionar área en el mapa</span> te lleva al mapa sin esperas. Si lo pulsas antes, no avanza y da dos destellos rojos: espera a que el punto de «Variable» se encienda. Arriba, tres pasos numerados muestran el recorrido y en cuál vas: <em>Parámetros</em>, <em>Área y estaciones</em> y <em>Descarga</em>. Debajo de las fechas, tres atajos llenan el periodo de una vez: <span class="ui">Últimos 10 años</span>, <span class="ui">Últimos 30 años</span> y <span class="ui">Todo</span>.</p>
-        <p>El IDEAM entrega un número limitado de años por consulta. La app divide tu periodo en bloques de ese tamaño y después los une en un solo Excel:</p>
-        <div class="tabla">
-          <table>
-            <thead><tr><th>Frecuencia</th><th>Años por consulta (aprox.)</th></tr></thead>
-            <tbody>
-              <tr><td>Mensual y Anual</td><td class="num">50 años</td></tr>
-              <tr><td>Diario</td><td class="num">30 años</td></tr>
-              <tr><td>Horario</td><td class="num">10 años</td></tr>
-              <tr><td>Cada 2, 5 o 10 minutos</td><td class="num">1 mes</td></tr>
-            </tbody>
-          </table>
-        </div>
-        <h3 id="ubicacion">Elegir las estaciones por ubicación</h3>
-        <p>Como en la sección <em>Datos Estación</em> de la página del IDEAM, puedes elegir las estaciones por su ubicación en vez de marcar un área en el mapa. Abre el desplegable <span class="ui">Filtrar por ubicación · opcional</span>, al final de la tarjeta:</p>
-        <ol>
-          <li><span class="ui">Departamento</span>: solo aparecen los que tienen estaciones con la serie elegida.</li>
-          <li><span class="ui">Municipio</span>: <em>Todos</em> por defecto, o uno en particular.</li>
-          <li><span class="ui">Estaciones</span> (opcional): escribe el nombre o el código y elige una o varias. Cada opción muestra el año del primer y del último dato de la serie, por ejemplo <em>ASTILLEROS [27011110] · 1991–2026</em>. Si no eliges ninguna, cuentan todas las del departamento o municipio.</li>
-        </ol>
-        <p>El botón cambia a <span class="ui primario">Ver N estaciones en el mapa</span>. En el mapa verás solo esas estaciones, encuadradas, con su cobertura y la lista para descargar; el panel dice de dónde son (por ejemplo, <em>Antioquia · Medellín</em>). <span class="ui">Quitar filtro</span>, en el panel, o dibujar o subir un área te devuelven a la forma de siempre. Para quitarlo desde la tarjeta, borra el departamento con su ×.</p>
-        <h3 id="serie-especial">La serie especial</h3>
-        <p>Son cálculos del IDEAM sobre una serie base (la del código entre corchetes). Las estaciones y su cobertura son las de esa serie base.</p>
-        <ul>
-          <li><strong>Decadal</strong>: un dato por década, es decir, por cada tramo del 1 al 10, del 11 al 20 y del 21 al fin de mes (36 por año). El cálculo dice qué se hace con los datos de cada década: <code>SUM</code> los suma, <code>MAX</code> toma el máximo, <code>MIN</code> el mínimo y <code>AVG</code> el promedio. Si el periodo pasa el límite de la serie base, la app lo parte en bloques que terminan a fin de mes, así ninguna década queda partida.</li>
-          <li><strong>Multianual</strong>: siempre 36 filas por estación, el mínimo, la media y el máximo de cada mes del año en todo tu periodo (por ejemplo, el enero más seco, el promedio de los eneros y el enero más lluvioso). Se calcula de una sola vez, así que el periodo no puede pasar el límite de la serie base (50 años para las mensuales); si lo pasa, la tarjeta te pide acortarlo.</li>
-          <li>Si el IDEAM no tiene datos para un cálculo en una estación, la estación queda omitida y el motivo va en <code>resumen_descarga.csv</code>.</li>
-        </ul>
-        <h3>Series de alta frecuencia</h3>
-        <p>En <span class="ui">Estándar</span>, las series cada 10, 5 o 2 minutos se usan con cuidado: el IDEAM las entrega de a <strong>un mes por consulta</strong>, así que 10 años son 120 consultas por estación y cada Excel puede tener cientos de miles de filas. Usa periodos cortos y pocas estaciones. La tarjeta lo recuerda con una nota breve (<span class="ui">Ver más</span>).</p>
-        <p>Al pie de la tarjeta puedes leer las condiciones de uso de los datos y abrir este manual. El <strong>modo Lite</strong> está en el menú <span class="ui">Ajustes</span> (ver <a href="#vista-3d">El mapa 3D y los ajustes</a>).</p>
-      </section>
-
-      <section id="cuenca">
-        <h2><span class="etiqueta">PASO 2</span>Marcar el área en el mapa</h2>
-        <p>El mapa ocupa toda la pantalla. En el computador, el panel <strong>Consulta</strong> llega cerrado para que veas el mapa entero: ábrelo con el botón <span class="ui">Consulta</span> de arriba a la izquierda. Arriba a la derecha está el menú <span class="ui">Ajustes</span> y, debajo, la cápsula de herramientas del mapa; abajo, el selector <span class="ui">2D</span> <span class="ui">3D</span> y el botón <span class="ui primario">Preparar descarga</span>. En la sección <em>Calidad de los datos</em> del panel, el nombre de tu variable (por ejemplo <span class="ui">‹ Precipitación</span>) te devuelve a la tarjeta del paso 1 para cambiar la variable o el periodo; el área y lo demás se conservan.</p>
-        <p>En el <strong>celular</strong>, el panel es una tarjeta que se abre y se cierra con el botón <span class="ui">Consulta</span> de la barra de abajo (o con la ✕ de la tarjeta, o tocando el mapa). Mientras está abierta se apartan las herramientas, la leyenda y la escala del mapa; al cerrarla vuelven.</p>
-        <p>Puedes marcar el área de tres formas, todas desde el lápiz de la cápsula de herramientas: dibujar un rectángulo, usar la zona que ves en el mapa o subir el contorno de tu área (puede tener cualquier forma). Si en el paso 1 elegiste las estaciones por ubicación, no hace falta marcar nada (ver <a href="#ubicacion">Elegir las estaciones por ubicación</a>).</p>
-
-        <h3>Opción A: dibujarla en el mapa</h3>
-        <ol>
-          <li>Acércate a tu zona con la rueda del mouse, con dos dedos en el celular o con los botones <span class="ui">+</span> y <span class="ui">−</span> de la cápsula de herramientas.</li>
-          <li>Pulsa el lápiz de la cápsula de herramientas, luego <span class="ui">Dibujar un rectángulo</span>, y arrastra de una esquina a la opuesta (en el celular, con un dedo).</li>
-        </ol>
-        <p>Apenas sueltas el rectángulo, un escáner recorre la zona mientras la app busca las estaciones que caen adentro; cuando termina, las estaciones aparecen de norte a sur. Solo hay un área a la vez: si dibujas otra, reemplaza a la anterior. En el panel, junto al título <em>Área de estudio</em>, aparece su tamaño en km², y debajo tres botones para corregirla:</p>
-        <ul>
-          <li><span class="ui">Redibujar</span>: dibuja otro rectángulo.</li>
-          <li><span class="ui">Ajustar</span>: arrastra las esquinas a su nuevo lugar y pulsa <span class="ui">Guardar</span> (junto a la cápsula de herramientas), o <span class="ui">Cancelar</span> para deshacer.</li>
-          <li><span class="ui">Borrar</span>: quita el área; el mapa se queda donde estaba, con el mismo zoom.</li>
-        </ul>
-        <p>Las mismas acciones, y la de subir un archivo, están en el menú del lápiz de la cápsula de herramientas.</p>
-
-        <h3>Opción B: usar la zona que ves</h3>
-        <p>Acerca el mapa a tu zona y elige <span class="ui">Usar el área visible</span> en el menú del lápiz: el área será la parte del mapa que ves, sin los bordes que tapan los paneles. Se activa cuando el mapa está lo bastante cerca (nivel de zoom 10 o más). Es también la forma de marcar el área solo con el teclado: lleva el foco al mapa, muévete con las flechas, acerca con la tecla <span class="ui">+</span> y usa esa opción.</p>
-
-        <h3>Opción C: subir un archivo</h3>
-        <ol>
-          <li>Pulsa <span class="ui">Subir un archivo</span> en el menú del lápiz. Se abre una ventana.</li>
-          <li>Pulsa <span class="ui">Elegir archivos</span> o arrastra tu archivo al recuadro. Si todo está bien verás <em>Archivo válido: 1 polígono</em>.</li>
-          <li>Pulsa <span class="ui primario">Usar esta área</span>.</li>
-        </ol>
-        <div class="tabla">
-          <table>
-            <thead><tr><th>Formato</th><th>Qué subir</th></tr></thead>
-            <tbody>
-              <tr><td>Shapefile en ZIP</td><td>Un <code>.zip</code> con el <code>.shp</code>, <code>.shx</code>, <code>.dbf</code> y <code>.prj</code>. Lo más cómodo. Puede tener subcarpetas.</td></tr>
-              <tr><td>Shapefile suelto</td><td>Selecciona a la vez <code>.shp</code>, <code>.shx</code> y <code>.dbf</code> (y el <code>.prj</code> si lo tienes). Con solo el <code>.shp</code> no funciona.</td></tr>
-              <tr><td>GeoJSON</td><td>Un archivo <code>.geojson</code> o <code>.json</code>.</td></tr>
-              <tr><td>KML / KMZ</td><td>El archivo exportado de Google Earth.</td></tr>
-              <tr><td>GeoPackage</td><td>Un <code>.gpkg</code>. Si trae varias capas, se usa la de polígonos.</td></tr>
-            </tbody>
-          </table>
-        </div>
-        <div class="aviso">
-          <strong>El archivo debe traer polígonos y su sistema de coordenadas</strong>
-          <p>Si el shapefile no trae <code>.prj</code> y sus coordenadas están en metros, la app te avisa en lugar de ubicar el área en un lugar equivocado. Si el archivo solo tiene puntos o líneas, también lo rechaza: necesita el contorno cerrado del área. Un área subida también se puede ajustar después.</p>
-        </div>
-
-        <h3>El buffer</h3>
-        <p>Las estaciones cercanas al límite del área suelen ser útiles para la interpolación y el relleno de datos, aunque estén por fuera. Para incluirlas se usa el <strong>buffer</strong>: una franja alrededor del contorno, dibujada en naranja punteado. En el panel es una píldora pequeña, <span class="ui">Buffer · 2 km</span>; al pulsarla se abre su ajuste:</p>
-        <ul>
-          <li>El interruptor <span class="ui">Incluir estaciones cercanas</span> viene encendido. Apagado, la píldora dice <span class="ui">Sin buffer</span>.</li>
-          <li><span class="ui">Ancho del buffer (km)</span> va de 0,5 a 15 km (2 km por defecto); los botones <span class="ui">−</span> y <span class="ui">+</span> lo cambian de 0,5 en 0,5 km.</li>
-          <li>Cada estación queda marcada como <em>en el área</em> o <em>en el buffer</em>, y el ZIP mantiene esa información.</li>
-        </ul>
-      </section>
-
-      <section id="estaciones">
-        <h2><span class="etiqueta">EL MAPA</span>Estaciones en el mapa</h2>
-        <p>Todo se recalcula solo cuando cambias algo: el área, el buffer o las estaciones que incluyes. En el computador, el botón de la esquina del panel lo oculta para ver más mapa; <span class="ui">Consulta</span>, arriba a la izquierda, lo vuelve a mostrar.</p>
-        <h3>Filtrar por cobertura</h3>
-        <p>Con el área ya evaluada aparece, arriba a la izquierda del mapa, un botón redondo de <strong>filtro</strong>. Ábrelo y mueve los dos extremos del rango de <em>Cobertura del periodo</em> (de 5 en 5 %): las estaciones que quedan fuera dejan de verse en el mapa y en la lista, y no se descargan. Con el filtro activo, el botón muestra el rango (por ejemplo <span class="ui">50–100 %</span>); <span class="ui">Quitar el filtro</span> vuelve a mostrarlas todas.</p>
-        <h3>Qué significa cada punto</h3>
-        <p>El color de cada estación indica su clase de cobertura del periodo consultado (ver <a href="#cobertura">Cobertura del periodo</a>):</p>
-        <div class="clases" aria-label="Colores de las estaciones">
-          <div class="clase"><span class="punto" style="background:var(--alta)"></span><b>Alta</b><span>70–100 %</span></div>
-          <div class="clase"><span class="punto" style="background:var(--media)"></span><b>Media</b><span>50–70 %</span></div>
-          <div class="clase"><span class="punto" style="background:var(--baja)"></span><b>Baja</b><span>25–50 %</span></div>
-          <div class="clase"><span class="punto" style="background:var(--critica)"></span><b>Crítica</b><span>0–25 %</span></div>
-        </div>
-        <ul>
-          <li><strong>Puntos grises y huecos:</strong> estaciones sin datos de esa variable en tu periodo. No se pueden descargar y vienen ocultas, para no tapar las demás: se muestran con <span class="ui">Mostrar las sin serie</span>, dentro del filtro de la lista.</li>
-          <li><strong>Punto hueco con borde punteado:</strong> una estación que quitaste de la descarga (ver <a href="#revisar">Revisar las estaciones</a>).</li>
-          <li><strong>Halo punteado alrededor del punto:</strong> la altitud que dice el catálogo no coincide con el terreno (ver <a href="#altitud">Altitud dudosa</a>).</li>
-          <li><strong>Anillo azul:</strong> la estación que tienes seleccionada.</li>
-        </ul>
-        <h3>Moverte por el mapa 2D</h3>
-        <ul>
-          <li><strong>Pasa el cursor</strong> sobre una estación para ver su ficha: nombre, código, altitud, cobertura estimada, años de la serie y si está en el área o en el buffer.</li>
-          <li><strong>Haz clic</strong> en una estación para seleccionarla. Arriba a la derecha (en el celular, arriba) aparece una píldora con su nombre: púlsala para desplegar la ficha (ver <a href="#revisar">La ficha de la estación</a>).</li>
-          <li>La <strong>leyenda</strong> (abajo a la izquierda) explica los colores y las líneas. Está plegada: púlsala para abrirla. Los colores muestran la <em>cobertura estimada del periodo</em>.</li>
-          <li>El botón de <strong>capas</strong> de la cápsula de herramientas cambia el mapa base: <em>Satélite con nombres</em> (el predeterminado: la foto satelital con los nombres de lugares y los límites), <em>Satélite</em>, <em>Relieve</em>, <em>Calles</em> y <em>Satélite de noche</em>. Este último muestra las luces de pueblos y ciudades vistas por la NASA, y de cerca se ve borroso.</li>
-          <li>Con 300 estaciones o más, las que quedan muy juntas se reúnen en un <strong>círculo azul con su cantidad</strong>. Al acercar el mapa (o al pulsar el círculo) se separan.</li>
-          <li>La <strong>escala</strong> del mapa, en kilómetros, está abajo, junto a los créditos.</li>
-          <li>Cualquier menú desplegado (capas, lápiz, leyenda, ficha, buffer, Ajustes) se cierra al tocar fuera de él.</li>
-        </ul>
-      </section>
-
-      <section id="vista-3d">
-        <h2><span class="etiqueta">VISTA 3D</span>El mapa 3D</h2>
-        <p>Abajo a la izquierda está el selector <span class="ui">2D</span> <span class="ui">3D</span> (en el celular, elegir uno cierra la consulta para que veas el mapa). La vista 3D muestra el <strong>relieve real</strong> con la foto satelital. En la cápsula de la derecha, el botón de capas abre <span class="ui">Textura del relieve</span>: <em>Satélite</em>, <em>Topográfico</em> o <em>Altura</em>; esta última colorea el relieve según la altitud, con la escala de la zona o la de todo Colombia.</p>
-        <ul>
-          <li><strong>Animación de entrada:</strong> la primera vez que abres el 3D con un área, una animación satelital cubre la pantalla mientras el relieve se carga por detrás. Puedes saltarla con <span class="ui">Saltar animación</span> o la tecla <span class="ui">Esc</span>, y verla otra vez con el botón ↻ junto al selector 2D/3D. No se reproduce en el celular ni en modo Lite. Si tu equipo pide reducir el movimiento, no se reproduce sola, pero el botón ↻ la muestra si quieres verla.</li>
-          <li>El relieve está <strong>exagerado ×2</strong> para que los desniveles se noten. Cada pin se apoya en el terreno real.</li>
-          <li>En 3D solo aparecen las estaciones que tienen serie de la variable elegida.</li>
-          <li><strong>Vuelta de cámara:</strong> al abrir el 3D, la cámara da una vuelta lenta alrededor del centro de las estaciones, para que veas dónde queda cada una respecto a las montañas. Si eliges una estación, la vuelta es alrededor de ella. Cualquier interacción con el mapa la detiene.</li>
-          <li><strong>Moverte, girar e inclinar</strong> como en cualquier mapa: en el computador, arrastra para moverte, mantén el <strong>clic derecho</strong> y arrastra para girar e inclinar, y usa la rueda para acercar. En el celular, arrastra con un dedo para moverte; con dos dedos gira, desliza arriba o abajo para inclinar y pellizca para acercar.</li>
-          <li>El menú <span class="ui">Cámara</span> de la cápsula de la derecha reúne todos los controles de cámara sin gestos: una cruceta (arriba y abajo inclinan, a los lados gira y al centro una brújula que vuelve al norte), los botones <span class="ui">+</span> y <span class="ui">−</span>, una línea con el rumbo y la inclinación y un dibujo de los gestos del mouse o de los dedos. Sigue abierto para pulsar varias veces.</li>
-          <li>Para que se mueva con fluidez, el relieve se dibuja solo alrededor de tu área. Donde termina, a lo lejos, se funde en una <strong>neblina</strong> oscura; de cerca no la verás. La animación de entrada deja la cámara a unos 45° y a mano puedes inclinarla hasta 70°.</li>
-          <li><strong>Clic en un pin</strong> para seleccionar la estación (aparece la píldora con su nombre). Pasa el cursor para ver su ficha.</li>
-        </ul>
-        <div class="nota">
-          <strong>El 3D pide más al equipo</strong>
-          <p>El detalle del relieve se ajusta a la distancia, y en el celular el 3D usa siempre la versión liviana. Si aun así el navegador se queda sin memoria gráfica, aparece un aviso con <span class="ui primario">Activar Lite y reintentar</span> (vuelve a cargar la vista en modo Lite, con la misma cámara), <span class="ui">Seguir intentando</span> y <span class="ui">Ver en 2D</span>. Si lo que falla es la descarga del relieve o del mapa base, el aviso lo dice: es un problema de red, no de tu equipo. La app nunca cambia de modo por su cuenta.</p>
-        </div>
-        <h3>Ajustes y modo Lite</h3>
-        <p>El menú <span class="ui">Ajustes</span> (arriba a la derecha, en todas las pantallas) tiene el tema <em>Claro</em> u <em>Oscuro</em>, el <em>Alto contraste</em> (superficies opacas, bordes nítidos y foco más grueso), el <em>Modo Lite</em> y este manual. Sin elegir nada, el tema y el contraste siguen la configuración de tu equipo.</p>
-        <p>El <strong>modo Lite</strong> quita el desenfoque, los brillos y las animaciones, y usa un 3D más liviano. Los datos, los controles y las funciones son los mismos. Cuando está activo, junto al botón de Ajustes aparece la marca <span class="ui">Lite</span>. Es independiente de la opción del sistema para reducir el movimiento.</p>
-      </section>
-
-      <section id="cobertura">
-        <h2><span class="etiqueta">CÓMO SE CALCULA</span>Cobertura del periodo</h2>
-        <p>Antes de descargar nada, la app consulta al IDEAM la información de la serie de cada estación y calcula su <strong>cobertura estimada</strong> a partir de la «cantidad probable» del IDEAM:</p>
-        <div class="nota">
-          <strong>Cantidad probable</strong>
-          <p>El IDEAM calcula, para cada estación, cuántos datos cabrían entre la primera y la última fecha con registro dentro de tu periodo, según la frecuencia de la serie. El cálculo no descuenta los datos faltantes: una serie con huecos internos cuenta igual que una continua.</p>
-          <p>La app expresa ese número como porcentaje del total que tendría una serie ininterrumpida en todo tu periodo. Así que el porcentaje te dice cuánto de tu periodo alcanza a cubrir el registro de la estación, no qué tan densa es la serie por dentro. Una estación con 100 % puede tener vacíos importantes: significa que su registro empieza antes y termina después de tu periodo.</p>
-          <p>Sirve para descartar estaciones cuyo registro no llega a tu periodo. Por eso el panel lo recuerda con la nota <em>La cobertura es estimada</em>. Los huecos reales se miden al descargar: el resumen final muestra la <strong>completitud real</strong> media y <code>resumen_descarga.csv</code> la de cada estación (ver <a href="#zip">Qué trae el ZIP</a>).</p>
-        </div>
-        <p>Con ese porcentaje, cada estación cae en una clase de <strong>cobertura</strong> del periodo consultado. Al terminar la descarga, las mismas clases se aplican a la completitud real de cada estación (los datos que llegaron de verdad). Si dejas marcada la opción de carpetas (al final, antes de descargar el ZIP), cada Excel va en la carpeta de su clase de completitud real:</p>
-        <div class="clases">
-          <div class="clase"><span class="punto" style="background:var(--alta)"></span><b>Alta</b><span>70–100 %</span><code>1_Completitud_Alta_70_100</code></div>
-          <div class="clase"><span class="punto" style="background:var(--media)"></span><b>Media</b><span>50–70 %</span><code>2_Completitud_Media_50_70</code></div>
-          <div class="clase"><span class="punto" style="background:var(--baja)"></span><b>Baja</b><span>25–50 %</span><code>3_Completitud_Baja_25_50</code></div>
-          <div class="clase"><span class="punto" style="background:var(--critica)"></span><b>Crítica</b><span>0–25 %</span><code>4_Completitud_Critica_0_25</code></div>
-        </div>
-      </section>
-
-      <section id="revisar">
-        <h2><span class="etiqueta">PASO 3</span>Revisar y elegir las estaciones</h2>
-        <p>La sección <strong>Cobertura estimada</strong> del panel te dice qué vas a descargar antes de hacerlo.</p>
-        <h3>Las tres cifras</h3>
-        <div class="tabla">
-          <table>
-            <thead><tr><th>Cifra</th><th>Qué dice</th></tr></thead>
-            <tbody>
-              <tr><td><strong>Estaciones con datos</strong></td><td>Cuántas estaciones del área y el buffer tienen la serie de esa variable en tu periodo, y debajo el total de estaciones de la zona.</td></tr>
-              <tr><td><strong>Cobertura estimada media</strong></td><td>El promedio de la cobertura estimada de las estaciones marcadas: qué parte del periodo cubren sus registros.</td></tr>
-              <tr><td><strong>Tamaño del ZIP</strong></td><td>El peso aproximado del archivo que vas a descargar y cuánto tardaría la descarga (por ejemplo, <em>3 min 20 s aprox.</em>). Es una estimación hecha con los registros probables, que no descuentan los faltantes. Pasa el cursor para ver cuántos registros y consultas al IDEAM implica.</td></tr>
-            </tbody>
-          </table>
-        </div>
-        <h3>La lista con casillas</h3>
-        <ul>
-          <li>Están todas las estaciones que se pueden descargar, de la mejor cobertura a la peor, con un punto del color de su clase, su código, los años de su serie y su porcentaje. El ⚠ señala altitud dudosa. Si hay más de ocho, encima aparece un buscador por nombre o código.</li>
-          <li><strong>Las marcadas se descargan.</strong> Todas vienen marcadas: desmarca las que no quieras (en el mapa quedan huecas, con borde punteado). La casilla de arriba marca o desmarca todas.</li>
-          <li>Haz clic en el nombre de una estación para seleccionarla: el mapa viaja hasta ella y aparece su ficha.</li>
-          <li>Debajo, cuántas están en el área y cuántas en el buffer, y cuántas tienen datos del último año.</li>
-        </ul>
-        <p>Una nota breve al final recuerda que los datos recientes pueden ser preliminares; <span class="ui">Ver más</span> lo explica (ver <a href="#aprobacion">Niveles de aprobación</a>).</p>
-        <h3>La ficha de la estación seleccionada</h3>
-        <p>Al seleccionar una estación (en la lista o en el mapa) aparece una píldora con su nombre, plegada para no tapar el mapa. Al pulsarla se despliega la ficha. Arriba van el código, el tipo de estación, si está en el área o en el buffer y, si ya no opera, el año en que se suspendió. Debajo, tres casillas: la <strong>altitud</strong>, la <strong>cobertura</strong> (con un anillo del color de su clase) y los <strong>años de la serie</strong>; si no tiene datos de la variable, lo dice: <em>Sin serie de esta variable</em>. Cuando el IDEAM lo informa, siguen tres filas: <span class="ui">Mide</span> (las variables que registra la estación, cada una con su símbolo), <span class="ui">Subred</span> (la red regional a la que pertenece) y <span class="ui">Alias</span> (otros códigos de la misma estación). Al final, <span class="ui">Qué significa cada dato · Ver más</span> lo explica.</p>
-        <p>El interruptor <span class="ui">Incluir en la descarga</span> la quita o la vuelve a poner, <span class="ui">Ver en 3D</span> la muestra en el relieve y la ✕ de la píldora deja de seleccionarla. Tocar fuera de la ficha la vuelve a plegar.</p>
-      </section>
-
-      <section id="altitud">
-        <h2><span class="etiqueta">REVISIÓN AUTOMÁTICA</span>Altitud dudosa</h2>
-        <p>La app compara la altitud que dice el catálogo del IDEAM con la altura real del terreno en el punto de la estación, según un modelo de elevación. Si se alejan <strong>más de 200 m</strong>, la estación queda marcada.</p>
-        <ul>
-          <li>En el panel aparece una línea discreta: <span class="ui">⚠ N estaciones con altitud dudosa</span>. Al abrirla ves la explicación y la lista con la altitud del catálogo, la del relieve y la diferencia. Elige una y el mapa pasa a 3D para mostrarla.</li>
-          <li>En la ficha de la estación, <span class="ui">⚠ Altitud dudosa · Ver detalles</span> explica el caso, y <span class="ui">Ver en 3D</span> la muestra en el relieve.</li>
-          <li>En 3D, un <strong>círculo naranja</strong> unido por una línea al pin marca dónde quedaría la estación con la altitud del catálogo. Se ve aunque quede "bajo tierra".</li>
-        </ul>
-        <div class="nota">
-          <strong>¿La altitud está mal, o las coordenadas?</strong>
-          <p>Cuando la altitud del catálogo es imposible en toda la zona (por ejemplo 3 m en la sabana de Bogotá), el error está en la altitud. Cuando esa altitud sí existe cerca pero no en el punto exacto, puede que la altitud esté bien y lo errado sean las coordenadas. La app te dice cuál de los dos casos es. Los datos se descargan igual: el aviso es para que lo tengas en cuenta en tu análisis.</p>
-        </div>
-      </section>
-
-      <section id="descarga">
-        <h2><span class="etiqueta">PASO 4</span>Exportación</h2>
-        <ol>
-          <li>Pulsa <span class="ui primario">Preparar descarga</span>, abajo a la derecha. Si está gris, el propio botón dice qué falta (por ejemplo, «Delimita el área» o «Elige una estación»); al pasar el cursor da el detalle.</li>
-          <li>El mapa queda detrás y aparece una tarjeta con el <strong>avance real</strong>: el porcentaje, una barra y el tiempo que falta, más cuántas estaciones van, cuántas se guardaron y cuántas se omitieron.</li>
-          <li>A la derecha (en el celular, debajo) está el <strong>recibo</strong> de lo que pediste: variable y frecuencia, periodo, número de estaciones (en el área y en el buffer, o su ubicación si las elegiste por departamento y municipio), la lista de lo que trae el ZIP (un Excel por estación, las carpetas por cobertura si las elegiste, <code>resumen_descarga.csv</code> y <code>CITACION.txt</code>) y la fuente. Debajo, las condiciones de uso de los datos (ver <a href="#uso-datos">Uso de los datos y citación</a>).</li>
-          <li>Al terminar, la tarjeta muestra un resumen: cuántas estaciones se guardaron y cómo se reparten por completitud real.</li>
-        </ol>
-        <h3>Detener o esperar turno</h3>
-        <ul>
-          <li><span class="ui">Detener la descarga</span> la corta a mitad de camino. Lo que alcanzó a bajar no se pierde: con <span class="ui">Descargar lo guardado</span> te llevas esas estaciones en un ZIP (el resumen marca las demás como «Sin descargar»). También puedes <span class="ui primario">Reintentar</span> o <span class="ui">Volver al mapa</span>.</li>
-          <li>Si el área trae más de 1.500 estaciones, el panel pide reducirla o elegir las estaciones por departamento y municipio.</li>
-          <li>Para no saturar al IDEAM, el servidor hace <strong>máximo 4 descargas a la vez</strong> entre todos los usuarios. Si están ocupadas, tu descarga espera turno: verás tu puesto en la fila y un tiempo estimado, y empieza sola apenas se libere uno.</li>
-          <li>Bajo la barra de avance, la línea «Ahora:» nombra las estaciones que se están descargando. Mientras descarga, el menú de Ajustes queda bloqueado. Puedes recargar la página sin perder el avance: la descarga sigue en el servidor y la pantalla la retoma. Si cierras la pestaña, se detiene sola a los dos minutos.</li>
-        </ul>
-        <h3>Guardar el ZIP</h3>
-        <ol>
-          <li>Al terminar, arriba ves cuántas estaciones se guardaron, cuántas se omitieron y la <strong>completitud real media</strong>. A la derecha (en el celular, debajo), una tabla compara por estación la cobertura estimada con la completitud real, y el resumen de la consulta queda plegado en <span class="ui">Lo que pediste</span>.</li>
-          <li>En <span class="ui">Nombre del archivo ZIP</span> viene un nombre sugerido, como <code>IDEAM_PTPM_CON_20000101-20201231</code> (en la serie especial lleva también la frecuencia y el cálculo: <code>IDEAM_PTPM_CON_Decadal_SUM_…</code>). Si quieres otro (por ejemplo <em>descarga 1</em>), escríbelo; el <code>.zip</code> se agrega solo.</li>
-          <li>Pulsa <span class="ui primario">Descargar el ZIP</span>.</li>
-          <li><span class="ui">Separar en carpetas por completitud</span> (debajo del botón, marcado por defecto): cada Excel va dentro de la carpeta de su clase según la <strong>completitud real</strong>, es decir, los datos que llegaron de verdad (las mismas clases de <a href="#cobertura">Cobertura del periodo</a>). Si lo desmarcas, todos quedan juntos. Puedes cambiarlo sin volver a descargar; el resumen «Lo que pediste» lo refleja.</li>
-          <li><span class="ui">Incluir el mapa de huecos</span> (opcional, sin marcar por defecto): agrega al ZIP una imagen y una tabla con el porcentaje de datos de cada estación en cada año, para ver de un vistazo dónde faltan datos. Al marcarlo aparece una vista previa. No está en la serie multianual.</li>
-          <li>Con <span class="ui">Volver al mapa</span> ajustas y descargas otra vez (desde ahí, el nombre de la variable en el panel te lleva a cambiar la variable o el periodo); con <span class="ui">Nueva consulta</span> empiezas de cero.</li>
-        </ol>
-      </section>
-
-      <section id="zip">
-        <h2><span class="etiqueta">RESULTADO</span>Qué trae el ZIP</h2>
-        <p class="pie">Ejemplo con precipitación diaria en Bogotá y carpetas por completitud:</p>
-<pre class="arbol" aria-label="Ejemplo de contenido del ZIP">IDEAM_PTPM_CON_20000101-20201231.zip
-├── 1_Completitud_Alta_70_100/
-│   ├── JARDIN_BOTANICO_[21205710]_PTPM_CON.xlsx
-│   └── ENMANUEL_D'_ALZON_[21201230]_PTPM_CON.xlsx
-├── 2_Completitud_Media_50_70/
-│   └── …
-├── resumen_descarga.csv   <span class="c">← qué se guardó y qué no, estación por estación</span>
-└── CITACION.txt           <span class="c">← la cita de la fuente, lista para copiar</span></pre>
-        <h3>Cada Excel</h3>
-        <ul>
-          <li>Es <strong>el mismo formato que entrega el portal del IDEAM</strong>: filas 1 a 8 con el título, el logo y los metadatos de la estación; desde la fila 9, los datos.</li>
-          <li>Si tu rango necesitó varias consultas, los bloques ya vienen <strong>unidos en una sola tabla</strong>, en orden.</li>
-          <li>La celda de <em>Fecha consulta</em> refleja el rango completo que pediste.</li>
-          <li>El nombre del archivo es el nombre de la estación, su código entre corchetes y el código de la serie. Así dos estaciones con el mismo nombre nunca se pisan.</li>
-          <li>Junto a cada dato viene su <strong>nivel de aprobación</strong> (columna «Nivel de Aprobación»; ver abajo).</li>
-        </ul>
-        <h3 id="aprobacion">Niveles de aprobación del dato</h3>
-        <p>El IDEAM clasifica cada dato en tres niveles:</p>
-        <div class="tabla">
-          <table>
-            <thead><tr><th>Nivel</th><th>Código</th><th>Qué significa</th></tr></thead>
-            <tbody>
-              <tr><td><strong>Preliminar</strong></td><td class="num">900</td><td>Dato crudo de campo o de sensor automático, sujeto a cambios o reemplazo.</td></tr>
-              <tr><td><strong>En revisión</strong></td><td class="num">1100</td><td>Superó la evaluación preliminar y sigue en verificación.</td></tr>
-              <tr><td><strong>Definitivo</strong></td><td class="num">1200</td><td>Revisado, aprobado y considerado confiable.</td></tr>
-            </tbody>
-          </table>
-        </div>
-        <p>Buena parte de los datos recientes suele estar en nivel preliminar. Si usas los datos en un estudio formal, revisa esta columna antes de tu análisis.</p>
-        <h3>El archivo resumen_descarga.csv</h3>
-        <p>Una fila por estación con su nombre, cobertura estimada, clase estimada, <strong>Datos reales</strong> y <strong>Completitud real (%)</strong>, si quedó <em>Guardada</em> u <em>Omitida</em>, dónde quedó en el ZIP y el detalle de cada bloque consultado. Ábrelo con Excel.</p>
-        <p>La <strong>completitud real</strong> cuenta los datos que llegaron de verdad (filas con valor en el Excel) frente a los que caben en tu periodo con la frecuencia de la serie. A diferencia de la cantidad probable, sí descuenta los huecos: una estación con 100 % de cobertura y 85 % de completitud tiene registro en todo tu periodo, pero le falta el 15 % de los datos.</p>
-      </section>
-
-      <section id="uso-datos">
-        <h2><span class="etiqueta">CONDICIONES</span>Uso de los datos y citación</h2>
-        <p>Los datos provienen del IDEAM y su descarga está autorizada para uso personal, privado y no comercial. No pueden comercializarse ni venderse. El IDEAM no se hace responsable del uso de los datos ni de las interpretaciones o inferencias derivadas de ellos.</p>
-        <p>Los términos de uso del portal exigen citar la fuente en todo trabajo que use los datos, con este formato:</p>
-        <div class="nota">
-          <p><code>Fuente: Ideam. (Año, mes y día). Nombre de la página. URL.</code></p>
-        </div>
-        <p>El ZIP incluye el archivo <code>CITACION.txt</code> con la cita ya armada con la fecha real de tu descarga, por ejemplo:</p>
-        <div class="nota">
-          <p>Fuente: Ideam. (2026, septiembre 23). DHIME – Portal Atención al Ciudadano. http://dhime.ideam.gov.co/atencionciudadano/</p>
-        </div>
-        <p>El Descargador IDEAM es una herramienta independiente: no es un producto oficial del IDEAM ni cuenta con su respaldo.</p>
-        <h3>Fuentes de los mapas</h3>
-        <p>Las capas de mapa no son del IDEAM y pertenecen a sus proveedores. Sus créditos aparecen en el borde de cada mapa y al final del panel del mapa:</p>
-        <ul>
-          <li><strong>Satélite, Satélite con nombres y Relieve:</strong> Esri (Maxar, Earthstar Geographics, HERE, Garmin, FAO, NOAA, USGS, OpenStreetMap y la comunidad de usuarios de GIS).</li>
-          <li><strong>Calles:</strong> © colaboradores de OpenStreetMap.</li>
-          <li><strong>Satélite de noche:</strong> NASA EOSDIS GIBS.</li>
-          <li><strong>Relieve 3D:</strong> modelo de elevación Terrarium (Mapzen, AWS Open Data), construido con datos SRTM y GMTED2010, cortesía del U.S. Geological Survey, entre otras fuentes.</li>
-        </ul>
-      </section>
-
-      <section id="problemas">
-        <h2><span class="etiqueta">AYUDA</span>Problemas frecuentes</h2>
-        <details>
-          <summary>No aparece ninguna estación en mi área</summary>
-          <p>Puede que en esa área no haya estaciones del IDEAM. Enciende el buffer o aumenta su distancia para incluir las cercanas.</p>
-        </details>
-        <details>
-          <summary>Hay estaciones, pero ninguna queda para descargar</summary>
-          <ul>
-            <li>Revisa la lista del panel: puede que hayas desmarcado todas. Marca al menos una.</li>
-            <li>Cambia el periodo (con el nombre de la variable, en el panel): muchas estaciones solo tienen datos de ciertas décadas.</li>
-            <li>Revisa la variable: una estación puede tener precipitación pero no temperatura. En la ficha lo verás como <em>Sin serie de esta variable en DHIME</em>.</li>
-          </ul>
-        </details>
-        <details>
-          <summary>Mi shapefile no carga</summary>
-          <ul>
-            <li>Súbelo en un ZIP con <code>.shp</code>, <code>.shx</code>, <code>.dbf</code> y <code>.prj</code>.</li>
-            <li>Sin <code>.prj</code> la app no sabe dónde está en el mundo. Expórtalo de nuevo desde tu SIG con el sistema de coordenadas.</li>
-            <li>Debe ser un polígono: un shapefile de puntos o líneas no sirve como área.</li>
-          </ul>
-        </details>
-        <details>
-          <summary>La descarga tarda más de lo estimado</summary>
-          <p>El tiempo depende de qué tan rápido responda el servidor del IDEAM, que a veces está lento. Si tu descarga espera turno, es porque ya hay otras cuatro en curso.</p>
-        </details>
-        <details>
-          <summary>Una estación salió "Omitida"</summary>
-          <p>El IDEAM no devolvió datos para ese rango, aunque el catálogo indicara que la serie existe. Suele pasar con estaciones históricas o suspendidas. El motivo exacto de cada bloque está en la columna «Detalle» de <code>resumen_descarga.csv</code>. El portal limita cada archivo a 5 MB, pero los bloques que pide la herramienta quedan muy por debajo de ese tamaño, así que no es la causa habitual.</p>
-        </details>
-        <details>
-          <summary>El 3D se ve en blanco o se borra al girar</summary>
-          <p>El navegador se quedó sin memoria gráfica. Usa <span class="ui primario">Activar Lite y reintentar</span> en el aviso, que carga una versión más liviana con la misma cámara. Si vuelve a pasar, cierra pestañas y programas que no uses, o trabaja en la vista 2D.</p>
-        </details>
-        <details>
-          <summary>En el celular el relieve 3D sale lleno de picos falsos</summary>
-          <p>Algunos navegadores alteran las imágenes a propósito para proteger tu privacidad: Safari en modo privado o con protección contra rastreo, y Brave. El relieve viene codificado en esas imágenes, y la alteración se ve como picos falsos. La app lo detecta y muestra arriba un aviso pequeño, <span class="ui">Tu navegador altera el relieve</span>: tócalo para leer la explicación o ciérralo con la ✕. Ábrela en una ventana normal, desactiva esa protección para el sitio (en Brave, los escudos) o usa otro navegador, como Chrome.</p>
-        </details>
-        <details>
-          <summary>No veo la animación al pasar a 3D</summary>
-          <ul>
-            <li>Se reproduce una sola vez por área: para verla otra vez, usa el botón ↻ junto al selector 2D/3D.</li>
-            <li>No se reproduce en modo Lite ni en el celular. Revisa si junto a Ajustes aparece la marca <span class="ui">Lite</span>.</li>
-            <li>Si tu equipo pide reducir el movimiento (en Windows: <em>Efectos de animación</em> desactivados), no se reproduce sola; el botón ↻ la muestra igual.</li>
-          </ul>
-        </details>
-      </section>
-
-      <section id="glosario">
-        <h2><span class="etiqueta">REFERENCIA</span>Glosario</h2>
-        <dl class="glosario">
-          <dt>DHIME</dt><dd>El sistema del IDEAM con las series históricas de sus estaciones hidrometeorológicas. De ahí salen todos los datos.</dd>
-          <dt>Serie</dt><dd>La secuencia de datos de un parámetro en una estación. El IDEAM la identifica con un código, como <code>PTPM_CON</code>, que va en el nombre de cada Excel (en la serie especial, con la frecuencia y el cálculo: <code>PTPM_CON_Decadal_SUM</code>).</dd>
-          <dt>Cantidad probable</dt><dd>Cuántos datos cabrían entre la primera y la última fecha con registro de la estación dentro de tu rango, según la frecuencia. No descuenta los datos faltantes. La app la muestra como porcentaje de tu periodo.</dd>
-          <dt>Completitud real</dt><dd>Los datos que llegaron de verdad en cada Excel frente a los que caben en tu periodo. Se mide al terminar la descarga y sí descuenta los huecos.</dd>
-          <dt>Cobertura</dt><dd>Qué parte del periodo consultado abarca el registro de la estación. No mide la densidad de la serie ni sus huecos internos.</dd>
-          <dt>Nivel de aprobación</dt><dd>Estado de revisión de cada dato: preliminar (900), en revisión (1100) o definitivo (1200).</dd>
-          <dt>Buffer</dt><dd>Franja alrededor del área, de 0,5 a 15 km, para incluir estaciones cercanas.</dd>
-          <dt>Bloque</dt><dd>Cada tramo de años que el IDEAM entrega por consulta. La app los pide todos y los une.</dd>
-          <dt>Estación activa</dt><dd>La que tiene datos del último año. Las demás son históricas.</dd>
-          <dt>Altitud dudosa</dt><dd>Cuando la altitud del catálogo se aleja más de 200 m del terreno real en el punto de la estación.</dd>
-        </dl>
-        <p class="pie">Los datos son del IDEAM y están protegidos por derechos de autor. Su descarga está autorizada para uso personal, privado y no comercial, y todo trabajo que los utilice debe citar la fuente. El Descargador IDEAM automatiza consultas que cualquiera puede hacer en el portal DHIME y no almacena ni redistribuye los datos por su cuenta.</p>
-      </section>
-    </main>
+    <div class="captura"><img src="manual/mapa-panel.jpg" width="1600" height="956" alt="La app con el mapa de la sabana de Bogotá, sus estaciones coloreadas por cobertura y el panel de la consulta."></div>
+    </div>
+    <div class="cifras">
+      <div class="cifra"><b>Sin límites</b><span>de estaciones ni de años por consulta</span></div>
+      <div class="cifra"><b>1 Excel</b><span>por estación, con los tramos ya unidos</span></div>
+      <div class="cifra"><b>Antes de bajar</b><span>sabes qué parte del periodo cubre cada estación</span></div>
+      <div class="cifra"><b>Al terminar</b><span>la completitud real y el mapa de huecos</span></div>
+    </div>
   </div>
 </div>
 
+<div class="cuerpo">
+  <nav class="indice" aria-label="Contenido">
+    <p>Contenido</p>
+    <ol>
+      <li><a href="#por-que">Por qué usarlo</a></li>
+      <li><a href="#empezar">Antes de empezar</a></li>
+      <li><a href="#consulta">Paso 1 · La consulta</a></li>
+      <li><a href="#area">Paso 2 · El área</a></li>
+      <li><a href="#estaciones">Revisar las estaciones</a></li>
+      <li><a href="#vista-3d">Vista 3D y altitudes</a></li>
+      <li><a href="#descarga">Paso 3 · La descarga</a></li>
+      <li><a href="#zip">Qué trae el ZIP</a></li>
+      <li><a href="#cobertura">Cobertura y completitud</a></li>
+      <li><a href="#ajustes">Ajustes y celular</a></li>
+      <li><a href="#problemas">Preguntas frecuentes</a></li>
+      <li><a href="#uso">Uso de los datos</a></li>
+      <li><a href="#glosario">Glosario</a></li>
+    </ol>
+  </nav>
+
+  <main>
+    <details class="indice-movil">
+      <summary>Contenido del manual</summary>
+      <ol>
+        <li><a href="#por-que">Por qué usarlo</a></li>
+        <li><a href="#empezar">Antes de empezar</a></li>
+        <li><a href="#consulta">Paso 1 · La consulta</a></li>
+        <li><a href="#area">Paso 2 · El área</a></li>
+        <li><a href="#estaciones">Revisar las estaciones</a></li>
+        <li><a href="#vista-3d">Vista 3D y altitudes</a></li>
+        <li><a href="#descarga">Paso 3 · La descarga</a></li>
+        <li><a href="#zip">Qué trae el ZIP</a></li>
+        <li><a href="#cobertura">Cobertura y completitud</a></li>
+        <li><a href="#ajustes">Ajustes y celular</a></li>
+        <li><a href="#problemas">Preguntas frecuentes</a></li>
+        <li><a href="#uso">Uso de los datos</a></li>
+        <li><a href="#glosario">Glosario</a></li>
+      </ol>
+    </details>
+
+    <!-- 1 -->
+    <section id="por-que">
+      <span class="etiqueta">Por qué usarlo</span>
+      <h2>Lo que el Descargador agrega al portal DHIME</h2>
+      <p class="intro">El portal DHIME del IDEAM es la fuente oficial de las series de su red de estaciones, y es la misma fuente que usa esta herramienta. El portal está pensado para consultas puntuales; un estudio de cuenca necesita decenas de estaciones y décadas de datos. Esta es la diferencia, punto por punto:</p>
+
+      <div class="comparativa">
+        <table>
+          <thead><tr><th scope="col">Qué necesitas</th><th scope="col">En el portal DHIME</th><th scope="col" class="app">En el Descargador IDEAM</th></tr></thead>
+          <tbody>
+            <tr><td>Encontrar las estaciones de tu cuenca</td>
+              <td class="portal">Dibujas un rectángulo o buscas por departamento, municipio o nombre.</td>
+              <td class="app">Dibujas el área o subes el contorno real de la cuenca (Shapefile, GeoJSON, KML/KMZ o GeoPackage), con una franja opcional de 0,5 a 15 km para sumar las vecinas. También puedes elegir por ubicación, como en el portal.</td></tr>
+            <tr><td>Muchas estaciones</td>
+              <td class="portal">Un máximo de estaciones por consulta (con algunos parámetros, solo 10).</td>
+              <td class="app">Todas a la vez: la herramienta hace las consultas por su cuenta, hasta 1.500 estaciones por área.</td></tr>
+            <tr><td>Muchos años</td>
+              <td class="portal">Un máximo de años por consulta: 10 en series horarias, 30 en diarias y 50 en mensuales.</td>
+              <td class="app">Pides el periodo completo: la herramienta lo parte en los tramos que permite el portal, los pide todos y los une.</td></tr>
+            <tr><td>Archivos listos para trabajar</td>
+              <td class="portal">Un archivo por tramo, que luego hay que unir en orden y renombrar a mano.</td>
+              <td class="app">Un Excel por estación, con el formato original del IDEAM y nombrado con la estación, su código y el parámetro.</td></tr>
+            <tr><td>Datos de cada estación</td>
+              <td class="portal">La altitud, las fechas y demás metadatos vienen en el encabezado del Excel: hay que descargarlo para verlos.</td>
+              <td class="app">Una ficha en el mapa, sin descargar nada: código, tipo, altitud, cobertura, años de la serie, qué mide de verdad, su subred y sus otros códigos.</td></tr>
+            <tr><td>Saber qué vas a recibir</td>
+              <td class="portal">La cifra de cantidad probable de cada estación, en una tabla.</td>
+              <td class="app">La cobertura estimada de cada estación pintada en el mapa con cuatro colores, la cobertura media, un filtro por rango y el peso del ZIP con el tiempo aproximado.</td></tr>
+            <tr><td>Saber qué llegó de verdad</td>
+              <td class="portal"><span class="sin">No se informa: hay que contar los datos.</span></td>
+              <td class="app">La completitud real de cada estación, comparada con la estimada, y un mapa de huecos año por año.</td></tr>
+            <tr><td>Nivel de aprobación del dato</td>
+              <td class="portal">Viene dato a dato dentro de cada Excel.</td>
+              <td class="app">Resumido por estación: qué porcentaje es definitivo, en revisión o preliminar.</td></tr>
+            <tr><td>Ordenar la entrega</td>
+              <td class="portal"><span class="sin">—</span></td>
+              <td class="app">Le pones nombre al ZIP y, si quieres, las estaciones van en carpetas según su completitud real.</td></tr>
+            <tr><td>Revisar altitudes</td>
+              <td class="portal"><span class="sin">—</span></td>
+              <td class="app">Una vista 3D con el relieve real que marca las estaciones cuya altitud de catálogo se aleja más de 200 m del terreno y muestra el error con un haz naranja.</td></tr>
+            <tr><td>Ver el relieve de la cuenca</td>
+              <td class="portal"><span class="sin">—</span></td>
+              <td class="app">El relieve en 3D con foto satelital, con mapa topográfico o coloreado por altitud.</td></tr>
+            <tr><td>Elegir a mano</td>
+              <td class="portal">Marcas las estaciones una por una.</td>
+              <td class="app">Una lista con casillas y buscador para quitar o volver a incluir estaciones.</td></tr>
+            <tr><td>Citar la fuente</td>
+              <td class="portal">La armas tú siguiendo los términos de uso.</td>
+              <td class="app">El ZIP trae la cita lista, con la fecha real de tu descarga.</td></tr>
+            <tr><td>Si algo se interrumpe</td>
+              <td class="portal">Repites la consulta.</td>
+              <td class="app">Puedes detener la descarga y llevarte lo ya guardado. Si recargas la página o se cae la conexión un momento, la descarga sigue.</td></tr>
+            <tr><td>Series especiales</td>
+              <td class="portal">Decadal y multianual.</td>
+              <td class="app">Las mismas, con los mismos nombres y cálculos, y te avisa antes si el periodo pedido es demasiado largo.</td></tr>
+            <tr><td>Comodidad</td>
+              <td class="portal"><span class="sin">—</span></td>
+              <td class="app">Funciona en el celular, en español o inglés, en tema claro u oscuro, con alto contraste y con un modo liviano para equipos lentos.</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="ejemplo">
+        <strong>Ejemplo: 20 estaciones con 30 años de datos horarios</strong>
+        <p>En el portal son 60 consultas (tres tramos de 10 años por estación) y 60 archivos por unir y renombrar. Con el Descargador es una sola descarga que entrega 20 Excel listos, con un resumen de lo que llegó y la cita de la fuente.</p>
+      </div>
+    </section>
+
+    <!-- 2 -->
+    <section id="empezar">
+      <span class="etiqueta">Antes de empezar</span>
+      <h2>Qué necesitas</h2>
+      <ul>
+        <li><strong>Un navegador actualizado y conexión a internet.</strong> No hay que instalar nada. Funciona en computador, tableta y celular.</li>
+        <li><strong>La clave de acceso</strong> que te entregaron. Se pide una sola vez por navegador; después entras directo. Para salir, usa <span class="ui">Cerrar sesión</span> en el menú de ajustes.</li>
+        <li><strong>Tu área de estudio</strong>, si ya la tienes delimitada: el contorno de la cuenca en un archivo SIG. Si no, puedes trazarla sobre el mapa o elegir las estaciones por departamento y municipio.</li>
+      </ul>
+      <p>El trabajo se hace en tres pasos, que la app muestra siempre arriba:</p>
+      <div class="tarjetas">
+        <div class="tarjeta"><span class="num">1</span><h4>Parámetros</h4><p>Qué variable, qué parámetro y qué periodo quieres.</p></div>
+        <div class="tarjeta"><span class="num">2</span><h4>Área y estaciones</h4><p>Dónde: marcas el área y revisas las estaciones que caen en ella.</p></div>
+        <div class="tarjeta"><span class="num">3</span><h4>Descarga</h4><p>La app consulta al IDEAM y te entrega un ZIP ordenado.</p></div>
+      </div>
+      <div class="nota">
+        <strong>Si la app lleva un rato sin uso</strong>
+        <p>La primera carga puede tardar hasta un minuto mientras el servidor se despierta. Las siguientes son inmediatas.</p>
+      </div>
+    </section>
+
+    <!-- 3 -->
+    <section id="consulta">
+      <span class="etiqueta">Paso 1</span>
+      <h2>La consulta: qué datos y de qué periodo</h2>
+      <p>La app abre con la tarjeta de consulta. Las listas son las mismas del portal del IDEAM, con los mismos nombres.</p>
+      <figure>
+        <img src="manual/consulta.jpg" width="1600" height="956" alt="Tarjeta de consulta con la serie Estándar, la variable Precipitación, el parámetro Día pluviométrico y el periodo del 1 de enero de 2000 al 31 de diciembre de 2020.">
+        <figcaption><b>Paso 1.</b> Serie, variable, parámetro y periodo. Abajo, el filtro opcional por ubicación y el botón para pasar al mapa.</figcaption>
+      </figure>
+      <ol class="pasos">
+        <li><strong>Serie de tiempo y frecuencia.</strong> <span class="ui">Estándar</span> trae las series diarias, mensuales, anuales, horarias y de alta frecuencia. <span class="ui">Especial</span> trae los cálculos del IDEAM, decadales y multianuales (ver <a href="#especial">la serie especial</a>).</li>
+        <li><strong>Variable y Parámetro.</strong> Por ejemplo, en Precipitación el IDEAM ofrece <em>Día pluviométrico (convencional)</em>, <em>Precipitación total mensual</em> y <em>Precipitación total anual</em>. Puedes abrir cada lista o escribir para buscar. El punto junto a «Variable» se enciende en azul cuando la lista del IDEAM terminó de cargar.</li>
+        <li><strong>Desde y Hasta</strong>, en formato día/mes/año. Los atajos <span class="ui">Últimos 10 años</span>, <span class="ui">Últimos 30 años</span> y <span class="ui">Todo</span> llenan el periodo de una vez.</li>
+        <li>Pulsa <span class="ui">Seleccionar área en el mapa</span>.</li>
+      </ol>
+      <p>No te preocupes por los límites del portal: la app divide tu periodo en los tramos que admite el IDEAM y después los une en un solo Excel.</p>
+      <div class="tabla"><table>
+        <thead><tr><th>Frecuencia de la serie</th><th>Años por consulta en el portal</th></tr></thead>
+        <tbody>
+          <tr><td>Mensual y anual</td><td class="num">50 años</td></tr>
+          <tr><td>Diaria</td><td class="num">30 años</td></tr>
+          <tr><td>Horaria</td><td class="num">10 años</td></tr>
+          <tr><td>Cada 2, 5 o 10 minutos</td><td class="num">1 mes</td></tr>
+        </tbody>
+      </table></div>
+
+      <h3 id="ubicacion">Elegir las estaciones por ubicación, sin dibujar</h3>
+      <p>Si prefieres elegir como en el portal, abre <span class="ui">Filtrar por ubicación · opcional</span> al final de la tarjeta y elige el <strong>Departamento</strong>, el <strong>Municipio</strong> y, si quieres, estaciones por nombre o código. Cada estación muestra los años de su serie, por ejemplo <em>ASTILLEROS [27011110] · 1991–2026</em>. El botón cambia a <span class="ui">Ver N estaciones en el mapa</span> y el mapa se abre con solo esas estaciones. Para volver a trabajar por área, usa <span class="ui">Quitar filtro</span> en el panel o dibuja un área.</p>
+
+      <h3 id="especial">La serie especial</h3>
+      <p>Son cálculos que el IDEAM hace sobre una serie base. El parámetro trae su cálculo y su código, tal como en el portal: <em>Día pluviométrico |SUM [PTPM_CON]</em>.</p>
+      <ul>
+        <li><strong>Decadal:</strong> un dato por década del mes (días 1 a 10, 11 a 20 y 21 a fin de mes; 36 por año). <code>SUM</code> suma, <code>MAX</code> toma el máximo, <code>MIN</code> el mínimo y <code>AVG</code> el promedio. Los tramos se cortan a fin de mes, así ninguna década queda partida.</li>
+        <li><strong>Multianual:</strong> 36 filas por estación: el mínimo, la media y el máximo de cada mes en todo tu periodo. Se calcula de una sola vez, así que el periodo no puede pasar el límite de la serie base; si lo pasa, la tarjeta te pide acortarlo.</li>
+      </ul>
+      <div class="aviso">
+        <strong>Series cada 2, 5 o 10 minutos</strong>
+        <p>El IDEAM las entrega de a un mes por consulta: diez años son 120 consultas por estación y cada Excel puede tener cientos de miles de filas. Úsalas con periodos cortos y pocas estaciones. Si el periodo superaría el millón de filas por estación (el máximo de Excel), la tarjeta te pide acortarlo.</p>
+      </div>
+    </section>
+
+    <!-- 4 -->
+    <section id="area">
+      <span class="etiqueta">Paso 2</span>
+      <h2>El área de estudio</h2>
+      <p>El mapa ocupa toda la pantalla. Todo lo que necesitas para marcar el área está en el lápiz de la barra de herramientas, arriba a la derecha.</p>
+      <figure class="angosta">
+        <img src="manual/menu-dibujo.jpg" width="830" height="540" alt="Menú del lápiz con tres opciones: Dibujar un rectángulo, Usar el área visible y Subir un archivo.">
+        <figcaption><b>Tres formas de marcar el área</b>, desde el lápiz de la barra de herramientas.</figcaption>
+      </figure>
+      <div class="tarjetas">
+        <div class="tarjeta"><h4>Dibujar un rectángulo</h4><p>Acércate a tu zona, elige la opción y arrastra de una esquina a la opuesta.</p></div>
+        <div class="tarjeta"><h4>Usar el área visible</h4><p>El área es lo que ves en pantalla. Se activa con el mapa cerca (zoom 10 o más).</p></div>
+        <div class="tarjeta"><h4>Subir un archivo</h4><p>El contorno real de tu cuenca, con cualquier forma. Es la opción más precisa.</p></div>
+      </div>
+      <p>Apenas marcas el área, un escáner la recorre mientras la app busca las estaciones, y estas aparecen de norte a sur. En el panel ves el tamaño del área en km² y tres acciones: <span class="ui">Redibujar</span>, <span class="ui">Ajustar</span> (mueves las esquinas y pulsas <span class="ui">Guardar</span>) y <span class="ui">Borrar</span>. Solo hay un área a la vez.</p>
+
+      <h3>Formatos de archivo</h3>
+      <div class="tabla"><table>
+        <thead><tr><th>Formato</th><th>Qué subir</th></tr></thead>
+        <tbody>
+          <tr><td>Shapefile en ZIP</td><td>Un .zip con el .shp, .shx, .dbf y .prj. Es lo más cómodo.</td></tr>
+          <tr><td>Shapefile suelto</td><td>Los archivos .shp, .shx y .dbf seleccionados a la vez (y el .prj si lo tienes).</td></tr>
+          <tr><td>GeoJSON</td><td>Un archivo .geojson o .json.</td></tr>
+          <tr><td>KML / KMZ</td><td>El archivo exportado de Google Earth.</td></tr>
+          <tr><td>GeoPackage</td><td>Un .gpkg. Si trae varias capas, se usa la de polígonos.</td></tr>
+        </tbody>
+      </table></div>
+      <p>Pulsa <span class="ui">Subir un archivo</span>, arrastra el archivo al recuadro y, cuando diga <em>Archivo válido</em>, pulsa <span class="ui">Usar esta área</span>. El archivo debe traer polígonos y su sistema de coordenadas: si falta el .prj y las coordenadas están en metros, la app avisa en lugar de ubicar el área en un lugar equivocado.</p>
+
+      <h3>El buffer: sumar las estaciones vecinas</h3>
+      <p>Las estaciones cercanas al límite de la cuenca suelen servir para interpolar o rellenar datos. La píldora <span class="ui">Buffer · 2 km</span> del panel agrega una franja alrededor del área (en naranja punteado) de 0,5 a 15 km. Cada estación queda marcada como <em>en el área</em> o <em>en el buffer</em>, y esa marca llega hasta el resumen del ZIP. Para no usarlo, apaga <span class="ui">Incluir estaciones cercanas</span>.</p>
+    </section>
+
+    <!-- 5 -->
+    <section id="estaciones">
+      <span class="etiqueta">Paso 2 · Revisión</span>
+      <h2>Revisar las estaciones antes de descargar</h2>
+      <p>Con el área marcada, el panel <span class="ui">Consulta</span> te dice qué vas a recibir antes de pedir un solo archivo. En el computador llega cerrado para que veas el mapa entero; ábrelo con el botón <span class="ui">Consulta</span> de arriba a la izquierda.</p>
+      <figure>
+        <img src="manual/mapa-panel.jpg" width="1600" height="956" alt="Mapa satelital con un rectángulo sobre la sabana de Bogotá y sus estaciones pintadas por color; a la izquierda, el panel con el área, el buffer, tres cifras, el aviso de altitud dudosa y la lista de estaciones con casillas.">
+        <figcaption><b>Paso 2.</b> Cada punto es una estación, con el color de su cobertura del periodo. El panel resume la consulta y lista las estaciones que se van a descargar.</figcaption>
+      </figure>
+
+      <h3>Las tres cifras</h3>
+      <div class="tarjetas">
+        <div class="tarjeta"><h4>Estaciones con datos</h4><p>Cuántas estaciones del área tienen la serie elegida en tu periodo, y cuántas hay en total en la zona.</p></div>
+        <div class="tarjeta"><h4>Cobertura estimada media</h4><p>Qué parte del periodo cubren, en promedio, los registros de las estaciones marcadas.</p></div>
+        <div class="tarjeta"><h4>Tamaño del ZIP</h4><p>El peso aproximado de la descarga y cuánto tardaría.</p></div>
+      </div>
+
+      <h3>Qué significa cada color</h3>
+      <div class="clases">
+        <div class="clase"><b><i style="background:var(--alta)"></i>Alta</b><span>70 a 100 %</span></div>
+        <div class="clase"><b><i style="background:var(--media)"></i>Media</b><span>50 a 70 %</span></div>
+        <div class="clase"><b><i style="background:var(--baja)"></i>Baja</b><span>25 a 50 %</span></div>
+        <div class="clase"><b><i style="background:var(--critica)"></i>Crítica</b><span>0 a 25 %</span></div>
+      </div>
+      <ul>
+        <li><strong>Halo punteado</strong> alrededor del punto: la altitud del catálogo no coincide con el terreno (ver <a href="#vista-3d">altitudes</a>).</li>
+        <li><strong>Punto hueco con borde punteado</strong>: una estación que quitaste de la descarga.</li>
+        <li><strong>Anillo azul</strong>: la estación seleccionada.</li>
+        <li>Las estaciones <strong>sin serie</strong> de esa variable vienen ocultas para no tapar las demás; se muestran con <span class="ui">Mostrar las sin serie</span>.</li>
+      </ul>
+      <p>La <span class="ui">Leyenda</span>, abajo a la izquierda, recuerda los colores. El botón de capas cambia el mapa base: satélite con nombres, satélite, relieve, calles o satélite de noche.</p>
+
+      <h3>La lista de estaciones</h3>
+      <ul>
+        <li>Están todas las estaciones descargables, de la mejor cobertura a la peor, con su código, los años de su serie y su porcentaje. Con más de ocho, aparece un buscador por nombre o código.</li>
+        <li><strong>Las marcadas se descargan.</strong> Todas vienen marcadas: desmarca las que no quieras. La casilla de arriba marca o desmarca todas.</li>
+        <li>Haz clic en una estación para que el mapa vaya hasta ella.</li>
+        <li>El <strong>filtro</strong> (embudo, arriba a la izquierda del mapa) deja solo las estaciones dentro de un rango de cobertura, por ejemplo de 50 a 100 %.</li>
+        <li>El nombre de la variable (por ejemplo <span class="ui">‹ Precipitación</span>) te devuelve al paso 1 para cambiar la variable o el periodo sin perder el área.</li>
+      </ul>
+
+      <h3 id="ficha">La ficha de la estación</h3>
+      <p>Al hacer clic en una estación aparece una píldora con su nombre; púlsala para desplegar la ficha. Todo lo que ves aquí sale del catálogo del IDEAM, <strong>sin descargar ningún archivo</strong>.</p>
+      <figure>
+        <img src="manual/ficha.jpg" width="1600" height="956" alt="Ficha de una estación limnimétrica desplegada sobre el mapa: código, tipo, altitud, cobertura y años de la serie; las filas Mide, Subred y Alias; el interruptor Incluir en la descarga, el aviso de altitud dudosa y el botón Ver en 3D.">
+        <figcaption><b>Ficha de la estación.</b> Código, tipo, altitud, cobertura y años de la serie; qué mide, a qué subred pertenece y sus otros códigos; y el aviso cuando su altitud es dudosa.</figcaption>
+      </figure>
+      <ul>
+        <li>Arriba: el <strong>código</strong>, el <strong>tipo de estación</strong>, si está en el área o en el buffer y, si ya no opera, el año en que se suspendió.</li>
+        <li>Tres cifras: <strong>altitud</strong>, <strong>cobertura</strong> y <strong>años de la serie</strong>.</li>
+        <li>Cuando el IDEAM lo informa: <strong>Mide</strong> (las variables que registra la estación), <strong>Subred</strong> (la red regional a la que pertenece) y <strong>Alias</strong> (otros códigos con los que el IDEAM registra la misma estación, útiles para no partir su historial).</li>
+        <li>Si la altitud es dudosa, <span class="ui">⚠ Altitud dudosa · Ver detalles</span> explica el caso.</li>
+        <li><span class="ui">Incluir en la descarga</span> la quita o la vuelve a poner, y <span class="ui">Ver en 3D</span> la muestra sobre el relieve.</li>
+      </ul>
+    </section>
+
+    <!-- 6 -->
+    <section id="vista-3d">
+      <span class="etiqueta">Control de calidad</span>
+      <h2>Vista 3D y revisión de altitudes</h2>
+      <p>El selector <span class="ui">2D</span> <span class="ui">3D</span>, abajo a la izquierda, muestra tu área sobre el relieve real, exagerado dos veces para que los desniveles se noten. Cada estación se apoya en el terreno.</p>
+      <figure>
+        <img src="manual/vista-3d.jpg" width="1600" height="956" alt="Vista 3D de los cerros orientales de Bogotá con las estaciones como pines; sobre una estación seleccionada sube un haz naranja hasta la altitud que indica el catálogo.">
+        <figcaption><b>Altitud dudosa en 3D.</b> El pin blanco es la estación sobre el terreno; el haz naranja sube hasta la altitud que dice el catálogo. La distancia entre los dos es el error.</figcaption>
+      </figure>
+      <h3>Altitud dudosa</h3>
+      <p>La app compara la altitud del catálogo del IDEAM con la altura del terreno en el punto de la estación, según un modelo de elevación. <strong>Si se alejan más de 200 m, la estación queda marcada</strong>:</p>
+      <ul>
+        <li>En el mapa 2D, con un halo punteado.</li>
+        <li>En el panel, con la línea <span class="ui">⚠ N estaciones con altitud dudosa</span>, que abre la lista con la altitud del catálogo, la del terreno y la diferencia.</li>
+        <li>En el 3D, con un haz naranja desde la estación hasta la altitud del catálogo, aunque quede «bajo tierra».</li>
+      </ul>
+      <div class="nota">
+        <strong>¿Está mal la altitud o las coordenadas?</strong>
+        <p>Si la altitud del catálogo no existe en toda la zona, el error está en la altitud. Si existe cerca pero no en el punto exacto, quizá la altitud está bien y lo errado son las coordenadas. La app indica cuál de los dos casos es. Los datos se descargan igual: el aviso es para tu análisis.</p>
+      </div>
+      <h3>Moverse en 3D</h3>
+      <ul>
+        <li><strong>Computador:</strong> arrastra para moverte, clic derecho y arrastrar para girar e inclinar, rueda para acercar.</li>
+        <li><strong>Celular:</strong> un dedo para moverte; con dos dedos giras, inclinas y acercas.</li>
+        <li>El menú <span class="ui">Cámara</span> de la barra de herramientas tiene todos los controles sin gestos, con una brújula que vuelve al norte.</li>
+        <li>El botón de capas cambia la <strong>textura del relieve</strong>: satélite, topográfico o coloreado por altitud.</li>
+      </ul>
+      <p>La primera vez que abres el 3D con un área, una animación satelital te lleva desde el espacio hasta tu cuenca mientras carga el relieve. Puedes saltarla con <span class="ui">Esc</span> y repetirla con <span class="ui">↻</span>.</p>
+    </section>
+
+    <!-- 7 -->
+    <section id="descarga">
+      <span class="etiqueta">Paso 3</span>
+      <h2>La descarga</h2>
+      <p>Pulsa <span class="ui">Preparar descarga</span>, abajo a la derecha. Si está en gris, el botón dice qué falta (por ejemplo, <em>Delimita el área</em>).</p>
+      <p>Mientras descarga verás el porcentaje, una barra con el tiempo que falta, cuántas estaciones van guardadas u omitidas y cuáles se están consultando en ese momento. A la derecha queda el recibo de lo que pediste.</p>
+      <figure>
+        <img src="manual/exportacion.jpg" width="1600" height="956" alt="Tarjeta de exportación con la descarga lista: 115 estaciones guardadas, 20 omitidas, completitud real media de 46 %, el reparto por completitud, el nombre del ZIP, el botón Descargar el ZIP y una tabla con la completitud real por estación.">
+        <figcaption><b>Paso 3.</b> Al terminar, la tarjeta resume lo que llegó: estaciones guardadas y omitidas, completitud real media y, por estación, la cobertura estimada frente a la completitud real.</figcaption>
+      </figure>
+      <ol class="pasos">
+        <li>Revisa el resumen: estaciones guardadas, omitidas y la <strong>completitud real media</strong>, con el reparto por clase.</li>
+        <li>Si quieres, cambia el <strong>nombre del archivo ZIP</strong>. Viene uno sugerido, como <code>IDEAM_PTPM_CON_20000101-20201231</code>.</li>
+        <li>Elige las opciones: <span class="ui">Separar en carpetas por completitud</span> (marcada por defecto) e <span class="ui">Incluir el mapa de huecos</span>. Puedes cambiarlas sin volver a descargar.</li>
+        <li>Pulsa <span class="ui">Descargar el ZIP</span>.</li>
+      </ol>
+      <p>Con <span class="ui">Volver al mapa</span> ajustas la consulta y descargas otra vez; con <span class="ui">Nueva consulta</span> empiezas de cero.</p>
+      <h3>Detener, recargar y esperar turno</h3>
+      <ul>
+        <li><span class="ui">Detener la descarga</span> la corta a mitad de camino. Lo que alcanzó a bajar no se pierde: <span class="ui">Descargar lo guardado</span> te entrega esas estaciones en un ZIP.</li>
+        <li>Puedes <strong>recargar la página</strong> sin perder el avance: la descarga sigue en el servidor. Si cierras la pestaña, se detiene sola a los dos minutos.</li>
+        <li>Para no saturar al IDEAM, el servidor hace como máximo <strong>4 descargas a la vez</strong>. Si están ocupadas, verás tu puesto en la fila y el tiempo estimado; tu descarga empieza sola.</li>
+      </ul>
+    </section>
+
+    <!-- 8 -->
+    <section id="zip">
+      <span class="etiqueta">Resultado</span>
+      <h2>Qué trae el ZIP</h2>
+      <p>Ejemplo con precipitación diaria y carpetas por completitud:</p>
+<pre class="arbol">IDEAM_PTPM_CON_20000101-20201231.zip
+├── 1_Completitud_Alta_70_100/
+│   ├── JARDIN_BOTANICO_[21205710]_PTPM_CON.xlsx
+│   └── …
+├── 2_Completitud_Media_50_70/
+├── 3_Completitud_Baja_25_50/
+├── 4_Completitud_Critica_0_25/
+├── resumen_descarga.csv  <span class="c">← qué llegó de cada estación</span>
+├── mapa_de_huecos.png/csv <span class="c">← opcional: datos por estación y año</span>
+└── CITACION.txt          <span class="c">← la cita de la fuente, lista</span></pre>
+      <div class="tarjetas dos">
+        <div class="tarjeta"><h4>Un Excel por estación</h4><p>El mismo formato del portal: encabezado con los metadatos de la estación y, debajo, los datos. Si tu periodo necesitó varios tramos, ya vienen unidos y en orden. El nombre lleva la estación, su código y el parámetro, así dos estaciones homónimas nunca se pisan.</p></div>
+        <div class="tarjeta"><h4>resumen_descarga.csv</h4><p>Una fila por estación: cobertura estimada, datos reales, completitud real, porcentaje definitivo, en revisión y preliminar, si se guardó u omitió, dónde quedó en el ZIP y el detalle de cada tramo. Se abre con Excel.</p></div>
+        <div class="tarjeta"><h4>Mapa de huecos</h4><p>Una cuadrícula de estaciones por años, coloreada según el porcentaje de datos de cada año. Muestra de un vistazo dónde faltan datos, por ejemplo «le faltan 1998–2003». No aplica a la serie multianual.</p></div>
+        <div class="tarjeta"><h4>CITACION.txt</h4><p>La cita de la fuente con el formato que exigen los términos de uso del IDEAM y la fecha real de tu descarga.</p></div>
+      </div>
+      <h3>Nivel de aprobación del dato</h3>
+      <p>El IDEAM clasifica cada dato en tres niveles. El Excel lo trae dato a dato y el resumen lo suma por estación.</p>
+      <div class="tabla"><table>
+        <thead><tr><th>Nivel</th><th>Código</th><th>Qué significa</th></tr></thead>
+        <tbody>
+          <tr><td>Preliminar</td><td class="num">900</td><td>Dato de campo o de sensor automático, sujeto a cambios.</td></tr>
+          <tr><td>En revisión</td><td class="num">1100</td><td>Superó la evaluación preliminar y sigue en verificación.</td></tr>
+          <tr><td>Definitivo</td><td class="num">1200</td><td>Revisado, aprobado y considerado confiable.</td></tr>
+        </tbody>
+      </table></div>
+      <p>Los datos recientes suelen ser preliminares. Si vas a usarlos en un estudio formal, revisa esta información antes del análisis.</p>
+    </section>
+
+    <!-- 9 -->
+    <section id="cobertura">
+      <span class="etiqueta">Cómo se calcula</span>
+      <h2>Cobertura estimada y completitud real</h2>
+      <p>La app usa dos medidas, una antes y otra después de descargar. Conviene no confundirlas.</p>
+      <div class="tarjetas dos">
+        <div class="tarjeta"><h4>Cobertura estimada · antes</h4><p>Sale de la «cantidad probable» del IDEAM: qué parte de tu periodo abarca el registro de la estación, entre su primer y su último dato. <strong>No descuenta los huecos internos.</strong> Sirve para descartar estaciones que no llegan a tu periodo.</p></div>
+        <div class="tarjeta"><h4>Completitud real · después</h4><p>Los datos que llegaron de verdad en cada Excel frente a los que caben en tu periodo con esa frecuencia. <strong>Sí descuenta los huecos.</strong> Se mide al guardar cada archivo.</p></div>
+      </div>
+      <div class="ejemplo">
+        <strong>Ejemplo</strong>
+        <p>Una estación con 100 % de cobertura y 85 % de completitud tiene registro en todo tu periodo, pero le falta el 15 % de los datos. La tabla de la pantalla final ordena las estaciones de la mayor caída a la menor, para que veas primero las que más perdieron.</p>
+      </div>
+      <p>Las dos medidas usan las mismas cuatro clases: alta (70 a 100 %), media (50 a 70 %), baja (25 a 50 %) y crítica (0 a 25 %). Las carpetas del ZIP se arman con la completitud real.</p>
+    </section>
+
+    <!-- 10 -->
+    <section id="ajustes">
+      <span class="etiqueta">Comodidad</span>
+      <h2>Ajustes, idioma y celular</h2>
+      <p>Arriba a la derecha, en todas las pantallas, están el idioma (<span class="ui">EN</span> / <span class="ui">ES</span>) y el menú de ajustes (<span class="ui">◐</span>): tema claro u oscuro, alto contraste, modo Lite, este manual y cerrar sesión. Sin elegir nada, el tema sigue la configuración de tu equipo.</p>
+      <p>El <strong>modo Lite</strong> quita los efectos visuales y usa un 3D más liviano, con los mismos datos y funciones. Es útil en equipos con poca memoria gráfica.</p>
+      <figure>
+        <img src="manual/celular.jpg" width="1600" height="888" alt="Tres pantallas de la app en un celular: la tarjeta de consulta, el mapa con las estaciones y el panel de consulta abierto como una tarjeta sobre el mapa.">
+        <figcaption><b>En el celular</b>, la app funciona igual. La barra de abajo abre la consulta, cambia entre 2D y 3D y prepara la descarga.</figcaption>
+      </figure>
+    </section>
+
+    <!-- 11 -->
+    <section id="problemas">
+      <span class="etiqueta">Ayuda</span>
+      <h2>Preguntas frecuentes</h2>
+      <details>
+        <summary>No aparece ninguna estación en mi área</summary>
+        <p>Puede que no haya estaciones del IDEAM dentro. Enciende el buffer o aumenta su ancho para incluir las cercanas.</p>
+      </details>
+      <details>
+        <summary>Hay estaciones, pero no puedo preparar la descarga</summary>
+        <ul>
+          <li>Revisa la lista del panel: puede que las hayas desmarcado todas.</li>
+          <li>Prueba otro periodo: muchas estaciones solo tienen datos de ciertas décadas.</li>
+          <li>Revisa la variable: una estación puede medir precipitación pero no temperatura. La ficha lo dice como <em>Sin serie de esta variable</em>.</li>
+        </ul>
+      </details>
+      <details>
+        <summary>Mi shapefile no carga</summary>
+        <ul>
+          <li>Súbelo en un ZIP con .shp, .shx, .dbf y .prj.</li>
+          <li>Sin el .prj la app no sabe dónde está en el mundo: expórtalo de nuevo desde tu SIG con el sistema de coordenadas.</li>
+          <li>Debe ser un polígono: puntos o líneas no sirven como área.</li>
+        </ul>
+      </details>
+      <details>
+        <summary>El área tiene demasiadas estaciones</summary>
+        <p>Por encima de 1.500 estaciones la app pide reducir el área o elegir las estaciones por departamento y municipio.</p>
+      </details>
+      <details>
+        <summary>Una estación salió «Omitida»</summary>
+        <p>El IDEAM no devolvió datos para ese periodo, aunque el catálogo indicara que la serie existe. Suele pasar con estaciones históricas o suspendidas. El motivo de cada tramo está en la columna «Detalle» de <code>resumen_descarga.csv</code>.</p>
+      </details>
+      <details>
+        <summary>La descarga tarda más de lo estimado</summary>
+        <p>El tiempo depende de qué tan rápido responda el servidor del IDEAM. Si tu descarga espera turno, es porque ya hay otras cuatro en curso.</p>
+      </details>
+      <details>
+        <summary>El 3D se ve en blanco o se borra al girar</summary>
+        <p>El navegador se quedó sin memoria gráfica. En el aviso que aparece, usa <span class="ui">Activar Lite y reintentar</span>. Si sigue pasando, cierra pestañas que no uses o trabaja en 2D.</p>
+      </details>
+      <details>
+        <summary>En el celular el relieve 3D sale lleno de picos</summary>
+        <p>Algunos navegadores alteran las imágenes para proteger la privacidad (Safari en modo privado o con protección contra rastreo, y Brave), y el relieve viene codificado en imágenes. Abre la app en una ventana normal, desactiva esa protección para el sitio o usa otro navegador.</p>
+      </details>
+    </section>
+
+    <!-- 12 -->
+    <section id="uso">
+      <span class="etiqueta">Condiciones</span>
+      <h2>Uso de los datos y citación</h2>
+      <p>Los datos provienen del IDEAM y están protegidos por derechos de autor. Su descarga está autorizada para uso personal, privado y no comercial, y no pueden comercializarse ni venderse. El IDEAM no se hace responsable del uso de los datos ni de las interpretaciones derivadas de ellos.</p>
+      <p>Todo trabajo que los use debe citar la fuente. El ZIP trae <code>CITACION.txt</code> con la cita armada, por ejemplo:</p>
+      <div class="nota"><p>Fuente: Ideam. (2026, septiembre 23). DHIME – Portal Atención al Ciudadano. http://dhime.ideam.gov.co/atencionciudadano/</p></div>
+      <p>El Descargador IDEAM es una herramienta independiente, no un producto oficial del IDEAM. Automatiza consultas que cualquier persona puede hacer en el portal DHIME y no almacena ni redistribuye los datos por su cuenta. Como hace el portal, cada serie descargada se registra de forma anónima en las estadísticas de descargas del IDEAM.</p>
+      <h3>Fuentes de los mapas</h3>
+      <ul>
+        <li><strong>Satélite, satélite con nombres y relieve:</strong> Esri (Maxar, Earthstar Geographics, HERE, Garmin, FAO, NOAA, USGS, OpenStreetMap y la comunidad de usuarios de GIS).</li>
+        <li><strong>Calles:</strong> © colaboradores de OpenStreetMap.</li>
+        <li><strong>Satélite de noche:</strong> NASA EOSDIS GIBS.</li>
+        <li><strong>Relieve 3D:</strong> modelo de elevación Terrarium (Mapzen, AWS Open Data), con datos SRTM y GMTED2010, cortesía del U.S. Geological Survey, entre otras fuentes.</li>
+      </ul>
+    </section>
+
+    <!-- 13 -->
+    <section id="glosario">
+      <span class="etiqueta">Referencia</span>
+      <h2>Glosario</h2>
+      <dl class="glosario">
+        <dt>DHIME</dt><dd>El sistema del IDEAM con las series históricas de sus estaciones hidrometeorológicas. De ahí salen todos los datos.</dd>
+        <dt>Serie</dt><dd>La secuencia de datos de un parámetro en una estación. El IDEAM la identifica con un código, como <code>PTPM_CON</code>, que va en el nombre de cada Excel.</dd>
+        <dt>Cantidad probable</dt><dd>La cifra del IDEAM de cuántos datos cabrían entre el primer y el último registro de la estación dentro de tu periodo. No descuenta los faltantes.</dd>
+        <dt>Cobertura estimada</dt><dd>La cantidad probable expresada como porcentaje de tu periodo. Se ve antes de descargar.</dd>
+        <dt>Completitud real</dt><dd>Los datos que llegaron frente a los que caben en tu periodo. Se mide al descargar y sí descuenta los huecos.</dd>
+        <dt>Nivel de aprobación</dt><dd>Estado de revisión de cada dato: preliminar (900), en revisión (1100) o definitivo (1200).</dd>
+        <dt>Buffer</dt><dd>Franja de 0,5 a 15 km alrededor del área para incluir estaciones cercanas.</dd>
+        <dt>Tramo</dt><dd>Cada bloque de años que el portal entrega por consulta. La app los pide todos y los une.</dd>
+        <dt>Altitud dudosa</dt><dd>Cuando la altitud del catálogo se aleja más de 200 m del terreno en el punto de la estación.</dd>
+        <dt>Mapa de huecos</dt><dd>Cuadrícula de estaciones por años con el porcentaje de datos de cada año.</dd>
+      </dl>
+    </section>
+  </main>
+</div>
+
+<footer class="pie">
+  <div class="in">
+    <p>Descargador IDEAM · Herramienta independiente, no oficial del IDEAM. Los datos son del IDEAM y su uso está sujeto a los términos del portal DHIME. Las capturas de este manual son ilustrativas: se tomaron con datos de ejemplo, así que las cifras de cobertura y completitud, las variables, subredes y alias que muestran no corresponden a las estaciones reales.</p>
+  </div>
+</footer>
+
+<script>
+// Resalta en el índice el apartado que se está leyendo.
+(function(){
+  var enlaces = document.querySelectorAll('.indice a');
+  if (!('IntersectionObserver' in window) || !enlaces.length) return;
+  var porId = {};
+  enlaces.forEach(function(a){ porId[a.getAttribute('href').slice(1)] = a; });
+  var obs = new IntersectionObserver(function(entradas){
+    entradas.forEach(function(e){
+      if (!e.isIntersecting) return;
+      enlaces.forEach(function(a){ a.removeAttribute('aria-current'); });
+      var a = porId[e.target.id]; if (a) a.setAttribute('aria-current', 'true');
+    });
+  }, {rootMargin: '-30% 0px -60% 0px'});
+  document.querySelectorAll('main section[id]').forEach(function(s){ obs.observe(s); });
+})();
+</script>
 </body>
 </html>

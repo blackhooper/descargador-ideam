@@ -37,7 +37,7 @@ La estructura y la estética se conectan solo por **nombres**: las claves de los
 | `modules/calidad.py` | Lógica | Clases de cobertura (alta ≥ 70 %, media ≥ 50 %, baja ≥ 25 %, crítica) y sus colores |
 | `modules/geo_input.py`, `geo_utils.py` | Lógica | Lectura de archivos, buffer y filtro espacial |
 | `static/intro_satelital/` | Estructura | Intro satelital (del mapa 2D al 3D): escena Three.js, reproductor, mosaico de satélite |
-| `static/manual.html` | Documento aparte | Manual de usuario, servido en `app/static/manual.html` (tiene su propio CSS) |
+| `static/manual.html`, `static/manual/` | Documento aparte | Manual de usuario, servido en `app/static/manual.html` (tiene su propio CSS), y sus capturas de pantalla |
 | `.streamlit/config.toml` | Estética | Colores de los widgets de Streamlit en claro y oscuro (deben coincidir con los tokens) |
 
 ## Pantallas
@@ -245,7 +245,7 @@ En el celular la tarjeta flota abajo, con margen, y las dos columnas van una deb
 
 ### Manual
 
-`static/manual.html` es una página aparte, con su propio CSS. Describe la interfaz con los nombres de sus botones: si cambias textos visibles de la app, revísalo.
+`static/manual.html` es una página aparte, con su propio CSS y un diseño sobrio (sin vidrio), pensada para usuarios y para el IDEAM: empieza por la comparación con el portal DHIME y sigue los tres pasos. Describe la interfaz con los nombres de sus botones: si cambias textos visibles de la app, revísalo. Las capturas (`static/manual/*.jpg`, 1600 px de ancho) se tomaron con la app simulada (`tests/interfaz/app_simulada.py`) con el relieve real, a 2× y reducidas; si cambia una pantalla, hay que volver a tomarla. Llevan datos de ejemplo, y el pie del manual lo dice.
 
 ## Cómo se arma la página en cada corrida
 

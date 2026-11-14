@@ -688,7 +688,7 @@ def herramientas_3d(textura, escala):
     escalas = (f"<hr><p class=\"tit\" aria-hidden=\"true\">{tr('Escala de colores')}</p>" + "".join(
         f'<button type="button" role="menuitemradio" aria-checked="{"true" if e == escala else "false"}" '
         f'data-y2k-pulsar="y2k_esc_{i}"><span>{tr(e.replace("Rango", "Escala"))}</span></button>'
-        for i, e in enumerate(("Rango de la zona", "Rango de Colombia")))) if textura == "Altura" else ""
+        for i, e in enumerate(("Rango de la zona", "Rango de Colombia", "Pisos térmicos")))) if textura == "Altura" else ""
     md(f'<div class="y2k-herr" role="toolbar" aria-orientation="vertical" aria-label="{tr("Herramientas del 3D")}">'
        '<div class="y2k-grupo">'
        f'<button type="button" class="h" data-y2k-menu="camara" aria-controls="y2k-menu-camara" aria-expanded="false" '

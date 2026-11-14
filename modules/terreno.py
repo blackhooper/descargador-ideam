@@ -58,8 +58,12 @@ ALTURA_COLOMBIA = (0, 5730)
 # Verdes abajo, amarillos y naranjas en medio, rojos terracota y vino arriba, con un blanco rosado en las cumbres
 RAMPA_ALTURA = [(0.00, "#1F7A4D"), (0.10, "#4E9A55"), (0.22, "#8DB45A"), (0.34, "#CFCB6B"), (0.46, "#E8B75B"),
                 (0.58, "#DB8A4B"), (0.70, "#C0603F"), (0.82, "#94403A"), (0.93, "#6B2E35"), (1.00, "#EFE8E4")]
+# Pisos termicos (escala estandar en Colombia, Caldas-Lang / Atlas Climatologico del IDEAM): limites de altitud en m
+# (hasta, nombre, color). Cada piso lleva un solo color y el sombreado de ladera se conserva. El ultimo no tiene tope.
+PISOS_TERMICOS = [(1000, "Cálido", "#2F8F4E"), (2000, "Templado", "#B7C95A"), (3000, "Frío", "#E3A857"),
+                  (3700, "Muy frío", "#BD6A47"), (4500, "Extremadamente frío", "#7C3B3D"), (None, "Nival", "#EFE8E4")]
 # La marca "y2k_hipso" en la direccion la reconoce el guion de abajo; S3 ignora lo que va despues del "?"
-URL_ALTURA = URL_ELEVACION + "?y2k_hipso=1&px=__PX__&min=__MIN__&max=__MAX__"
+URL_ALTURA = URL_ELEVACION + "?y2k_hipso=1&px=__PX__&min=__MIN__&max=__MAX__&pisos=__PISOS__"
 
 # deck.gl pide las imagenes con fetch. Este guion (se instala una sola vez en la pagina) intercepta
 # las que llevan la marca, baja el mismo tile de elevacion y devuelve una imagen coloreada por altura con
@@ -77,13 +81,18 @@ _HIPSOMETRICO = """
     const a = pasos[k], b = pasos[k + 1], f = Math.min(1, Math.max(0, (t - a[0]) / (b[0] - a[0])));
     return [a[1][0] + (b[1][0] - a[1][0]) * f, a[1][1] + (b[1][1] - a[1][1]) * f, a[1][2] + (b[1][2] - a[1][2]) * f];
   };
+  const PISOS = __PISOS__;   // [[tope en m o null, [r, g, b]], ...]
+  const piso = h => {
+    for (const p of PISOS) if (p[0] === null || h < p[0]) return p[1];
+    return PISOS[PISOS.length - 1][1];
+  };
   const N = 256, EXAG = 2;
   const LX = -0.55, LY = -0.55, LZ = 0.63;
   async function colorear(url, opciones) {
     const partes = url.split("?"), base = partes[0], q = new URLSearchParams(partes[1] || "");
     const trozos = base.split("/");
     const y = parseInt(trozos[trozos.length - 1]), x = parseInt(trozos[trozos.length - 2]), z = parseInt(trozos[trozos.length - 3]);
-    const mn = parseFloat(q.get("min")), mx = parseFloat(q.get("max"));
+    const mn = parseFloat(q.get("min")), mx = parseFloat(q.get("max")), porPisos = q.get("pisos") === "1";
     const SALIDA = parseInt(q.get("px")) || N, PASO = N / SALIDA;
     const resp = await original(base, {mode: "cors", signal: opciones && opciones.signal});
     if (!resp.ok) return resp;
@@ -109,7 +118,7 @@ _HIPSOMETRICO = """
         const dy = (H[Math.min(N - 1, iy + s) * N + ix] - H[Math.max(0, iy - s) * N + ix]) * EXAG / esc;
         const luz = (-dx * LX - dy * LY + LZ) / Math.sqrt(dx * dx + dy * dy + 1) / LZ;
         const lit = Math.min(1.3, Math.max(0.35, 0.3 + 0.7 * luz));
-        const col = color(Math.min(1, Math.max(0, (h - mn) / (mx - mn))));
+        const col = porPisos ? piso(h) : color(Math.min(1, Math.max(0, (h - mn) / (mx - mn))));
         const o = (j * SALIDA + i) * 4;
         d[o] = Math.min(255, col[0] * lit); d[o + 1] = Math.min(255, col[1] * lit); d[o + 2] = Math.min(255, col[2] * lit); d[o + 3] = 255;
       }
@@ -131,7 +140,8 @@ _HIPSOMETRICO = """
 })();
 </script>
 """
-HIPSOMETRICO = _HIPSOMETRICO.replace("__RAMPA__", json.dumps(RAMPA_ALTURA))
+HIPSOMETRICO = (_HIPSOMETRICO.replace("__RAMPA__", json.dumps(RAMPA_ALTURA))
+                .replace("__PISOS__", json.dumps([[t, [int(c[i:i + 2], 16) for i in (1, 3, 5)]] for t, _, c in PISOS_TERMICOS])))
 
 
 def leyenda_altura(minimo, maximo, escala):
@@ -141,6 +151,16 @@ def leyenda_altura(minimo, maximo, escala):
     return (f'<p class="tit">{tr("Altitud")} (m) · {escala}</p>'
             f'<div class="rampa" style="background:linear-gradient(90deg,{gradiente})"></div>'
             f'<div class="marcas">{marcas}</div>')
+
+
+def leyenda_pisos():
+    """Leyenda de los pisos termicos: un cuadro de color por piso con su nombre y su rango de altitud (HTML)."""
+    filas, desde = [], 0
+    for tope, nombre, color in PISOS_TERMICOS:
+        rango = f"{_num(desde)}–{_num(tope)} m" if tope is not None else f"> {_num(desde)} m"
+        filas.append(f'<li><span class="pin" style="background:{color}"></span>{tr(nombre)} · {rango}</li>')
+        desde = tope
+    return f'<p class="tit">{tr("Pisos térmicos")}</p><ul class="pisos">{"".join(filas)}</ul>'
 
 
 # ---- Intro satelital: del mapa 2D al despliegue 3D (cubre la carga del relieve) ----
@@ -1165,7 +1185,7 @@ def _camino_3d_calcular(anillo, base):
 
 
 def construir_deck(cuenca_gdf, area_gdf, estaciones, seleccionada=None, textura="Satélite", paleta=None,
-                   ligero=False, altura=None, celular=False, marco_gdf=None):
+                   ligero=False, altura=None, celular=False, marco_gdf=None, pisos=False):
     """
     marco_gdf: recuadro que encuadra la escena cuando no hay area ni cuenca (estaciones elegidas por ubicacion); no
     se dibuja.
@@ -1228,7 +1248,7 @@ def construir_deck(cuenca_gdf, area_gdf, estaciones, seleccionada=None, textura=
     # Modo "Altura": con la escala de Colombia (vista general) se pixela un poco: tiles de 512 (cuatro veces menos),
     # un nivel menos de detalle e imagen a 128 px. Con la escala de la zona se queda con todo el detalle
     por_altura = textura == "Altura" and altura is not None
-    pixelado = por_altura and tuple(altura) == ALTURA_COLOMBIA
+    pixelado = por_altura and not pisos and tuple(altura) == ALTURA_COLOMBIA
     detalle = {"tiles": 256 if (cerca and not pixelado) else 512, "malla": 4 if cerca else (10 if ligero else 8),
                "guardados": 50 if ligero else (100 if cerca else 80), "lejos": 1.3 if ligero else (1.6 if cerca else 1.5)}
 
@@ -1239,7 +1259,7 @@ def construir_deck(cuenca_gdf, area_gdf, estaciones, seleccionada=None, textura=
                            "bScaler": EXAGERACION / 256, "offset": (-32768 - base) * EXAGERACION},
         elevation_data=URL_ELEVACION,
         texture=(URL_ALTURA.replace("__MIN__", f"{altura[0]:.0f}").replace("__MAX__", f"{altura[1]:.0f}")
-                 .replace("__PX__", "128" if pixelado else "256") if por_altura
+                 .replace("__PX__", "128" if pixelado else "256").replace("__PISOS__", "1" if pisos else "0") if por_altura
                  else TEXTURAS.get(textura, TEXTURAS["Satélite"])),
         # Los tiles miden 256 px: con tile_size=256 cada pixel de la foto se ve a su tamano real
         # (con 512, el valor normal, se estira al doble); cuesta ~4 veces mas tiles

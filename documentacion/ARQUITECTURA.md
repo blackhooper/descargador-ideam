@@ -389,7 +389,7 @@ Animación de ~16,5 s (Three.js) que **cubre la carga del 3D**: un satélite rec
 
 ## Textura "Altura" del 3D
 
-Tercera textura (junto a Satélite y Topográfico): el relieve se colorea por altitud (verdes abajo, naranjas y rojos arriba) con sombreado de ladera. Hay dos escalas: **Rango de la zona** (mínimo y máximo de la cuenca con buffer) y **Rango de Colombia** (0–5.730 m, más pixelada para ahorrar memoria). Un guion (`_HIPSOMETRICO`) intercepta `window.fetch` y devuelve, para las imágenes con la marca `y2k_hipso`, el tile de elevación coloreado. La leyenda sale de `terreno.leyenda_altura()` dentro de `estilo.leyenda_altura()`.
+Tercera textura (junto a Satélite y Topográfico): el relieve se colorea por altitud (verdes abajo, naranjas y rojos arriba) con sombreado de ladera. Hay tres escalas: **Rango de la zona** (mínimo y máximo de la cuenca con buffer) y **Rango de Colombia** (0–5.730 m, más pixelada para ahorrar memoria) y **Pisos térmicos** (escala estándar: Cálido <1.000 m, Templado 1.000–2.000, Frío 2.000–3.000, Muy frío 3.000–3.700, Extremadamente frío 3.700–4.500, Nival >4.500; un color plano por piso, límites en `terreno.PISOS_TERMICOS`; leyenda en `terreno.leyenda_pisos()`). Un guion (`_HIPSOMETRICO`) intercepta `window.fetch` y devuelve, para las imágenes con la marca `y2k_hipso`, el tile de elevación coloreado. La leyenda sale de `terreno.leyenda_altura()` dentro de `estilo.leyenda_altura()`.
 
 ## Pruebas
 

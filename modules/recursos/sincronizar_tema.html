@@ -1,0 +1,33 @@
+
+<script>
+(async () => {
+  const quiero = "__TEMA__";
+  const w = window.parent, d = w.document;
+  try {
+    const guardado = JSON.parse(w.localStorage.getItem("stActiveTheme-" + w.location.pathname + "-v2") || '"System"');
+    if (guardado === quiero) return;
+  } catch (e) {}
+  const velo = d.createElement("style");
+  velo.textContent = "[data-baseweb=popover]{opacity:0 !important}";
+  d.head.appendChild(velo);
+  const esperar = ms => new Promise(r => setTimeout(r, ms));
+  try {
+    for (let i = 0; i < 60 && !d.querySelector('[data-testid="stMainMenu"] button'); i++) await esperar(100);
+    d.querySelector('[data-testid="stMainMenu"] button').click();
+    for (let i = 0; i < 40; i++) {
+      const boton = d.querySelector('[data-testid="stMainMenuItem-theme-' + quiero + '"]');
+      if (boton) { boton.click(); break; }
+      await esperar(50);
+    }
+    await esperar(120);
+    d.body.dispatchEvent(new KeyboardEvent("keydown", {key: "Escape", code: "Escape", keyCode: 27, bubbles: true}));
+    await esperar(300);
+    if (d.querySelector('[data-testid="stMainMenuItem-theme-' + quiero + '"]')) {
+      d.querySelector('[data-testid="stMainMenu"] button').click();
+      await esperar(300);
+    }
+  } finally {
+    velo.remove();
+  }
+})();
+</script>

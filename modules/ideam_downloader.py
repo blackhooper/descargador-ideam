@@ -12,6 +12,7 @@ import base64
 import traceback
 import warnings
 import queue
+from html import escape
 from concurrent.futures import ThreadPoolExecutor, wait, FIRST_COMPLETED
 import xml.etree.ElementTree as ET
 from xml.sax.saxutils import escape as xml_escape
@@ -646,16 +647,13 @@ def calcular_bloques(fecha_ini, fecha_fin, inicio_serie=None, fin_serie=None, di
     while inicio_actual <= fecha_fin:
         fin_actual = min(inicio_actual + datetime.timedelta(days=dias_por_bloque - 1), fecha_fin)
         if alinear_mes and fin_actual < fecha_fin:
-            # Primer dia del mes siguiente al de fin_actual, menos un dia: el ultimo dia
-            # de SU mes. (Sumarle 1 dia a fin_actual y poner day=1 no alcanza: si fin_actual
-            # no es ya el ultimo dia del mes, el resultado cae en el mismo mes de fin_actual,
-            # no en el siguiente, y queda antes de inicio_actual sin alinear nada.)
-            if fin_actual.month == 12:
-                primer_dia_prox_mes = fin_actual.replace(year=fin_actual.year + 1, month=1, day=1)
-            else:
-                primer_dia_prox_mes = fin_actual.replace(month=fin_actual.month + 1, day=1)
-            fin_mes = primer_dia_prox_mes - datetime.timedelta(days=1)
-            fin_actual = fin_mes if fin_mes >= inicio_actual else fin_actual
+            # El corte se lleva al ultimo dia del mes ANTERIOR al de fin_actual (salvo que fin_actual ya sea fin
+            # de mes): asi el bloque nunca pasa del limite de dias del IDEAM ni de la fecha final pedida. Antes se
+            # llevaba al fin de su propio mes, hacia adelante, y el bloque podia pasarse hasta 30 dias.
+            if (fin_actual + datetime.timedelta(days=1)).day != 1:
+                fin_mes_anterior = fin_actual.replace(day=1) - datetime.timedelta(days=1)
+                if fin_mes_anterior >= inicio_actual:
+                    fin_actual = fin_mes_anterior
         bloques.append((inicio_actual, fin_actual))
         inicio_actual = fin_actual + datetime.timedelta(days=1)
     return bloques
@@ -681,6 +679,22 @@ def rotulo_serie(param):
     return re.sub(r'[\\/:*?"<>|\s]+', "-", "_".join(partes))
 
 
+def nombre_excel(nombre, codigo, param, usados=None):
+    """Nombre del Excel de una estacion dentro del ZIP: "NOMBRE_[codigo]_ROTULO.xlsx". El codigo va siempre (hay
+    estaciones distintas con el mismo nombre y el catalogo no siempre lo trae entre corchetes); si aun asi el nombre
+    ya esta en `usados`, se numera. Asi ningun Excel pisa a otro al descomprimir."""
+    base = re.sub(r'[\\/:*?"<>|]+', "-", re.sub(r"\s+", "_", str(nombre).strip()))
+    if codigo and f"[{codigo}]" not in base:
+        base += f"_[{codigo}]"
+    archivo, n = f"{base}_{rotulo_serie(param)}.xlsx", 1
+    while usados is not None and archivo.lower() in usados:
+        n += 1
+        archivo = f"{base}_{rotulo_serie(param)}_({n}).xlsx"
+    if usados is not None:
+        usados.add(archivo.lower())
+    return archivo
+
+
 def _zip_vacio(datos):
     """True si la respuesta es un ZIP sin ningun archivo (asi responde el IDEAM cuando no hay datos que calcular)."""
     try:
@@ -692,6 +706,8 @@ def _zip_vacio(datos):
 
 def codigo_de_estacion(row, respaldo=""):
     """Codigo IDEAM (8 digitos) de una fila del catalogo de estaciones."""
+    if "codigo" in row.index and isinstance(row["codigo"], str) and row["codigo"]:
+        return row["codigo"]            # ya calculado al cargar el catalogo (ideam_catalog._con_codigo)
     for col in ("idestacion", "codigointerno"):
         if col in row.index and pd.notna(row[col]) and str(row[col]).strip():
             return str(row[col]).strip().split(".")[0]
@@ -699,8 +715,15 @@ def codigo_de_estacion(row, respaldo=""):
     return match.group(1) if match else str(respaldo)
 
 
+def codigos_de(df):
+    """Codigos IDEAM de todas las filas (lista, en su orden). Usa la columna "codigo" si el catalogo la trae."""
+    if "codigo" in df.columns:
+        return df["codigo"].astype(str).tolist()
+    return [codigo_de_estacion(r, i) for i, r in df.iterrows()]
+
+
 def descargar_excel_ideam(fecha_ini, fecha_fin, token_auth, param, codigo_estacion,
-                          inicio_serie=None, fin_serie=None, al_terminar_bloque=None):
+                          inicio_serie=None, fin_serie=None, al_terminar_bloque=None, detener=None):
     """
     Descarga la serie de una estacion en bloques y los fusiona en un Excel.
     param: dict del parametro del IDEAM (ver ideam_parameters.obtener_catalogo_parametros);
@@ -708,6 +731,8 @@ def descargar_excel_ideam(fecha_ini, fecha_fin, token_auth, param, codigo_estaci
     inicio_serie / fin_serie (date): si se conocen, se evitan bloques vacios.
     al_terminar_bloque(n): se llama cada vez que se terminan n bloques
     (para la barra de progreso). Puede llamarse desde otro hilo.
+    detener (threading.Event): si se activa ("Detener", recarga o pestaña cerrada), no se piden mas bloques al
+    IDEAM y la estacion se abandona.
     """
     if not token_auth.startswith("Bearer "):
         token_auth = "Bearer " + token_auth
@@ -745,6 +770,8 @@ def descargar_excel_ideam(fecha_ini, fecha_fin, token_auth, param, codigo_estaci
     param_url = str(param_etiqueta).replace(" ", "%20")
 
     for f_ini, f_fin in bloques:
+        if detener is not None and detener.is_set():
+            return None, "Descarga detenida"
         # Fechas SIN ceros a la izquierda, tal como las manda la pagina real
         fecha_ini_str = f"{f_ini.year}-{f_ini.month}-{f_ini.day}"
         fecha_fin_str = f"{f_fin.year}-{f_fin.month}-{f_fin.day}"
@@ -1136,10 +1163,33 @@ def zip_con_carpetas(resultado):
     return salida.getvalue()
 
 
+class DescargaDetenida(Exception):
+    """La persona detuvo la descarga (o cerro la pestaña): lo ya guardado queda en ui["parcial"]."""
+
+
+def html_avance(a, total):
+    """HTML del avance de la descarga a partir de las cifras que deja procesar_descargas (None: aun preparando)."""
+    if not a:
+        return estilo.progreso(0, tr("Preparando…"), tr("<span>Estaciones <b>{a} de {b}</b></span>", a=0, b=total))
+    if a["terminado"]:
+        principal = tr("Terminando…")
+    else:
+        principal = (tr("Faltan ≈ {t}", t=duracion_texto(a["restante"])) if a["restante"] >= 1
+                     else tr("Faltan unos segundos"))
+    meta = (tr("<span>Estaciones <b>{a} de {b}</b></span>", a=a["terminadas"], b=a["total"])
+            + tr("<span>Guardadas <b>{g}</b></span><span>Omitidas <b>{o}</b></span>", g=a["guardadas"],
+                 o=a["terminadas"] - a["guardadas"]))
+    if a["ahora"] and not a["terminado"]:
+        meta += f'<span class="ahora">{tr("Ahora")}: {escape(", ".join(a["ahora"]))}</span>'
+    return estilo.progreso(a["fraccion"], principal, meta)
+
+
 def procesar_descargas(estaciones_df, clasificar_en_carpetas, fecha_ini, fecha_fin, param, ui):
     """
-    Descarga todas las estaciones (4 a la vez) y arma el ZIP.
-    ui: dict con un st.empty() en "progreso", donde se dibuja el avance real (barra, tiempo que falta y cifras).
+    Descarga todas las estaciones (4 a la vez) y arma el ZIP. No toca Streamlit: corre en un hilo (modules/trabajo).
+    ui: dict con "avance" (funcion que recibe las cifras del avance, ver html_avance), "parcial" (dict donde queda
+    el ZIP de lo ya guardado si la descarga se corta) y "detener" (threading.Event: al activarse, la descarga para
+    con DescargaDetenida).
     Devuelve un dict con el zip y el resumen, o {"error": ...} si no hubo acceso al portal.
     """
     dias_bloque = param.get("dias_bloque", DIAS_POR_BLOQUE_DEFECTO)
@@ -1156,12 +1206,11 @@ def procesar_descargas(estaciones_df, clasificar_en_carpetas, fecha_ini, fecha_f
             print(f"[descarga] {texto}", flush=True)
 
     def pintar(fraccion, restante, terminado=False):
-        principal = tr("Terminando…") if terminado else (tr("Faltan ≈ {t}", t=duracion_texto(restante)) if restante >= 1
-                                                        else tr("Faltan unos segundos"))
-        meta = (tr("<span>Estaciones <b>{a} de {b}</b></span>", a=terminadas, b=total_estaciones)
-                + tr("<span>Guardadas <b>{g}</b></span><span>Omitidas <b>{o}</b></span>", g=guardadas,
-                     o=terminadas - guardadas))
-        ui["progreso"].markdown(estilo.progreso(fraccion, principal, meta), unsafe_allow_html=True)
+        # Solo cifras: el HTML lo arma la pantalla (html_avance), en el idioma de la sesion. Este codigo corre en un
+        # hilo, donde no hay sesion de Streamlit
+        ui["avance"]({"fraccion": fraccion, "restante": restante, "terminado": terminado, "terminadas": terminadas,
+                      "total": total_estaciones, "guardadas": guardadas,
+                      "ahora": [re.sub(r"\s*\[\d+\]\s*$", "", str(n)).strip() for n in list(en_curso.values())]})
 
     token_auth = obtener_token()
     if not token_auth:
@@ -1177,18 +1226,54 @@ def procesar_descargas(estaciones_df, clasificar_en_carpetas, fecha_ini, fecha_f
     terminadas = 0
     guardadas = 0
     inicio = time.time()
+    # Al salir (fin, "Detener", recarga o pestaña cerrada) se activa: los hilos en curso no piden mas bloques
+    detener = threading.Event()
+
+    en_curso = {}   # codigo -> nombre de las estaciones que un hilo esta bajando ahora (se muestran en el avance)
+
+    def tarea(item, token):
+        codigo = item["codigo"]
+        en_curso[codigo] = item["nombre"]
+        try:
+            return descargar_excel_ideam(fecha_ini, fecha_fin, token, param, codigo, item["inicio_serie"],
+                                         item["fin_serie"], lambda n, c=codigo: avisos_bloques.put((c, n)), detener)
+        finally:
+            en_curso.pop(codigo, None)
 
     def lanzar(pool, item, token):
-        codigo = item["codigo"]
-        bloques_por_estacion[codigo] = 0
-        return pool.submit(
-            descargar_excel_ideam, fecha_ini, fecha_fin, token, param, codigo,
-            item["inicio_serie"], item["fin_serie"],
-            lambda n, c=codigo: avisos_bloques.put((c, n)),
-        )
+        bloques_por_estacion[item["codigo"]] = 0
+        return pool.submit(tarea, item, token)
 
+    def escribir_cierre(zip_file):
+        # Lista de lo que se descargo y lo que no (con el motivo)
+        zip_file.writestr("resumen_descarga.csv", pd.DataFrame(resumen).to_csv(index=False).encode("utf-8-sig"))
+        # Cita obligatoria segun los terminos de uso del IDEAM, ya armada con la fecha de hoy
+        zip_file.writestr("CITACION.txt", texto_citacion(param, fecha_ini, fecha_fin, guardadas).encode("utf-8-sig"))
+
+    def armar_resultado(segundos):
+        return {
+            "zip": zip_buffer.getvalue(),
+            "carpetas": {} if clasificar_en_carpetas else carpetas,
+            "resumen": resumen,
+            "guardadas": guardadas,
+            "omitidas": terminadas - guardadas,
+            "segundos": segundos,
+            "colores": colores,
+            "huecos": huecos,
+            "frecuencia": param.get("frecuencia"),
+            # medias de las guardadas: completitud real (datos que llegaron) y cobertura estimada (cantidad probable)
+            "completitud": (round(sum(r for r, _ in reales) / len(reales), 1),
+                            round(sum(p for _, p in reales) / len(reales), 1)) if reales else None,
+            "rotulo": rotulo_serie(param),
+            "rango": (fecha_ini, fecha_fin),
+        }
+
+    parar = ui.get("detener")
+    completa = False
+    pendientes = {}
     zip_buffer = io.BytesIO()
     carpetas = {}   # nombre del Excel -> carpeta de su clase (para armar el ZIP en carpetas al final, si se elige)
+    usados = set()  # nombres de Excel ya escritos en el ZIP (ninguno se repite)
     pool = ThreadPoolExecutor(max_workers=HILOS_DESCARGA)
     try:
         with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zip_file:
@@ -1199,6 +1284,8 @@ def procesar_descargas(estaciones_df, clasificar_en_carpetas, fecha_ini, fecha_f
             pintar(0.0, segundos_estimados)
 
             while pendientes:
+                if parar is not None and parar.is_set():
+                    raise DescargaDetenida()
                 listos, _ = wait(list(pendientes), timeout=0.5, return_when=FIRST_COMPLETED)
 
                 while True:
@@ -1235,22 +1322,12 @@ def procesar_descargas(estaciones_df, clasificar_en_carpetas, fecha_ini, fecha_f
                         log(f"OMITIDA {codigo}: {diagnostico}", "w")
                         resumen.append({
                             "Código": codigo, "Nombre": item["nombre"],
-                            "Cantidad probable (%)": item["pct"], "Cobertura": clase["nombre"],
+                            "Cobertura estimada (%)": item["pct"], "Clase estimada": clase["nombre"],
                             "Datos reales": "", "Completitud real (%)": "", **porcentajes_nivel({}),
                             "Resultado": "Omitida", "Archivo": "", "Detalle": diagnostico,
                         })
                         continue
 
-                    carpeta = clase["carpeta"] + "/" if clasificar_en_carpetas else ""
-                    # El nombre lleva el rotulo de la serie para no mezclar descargas de distintos parametros
-                    nombre_archivo = re.sub(r'[\\/:*?"<>|]+', "-", re.sub(r"\s+", "_", item["nombre"])) \
-                        + f"_{rotulo_serie(param)}.xlsx"
-                    ruta_en_zip = carpeta + nombre_archivo
-                    zip_file.writestr(ruta_en_zip, excel_data)
-                    carpetas[ruta_en_zip] = clase["carpeta"]
-                    guardadas += 1
-                    colores.append(clase["color"])
-                    log(f"GUARDADO {ruta_en_zip}")
                     # Verificador: los datos que llegaron de verdad frente a los que caben en el periodo pedido
                     datos, niveles, por_anio, por_mes = analizar_excel_detalle(excel_data)
                     huecos[codigo] = {"nombre": item["nombre"], "anios": por_anio, "meses": por_mes}
@@ -1258,9 +1335,20 @@ def procesar_descargas(estaciones_df, clasificar_en_carpetas, fecha_ini, fecha_f
                         if datos is not None and item["esperados"] else None
                     if real is not None:
                         reales.append((real, item["pct"]))
+                    # La carpeta y el color salen de la completitud real, que ya se conoce (la cobertura estimada
+                    # no ve los huecos); si el Excel no se pudo leer, de la estimada
+                    clase_final = clasificar_calidad(real) if real is not None else clase
+                    carpeta = clase_final["carpeta"] + "/" if clasificar_en_carpetas else ""
+                    nombre_archivo = nombre_excel(item["nombre"], codigo, param, usados)
+                    ruta_en_zip = carpeta + nombre_archivo
+                    zip_file.writestr(ruta_en_zip, excel_data)
+                    carpetas[ruta_en_zip] = clase_final["carpeta"]
+                    guardadas += 1
+                    colores.append(clase_final["color"])
+                    log(f"GUARDADO {ruta_en_zip}")
                     resumen.append({
                         "Código": codigo, "Nombre": item["nombre"],
-                        "Cantidad probable (%)": item["pct"], "Cobertura": clase["nombre"],
+                        "Cobertura estimada (%)": item["pct"], "Clase estimada": clase["nombre"],
                         "Datos reales": "" if datos is None else datos,
                         "Completitud real (%)": "" if real is None else real, **porcentajes_nivel(niveles),
                         "Resultado": "Guardada", "Archivo": ruta_en_zip, "Detalle": diagnostico,
@@ -1275,32 +1363,33 @@ def procesar_descargas(estaciones_df, clasificar_en_carpetas, fecha_ini, fecha_f
                     restante = segundos_estimados - transcurrido
                 pintar(fraccion, restante)
 
-            # Lista de lo que se descargo y lo que no (con el motivo)
-            zip_file.writestr("resumen_descarga.csv", pd.DataFrame(resumen).to_csv(index=False).encode("utf-8-sig"))
-            # Cita obligatoria segun los terminos de uso del IDEAM, ya armada con la fecha de hoy
-            zip_file.writestr("CITACION.txt", texto_citacion(param, fecha_ini, fecha_fin, guardadas).encode("utf-8-sig"))
+            escribir_cierre(zip_file)
+            completa = True
     finally:
-        # Si el usuario aborta, no se espera a que terminen las descargas pendientes
+        # Si el usuario aborta, no se espera a que terminen las descargas pendientes; las que estan en curso
+        # dejan de pedir bloques al IDEAM (antes seguian hasta terminar su estacion, con el cupo ya devuelto)
+        detener.set()
         pool.shutdown(wait=False, cancel_futures=True)
+        if not completa and guardadas and ui.get("parcial") is not None:
+            # Descarga cortada con estaciones ya guardadas: se cierra el ZIP con lo que hay (antes se perdia todo)
+            try:
+                for item in pendientes.values():
+                    resumen.append({
+                        "Código": item["codigo"], "Nombre": item["nombre"], "Cobertura estimada (%)": item["pct"],
+                        "Clase estimada": clasificar_calidad(item["pct"])["nombre"], "Datos reales": "",
+                        "Completitud real (%)": "", **porcentajes_nivel({}), "Resultado": "Sin descargar",
+                        "Archivo": "", "Detalle": "La descarga se detuvo antes de llegar a esta estación",
+                    })
+                with zipfile.ZipFile(zip_buffer, "a", zipfile.ZIP_DEFLATED) as zip_file:
+                    escribir_cierre(zip_file)
+                ui["parcial"].update(armar_resultado(time.time() - inicio), parcial=True,
+                                     sin_descargar=len(pendientes))
+            except Exception:
+                pass
 
     # Igual que el portal: el IDEAM registra cada serie descargada (sin datos de la persona)
     registrar_descargas_ideam(param, guardadas, token_auth)
-    duracion = duracion_texto(time.time() - inicio)
-    log(f"ZIP listo en {duracion} · incluye resumen_descarga.csv y CITACION.txt", "w")
+    segundos = time.time() - inicio
+    log(f"ZIP listo en {duracion_texto(segundos)} · incluye resumen_descarga.csv y CITACION.txt", "w")
     pintar(1.0, 0, terminado=True)
-    return {
-        "zip": zip_buffer.getvalue(),
-        "carpetas": {} if clasificar_en_carpetas else carpetas,
-        "resumen": resumen,
-        "guardadas": guardadas,
-        "omitidas": terminadas - guardadas,
-        "duracion": duracion,
-        "colores": colores,
-        "huecos": huecos,
-        "frecuencia": param.get("frecuencia"),
-        # medias de las guardadas: completitud real (datos que llegaron) y cobertura estimada (cantidad probable)
-        "completitud": (round(sum(r for r, _ in reales) / len(reales), 1),
-                        round(sum(p for _, p in reales) / len(reales), 1)) if reales else None,
-        "rotulo": rotulo_serie(param),
-        "rango": (fecha_ini, fecha_fin),
-    }
+    return armar_resultado(segundos)

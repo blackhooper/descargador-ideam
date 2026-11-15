@@ -96,17 +96,15 @@ EN = {
     "Ver {n} {estaciones} en el mapa": "View {n} {estaciones} on the map",
     "Seleccionar área en el mapa": "Select area on the map",
     "Pasos de la consulta": "Query steps",
-    "Establecer parámetros": "Set parameters",
-    "Serie, variable y periodo.": "Series, variable and period.",
-    "Delimitar el área de análisis": "Define the study area",
-    "Zona de estudio y cobertura de cada estación.": "Study area and data coverage of each station.",
-    "Preparar la descarga": "Prepare the download",
-    "Nombre del ZIP y organización de los archivos.": "ZIP name and file organization.",
-    "Datos del IDEAM: uso personal y no comercial; cita la fuente.":
-        "IDEAM data: personal, non-commercial use; cite the source.",
+    "Herramienta no oficial. Datos del IDEAM: uso personal y no comercial; cita la fuente.":
+        "Unofficial tool. IDEAM data: personal, non-commercial use; cite the source.",
+    "El área es demasiado grande.": "The area is too large.",
+    "El área es demasiado grande": "The area is too large",
+    "Tiene {n} estaciones y el máximo es {m}. Dibuja un área más pequeña o elige las estaciones por departamento y municipio en Parámetros.":
+        "It has {n} stations and the maximum is {m}. Draw a smaller area or choose the stations by department and "
+        "municipality in Parameters.",
     "Ver condiciones": "View terms",
     "Ver condiciones completas": "View full terms",
-    "Herramienta independiente, no oficial del IDEAM": "Independent tool, not affiliated with IDEAM",
     "Manual de usuario": "User manual",
     "se abre en otra pestaña": "opens in a new tab",
     "Los datos provienen del IDEAM y su descarga está autorizada para uso personal, privado y no comercial. No pueden "
@@ -164,7 +162,7 @@ EN = {
     "Estaciones elegidas": "Selected stations",
     "Área de estudio": "Study area",
     "Sin definir": "Not defined",
-    "Calidad de los datos": "Data quality",
+    "Cobertura estimada": "Estimated coverage",
     "Pulsa para cambiar la variable o el periodo": "Click to change the variable or period",
     "Cambiar la variable o el periodo": "Change the variable or period",
     "Para cambiar el área, vuelve a la vista 2D.": "To change the area, go back to the 2D view.",
@@ -183,8 +181,6 @@ EN = {
     "Franja alrededor del área para incluir las estaciones cercanas":
         "Margin around the area to include nearby stations",
     "Incluir estaciones cercanas": "Include nearby stations",
-    "Agrega una franja alrededor del área para tener en cuenta las estaciones cercanas.":
-        "Adds a margin around the area so nearby stations are taken into account.",
     "Ancho del buffer (km)": "Buffer width (km)",
     "No se pudo consultar el IDEAM": "IDEAM could not be reached",
     "No se pudo consultar el IDEAM.": "IDEAM could not be reached.",
@@ -198,23 +194,21 @@ EN = {
     "Ninguna estación de la zona tiene datos de esta variable en el periodo.":
         "No station in this area has data for this variable in the period.",
     "Cambia la variable o el periodo, o amplía el buffer.": "Change the variable or the period, or widen the buffer.",
-    "Estaciones encontradas": "Stations found",
-    "{n} {estaciones} sin información": "{n} {estaciones} without data",
-    "Todas con información": "All with data",
+    "Estaciones con datos": "Stations with data",
+    "de {n} en la zona": "of {n} in the area",
+    "Todas las de la zona": "All in the area",
     "Estaciones con esta serie en {u}.": "Stations with this series in {u}.",
     "Estaciones del IDEAM en el área y el buffer.": "IDEAM stations in the area and the buffer.",
-    " {n} tienen datos de esta variable en el periodo.": " {n} have data for this variable in the period.",
-    "Cobertura media del periodo": "Mean coverage of the period",
+    " {n} no tienen la serie de esta variable en el periodo.": " {n} have no series for this variable in the period.",
+    "Cobertura estimada media": "Mean estimated coverage",
     "La cobertura es estimada.": "Coverage is an estimate.",
     "Mide qué parte del periodo abarca el registro de cada estación, entre su primer y su último dato, sin descontar los huecos internos. La completitud real (los datos que llegan de verdad) aparece al terminar la descarga, en el resumen y en resumen_descarga.csv.":
         "It measures how much of the period each station's record spans, between its first and last value, without "
         "discounting internal gaps. The actual completeness (the data that really arrive) appears when the download "
         "finishes, in the summary and in resumen_descarga.csv.",
-    "Completitud real media: <b>{r} %</b> (cobertura estimada {e} %).":
-        "Mean actual completeness: <b>{r} %</b> (estimated coverage {e} %).",
-    "Promedio de la cantidad probable de las estaciones seleccionadas: qué parte del periodo consultado cubre su "
+    "Promedio de la cobertura estimada de las estaciones seleccionadas: qué parte del periodo consultado cubre su "
     "registro (no descuenta los huecos internos).":
-        "Average expected record count of the selected stations: how much of the requested period their record spans "
+        "Average estimated coverage of the selected stations: how much of the requested period their record spans "
         "(internal gaps are not subtracted).",
     "Tamaño del ZIP": "ZIP size",
     "{t} aprox.": "≈ {t}",
@@ -243,8 +237,8 @@ EN = {
     "de": "of",
     "Color de su clase de cobertura (ver la leyenda)": "Color of its coverage class (see the legend)",
     "Cobertura": "Coverage",
-    "Cantidad probable: qué parte del periodo cubre el registro de la estación":
-        "Expected record count: how much of the period the station's record spans",
+    "Cobertura estimada: qué parte del periodo cubre el registro de la estación":
+        "Estimated coverage: how much of the period the station's record spans",
     "{n} en el área": "{n} in the area",
     " · {n} en el buffer": " · {n} in the buffer",
     "{n} con datos en el último año": "{n} with data in the last year",
@@ -303,14 +297,42 @@ EN = {
     "Un dedo": "One finger",
     "Dos dedos": "Two fingers",
     "Girar; deslizar arriba o abajo inclina; pellizcar acerca": "Rotate; swipe up or down to tilt; pinch to zoom",
-    "Disponibilidad estimada de datos en el periodo": "Estimated data availability in the period",
+    "Cobertura estimada del periodo": "Estimated coverage of the period",
     "Alta": "High", "Media": "Medium", "Baja": "Low", "Crítica": "Critical",
     "Sin serie": "No series",
     "Excluida": "Excluded",
     "Altitud dudosa": "Questionable elevation",
     "Mide": "Measures",
     "Subred": "Subnetwork",
-    "Misma estación que": "Same station as",
+    "Alias": "Alias",
+    "Variables que el IDEAM registra en la estación": "Variables IDEAM records at the station",
+    "Red regional del IDEAM a la que pertenece": "IDEAM regional network it belongs to",
+    "Otros códigos con los que el IDEAM registra esta misma estación; su historial puede estar repartido entre ellos":
+        "Other codes IDEAM uses for this same station; its record may be split among them",
+    "Qué significa cada dato.": "What each item means.",
+    "Parte del periodo consultado que abarca el registro de la estación, entre su primer y su último dato. No descuenta los huecos internos.":
+        "Share of the requested period spanned by the station's record, from its first to its last value. Internal gaps are not discounted.",
+    "Sin serie de esta variable": "No series for this variable",
+    "Cobertura estimada {clase}: qué parte del periodo cubre el registro de la estación":
+        "Estimated coverage, {clase}: share of the period covered by the station's record",
+    "El IDEAM no tiene esta variable en la estación": "IDEAM has no record of this variable at the station",
+    "Altitud de la estación en el catálogo del IDEAM": "Station elevation in the IDEAM catalog",
+    "Suspendida en {a}": "Suspended in {a}",
+    # categoria de la estacion (logica.CATEGORIAS)
+    "Pluviométrica": "Rain gauge", "Pluviográfica": "Recording rain gauge", "Limnimétrica": "Staff gauge",
+    "Limnigráfica": "Recording stream gauge", "Climática ordinaria": "Ordinary climate station",
+    "Climática principal": "Main climate station", "Agrometeorológica": "Agrometeorological",
+    "Meteorológica especial": "Special weather station", "Mareográfica": "Tide gauge",
+    "Sinóptica principal": "Main synoptic station", "Sinóptica secundaria": "Secondary synoptic station",
+    "Radiosonda": "Radiosonde",
+    # lo que mide la estacion (logica.VARIABLES_FICHA)
+    "Precipitación": "Precipitation", "Temperatura": "Temperature",
+    "Temperatura del suelo": "Soil temperature", "Temperatura del agua": "Water temperature", "Humedad": "Humidity",
+    "Evaporación": "Evaporation", "Viento": "Wind", "Brillo solar": "Sunshine", "Radiación": "Radiation",
+    "Presión": "Pressure", "Nubosidad": "Cloud cover", "Fenómenos observados": "Observed phenomena",
+    "Nivel": "Water level", "Caudal": "Streamflow", "Perfiles de cauce": "Channel profiles",
+    "Gradiente hidráulico": "Hydraulic gradient", "Ecosondeos": "Echo soundings", "Sedimentos": "Sediments",
+    "Calidad de agua": "Water quality", "Suelo": "Soil",
     "Área": "Area",
     "Relieve exagerado ×2": "Terrain exaggerated ×2",
     "Leyenda": "Legend",
@@ -322,6 +344,42 @@ EN = {
     "{a} de {b} {estaciones} en el rango. Las demás no se ven en el mapa ni se descargan.":
         "{a} of {b} {estaciones} in range. The rest are hidden from the map and not downloaded.",
     "Quitar el filtro": "Clear the filter",
+    # ---- Acceso ----
+    "Acceso restringido": "Restricted access",
+    "Descargador IDEAM": "IDEAM Data Downloader",
+    "Escribe la clave para entrar; solo se pide una vez en este navegador.":
+        "Enter the access key; it is only asked once in this browser.",
+    "Clave": "Access key",
+    "Entrar": "Enter",
+    "Clave incorrecta.": "Wrong key.",
+    "Acceso": "Access",
+    "Modo desarrollador": "Developer mode",
+    "Modo cliente": "Client mode",
+    "Vista": "View",
+    "Descargador": "Downloader",
+    "Herramientas": "Tools",
+    "Cerrar sesión": "Sign out",
+    "Todos": "All",
+    # ---- Subida de archivos y catalogo ----
+    "No se encontró ningún archivo .shp (ni en subcarpetas).": "No .shp file was found (not even in subfolders).",
+    "Al shapefile **{archivo}** le falta: {faltan}. Súbelo junto con sus archivos .shx, .dbf y .prj (o todo en un ZIP).":
+        "The shapefile **{archivo}** is missing: {faltan}. Upload it together with its .shx, .dbf and .prj files (or "
+        "everything in a ZIP).",
+    "Había {n} shapefiles; se usó **{archivo}**.": "There were {n} shapefiles; **{archivo}** was used.",
+    "Para un shapefile suelto sube juntos el .shp, .shx, .dbf y .prj (o todo en un ZIP).":
+        "For a loose shapefile, upload the .shp, .shx, .dbf and .prj together (or everything in a ZIP).",
+    "Sube un solo archivo (o las partes de un mismo shapefile).": "Upload a single file (or the parts of one shapefile).",
+    "El ZIP no trae ningún .shp, .gpkg, .geojson ni .kml.": "The ZIP has no .shp, .gpkg, .geojson or .kml.",
+    "El KMZ no trae ningún archivo .kml adentro.": "The KMZ has no .kml file inside.",
+    "Formato de archivo no soportado.": "Unsupported file format.",
+    "El archivo comprimido está dañado o no es un ZIP válido.": "The compressed file is damaged or is not a valid ZIP.",
+    "No se pudo leer el archivo: {e}": "The file could not be read: {e}",
+    "No se pudo descargar el catálogo de estaciones del IDEAM: {e}": "IDEAM's station catalog could not be downloaded: {e}",
+    "El catálogo de estaciones del IDEAM se descargó incompleto (se cortó la conexión a medio camino). Se muestran solo "
+    "las estaciones que llegaron a tiempo. Vuelve a intentarlo más tarde.":
+        "IDEAM's station catalog was downloaded incomplete (the connection dropped midway). Only the stations that "
+        "arrived in time are shown. Try again later.",
+    "Demasiados intentos. Espera {s} s y vuelve a intentarlo.": "Too many attempts. Wait {s} s and try again.",
     "estaciones": "stations",
     "estación": "station",
     "estaciones con datos": "stations with data",
@@ -337,6 +395,52 @@ EN = {
         "the ↻ button below.",
     "Vista del mapa": "Map view",
     "Repetir animación": "Replay animation",
+    "Buscar estación": "Search station",
+    "Descargador IDEAM · no oficial": "IDEAM Downloader · unofficial",
+    "Parámetros": "Parameters",
+    "Área y estaciones": "Area and stations",
+    "Descarga": "Download",
+    "Últimos 10 años": "Last 10 years",
+    "Últimos 30 años": "Last 30 years",
+    "Todo": "All",
+    "Desde 1920 hasta hoy": "From 1920 to today",
+    "Ahora": "Now",
+    "Estaciones guardadas": "Stations saved",
+    "de {n}": "of {n}",
+    "Estaciones con su Excel dentro del ZIP.": "Stations with their Excel file inside the ZIP.",
+    "Omitidas": "Skipped",
+    "ver el resumen": "see the summary",
+    "No tenían datos en el periodo o el IDEAM no respondió; el detalle está en resumen_descarga.csv, dentro del ZIP.":
+        "They had no data in the period or IDEAM did not respond; see resumen_descarga.csv inside the ZIP for details.",
+    "Completitud real media": "Mean actual completeness",
+    "estimada {e} %": "estimated {e} %",
+    "Datos que llegaron de verdad frente a los que caben en el periodo. La cobertura estimada no descuenta los huecos internos.":
+        "Data that really arrived against what fits in the period. Estimated coverage does not discount internal gaps.",
+    "Completitud real por estación": "Actual completeness by station",
+    "Estimada": "Estimated",
+    "Real": "Actual",
+    "Dif.": "Diff.",
+    "Puntos porcentuales entre la completitud real y la cobertura estimada. Negativo: la serie tiene huecos que la estimación no ve.":
+        "Percentage points between actual completeness and estimated coverage. Negative: the series has gaps the estimate cannot see.",
+    "Lo que pediste": "What you requested",
+    "Buscar por nombre o código": "Search by name or code",
+    "Ninguna estación coincide con la búsqueda.": "No station matches the search.",
+    "Cob.": "Cov.",
+    "Primer y último año con datos de la serie en el IDEAM": "First and last year with data for the series at IDEAM",
+    "Mostrar las {n} sin serie": "Show the {n} without the series",
+    "Mostrar las sin serie": "Show those without the series",
+    "Estaciones de la zona que no tienen la serie de esta variable en el periodo. No se pueden descargar.":
+        "Stations in the area without the series for this variable in the period. They cannot be downloaded.",
+    "Delimita el área": "Define the area",
+    "Área demasiado grande": "Area too large",
+    "El IDEAM no responde": "IDEAM is not responding",
+    "Periodo demasiado largo": "Period too long",
+    "Elige una estación": "Choose a station",
+    "Sin estaciones con datos": "No stations with data",
+    "<span>Guardadas <b>{g} de {n}</b></span>": "<span>Saved <b>{g} of {n}</b></span>",
+    "Lo que alcanzó a bajar no se pierde: puedes llevarte esas estaciones o reintentar la descarga completa.":
+        "What was already downloaded is not lost: you can take those stations or retry the full download.",
+    "Descargar lo guardado ({g} estaciones)": "Download what was saved ({g} stations)",
     "En modo Lite no hay animación de entrada. Desactívalo en Ajustes para verla.":
         "Lite mode has no intro animation. Turn it off in Settings to see it.",
     "Repetir la animación de entrada al 3D": "Replay the 3D intro animation",
@@ -356,14 +460,9 @@ EN = {
     "sin evaluar": "not assessed",
     " · excluida": " · excluded",
     "En el área": "In the area",
-    "en el área": "in the area",
     "En el buffer": "In the buffer",
-    "en el buffer": "in the buffer",
-    "En la cuenca": "In the area",
     "⚠ Altitud dudosa: el relieve marca {m} m": "⚠ Questionable elevation: the terrain shows {m} m",
-    "Cobertura **{p} %** ({clase}) · serie {a}–{b}": "Coverage **{p} %** ({clase}) · series {a}–{b}",
     "Sin serie de esta variable en DHIME": "No series for this variable in DHIME",
-    "Sin serie de este parámetro en DHIME": "No series for this parameter in DHIME",
     "Incluir en la descarga": "Include in the download",
     "Altitud dudosa · Ver detalles": "Questionable elevation · Details",
     "Según el relieve, el terreno en ese punto está a <b>{t} m</b>, pero el catálogo del IDEAM sitúa la estación a "
@@ -383,8 +482,7 @@ EN = {
     " En el mapa 3D, la marca naranja muestra dónde quedaría con la altitud del catálogo.":
         " On the 3D map, the orange marker shows where it would sit at the catalog elevation.",
     "Excluida de la descarga": "Excluded from the download",
-    "Cantidad probable": "Expected records",
-    "Cantidad probable <b>{p} %</b> · cobertura {clase}": "Expected records <b>{p} %</b> · {clase} coverage",
+    "Cobertura estimada <b>{p} %</b> ({clase})": "Estimated coverage <b>{p} %</b> ({clase})",
     "Serie": "Series",
 
     # ---- Subir un area ----
@@ -416,8 +514,8 @@ EN = {
     "Faltan ≈ {t}": "≈ {t} left",
     "Faltan unos segundos": "A few seconds left",
     "<span>Estaciones <b>{a} de {b}</b></span>": "<span>Stations <b>{a} of {b}</b></span>",
-    "Puedes seguir mirando esta pantalla; si cierras la pestaña, la descarga se detiene.":
-        "You can keep this screen open; closing the tab stops the download.",
+    "La descarga sigue aunque recargues la página. Si cierras la pestaña, se detiene sola a los dos minutos.":
+        "The download keeps going if you reload the page. If you close the tab, it stops by itself after two minutes.",
     "Detener la descarga": "Stop the download",
     "Sin terminar": "Not finished",
     "No se guardó nada": "Nothing was saved",
@@ -427,10 +525,8 @@ EN = {
     "Completada en {t}": "Completed in {t}",
     "<span>Guardadas <b>{g}</b></span><span>Omitidas <b>{o}</b></span>":
         "<span>Saved <b>{g}</b></span><span>Skipped <b>{o}</b></span>",
-    "Separar en carpetas por cobertura": "Split into folders by coverage",
+    "Separar en carpetas por completitud": "Split into folders by completeness",
     "Incluir el mapa de huecos": "Include the gap map",
-    "Una imagen y una tabla con el % de datos de cada estación en cada año, para ver de un vistazo dónde faltan datos.":
-        "An image and a table with the % of data each station has in each year, to see at a glance where data is missing.",
     "Vista previa del mapa de huecos": "Gap map preview",
     "Resolución del mapa": "Map resolution",
     "Por año": "By year",
@@ -447,10 +543,10 @@ EN = {
     "La serie multianual no tiene fechas para consolidar.": "The multiannual series has no dates to consolidate.",
     "Fechas en filas, estaciones en columnas": "Dates in rows, stations in columns",
     "Datos de cada estación por año": "Each station's data by year",
-    "Alta (70–100 %), media (50–70 %), baja (25–50 %) y crítica (0–25 %) del periodo consultado. Sin marcar, todos los "
-    "Excel van juntos.":
-        "High (70–100 %), medium (50–70 %), low (25–50 %) and critical (0–25 %) coverage of the requested period. "
-        "Unchecked, all Excel files go together.",
+    "Según los datos que llegaron de verdad: alta (70–100 %), media (50–70 %), baja (25–50 %) y crítica (0–25 %) del "
+    "periodo consultado. Sin marcar, todos los Excel van juntos.":
+        "By the data that actually arrived: high (70–100 %), medium (50–70 %), low (25–50 %) and critical (0–25 %) "
+        "of the requested period. Unchecked, all Excel files go together.",
     "Nombre del archivo ZIP": "ZIP file name",
     "Por ejemplo: descarga 1. La extensión .zip se añade sola.": "For example: download 1. The .zip extension is added "
                                                                 "automatically.",
@@ -462,13 +558,13 @@ EN = {
     "Frecuencia {f}": "Frequency: {f}",
     " · cálculo {c}": " · aggregation {c}",
     "Un Excel por estación": "One Excel file per station",
-    "Carpetas por cobertura": "Folders by coverage",
+    "Carpetas por completitud": "Folders by completeness",
     "Alta, media, baja y crítica": "High, medium, low and critical",
     "Cobertura y resultado por estación": "Coverage and result per station",
     "Cita de la fuente": "Source citation",
     "Avance de la descarga": "Download progress",
     "Recibo de la descarga": "Download receipt",
-    "Estaciones guardadas por cobertura": "Saved stations by coverage",
+    "Estaciones guardadas por completitud real": "Saved stations by actual completeness",
     "Datos del IDEAM: uso personal y no comercial; cita la fuente (el ZIP incluye CITACION.txt).":
         "IDEAM data: personal, non-commercial use; cite the source (the ZIP includes CITACION.txt).",
     "en ≈ {t}": "in ≈ {t}",
@@ -490,6 +586,30 @@ EN = {
         "downloader needs an update. If the problem persists, the tool needs an update.",
     "No se pudo acceder al portal del IDEAM. Si el problema continúa, la herramienta necesita una actualización.":
         "The IDEAM portal could not be accessed. If the problem persists, the tool needs an update.",
+    # --- configuracion y modo desarrollador
+    "Falta configurar las claves de acceso. En tu computador van en `.streamlit/secrets.toml`; en "
+    "Streamlit Cloud, en Settings → Secrets de la app, así:":
+        "The access keys are not configured. On your computer they go in `.streamlit/secrets.toml`; on "
+        "Streamlit Cloud, in the app's Settings → Secrets, like this:",
+    "Herramienta": "Tool",
+    "Aún no hay herramientas. Aquí irán apareciendo las nuevas, antes de pasar al modo cliente.":
+        "There are no tools yet. New ones will show up here before they reach client mode.",
+    "Faltan las credenciales del portal DHIME (ver README).": "The DHIME portal credentials are missing (see README).",
+    "No hay estaciones con programa de aforos en el catálogo.":
+        "There are no stations with a gauging programme in the catalogue.",
+    "Estación con programa de aforos": "Station with a gauging programme",
+    "Escribe el nombre o el código": "Type the name or the code",
+    "Aforos": "Gaugings",
+    "Perfiles transversales": "Cross sections",
+    "Perfil": "Section",
+    "El IDEAM no tiene aforos publicados para esta estación.": "IDEAM has no published gaugings for this station.",
+    "{n} aforos entre {a} y {b}": "{n} gaugings between {a} and {b}",
+    "Periodo de los aforos (años)": "Gauging period (years)",
+    "Descargar aforos (CSV)": "Download gaugings (CSV)",
+    "El IDEAM no tiene perfiles transversales publicados para esta estación.":
+        "IDEAM has no published cross sections for this station.",
+    "Este perfil no trae puntos.": "This section has no points.",
+    "Descargar perfil (CSV)": "Download section (CSV)",
 }
 
 # Textos del guion del navegador (estilo._UI): literales completos, con sus comillas, para no tocar otra cosa. Los de

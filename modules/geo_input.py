@@ -4,6 +4,8 @@ import tempfile
 import os
 import zipfile
 
+from modules.idioma import tr
+
 # Formatos que acepta el cargador de la barra lateral
 EXTENSIONES_ACEPTADAS = ["zip", "shp", "shx", "dbf", "prj", "cpg", "geojson", "json", "kml", "kmz", "gpkg"]
 PARTES_SHAPEFILE = {".shp", ".shx", ".dbf", ".prj", ".cpg", ".qix", ".sbn", ".sbx"}
@@ -22,7 +24,7 @@ def _buscar_archivos(carpeta, extension):
 def _leer_shapefile(carpeta):
     shp_files = _buscar_archivos(carpeta, ".shp")
     if not shp_files:
-        st.error("No se encontró ningún archivo .shp (ni en subcarpetas).")
+        st.error(tr("No se encontró ningún archivo .shp (ni en subcarpetas)."))
         return None
     # Un shapefile necesita al menos sus archivos .shx y .dbf al lado
     for ruta in shp_files:
@@ -30,8 +32,8 @@ def _leer_shapefile(carpeta):
         faltan = [ext for ext in (".shx", ".dbf")
                   if not (os.path.exists(base + ext) or os.path.exists(base + ext.upper()))]
         if faltan:
-            st.error(f"Al shapefile **{os.path.basename(ruta)}** le falta: {', '.join(faltan)}. "
-                     f"Súbelo junto con sus archivos .shx, .dbf y .prj (o todo en un ZIP).")
+            st.error(tr("Al shapefile **{archivo}** le falta: {faltan}. Súbelo junto con sus archivos .shx, .dbf y "
+                        ".prj (o todo en un ZIP).", archivo=os.path.basename(ruta), faltan=", ".join(faltan)))
             return None
 
     # Si hay varios, se prefiere el primero que tenga poligonos (la cuenca)
@@ -44,7 +46,8 @@ def _leer_shapefile(carpeta):
             elegido = (ruta, capa)
             break
     if len(shp_files) > 1:
-        st.info(f"Había {len(shp_files)} shapefiles; se usó **{os.path.basename(elegido[0])}**.")
+        st.info(tr("Había {n} shapefiles; se usó **{archivo}**.", n=len(shp_files),
+                   archivo=os.path.basename(elegido[0])))
     return elegido[1]
 
 
@@ -71,12 +74,12 @@ def load_vector_file(uploaded_files) -> gpd.GeoDataFrame:
             # Partes sueltas de un shapefile
             if extensiones & PARTES_SHAPEFILE:
                 if ".shp" not in extensiones:
-                    st.error("Para un shapefile suelto sube juntos el .shp, .shx, .dbf y .prj (o todo en un ZIP).")
+                    st.error(tr("Para un shapefile suelto sube juntos el .shp, .shx, .dbf y .prj (o todo en un ZIP)."))
                     return None
                 return _leer_shapefile(tmp_dir)
 
             if len(rutas) > 1:
-                st.error("Sube un solo archivo (o las partes de un mismo shapefile).")
+                st.error(tr("Sube un solo archivo (o las partes de un mismo shapefile)."))
                 return None
 
             ruta = rutas[0]
@@ -93,7 +96,7 @@ def load_vector_file(uploaded_files) -> gpd.GeoDataFrame:
                     otros = _buscar_archivos(carpeta, otra_ext)
                     if otros:
                         return gpd.read_file(otros[0])
-                st.error("El ZIP no trae ningún .shp, .gpkg, .geojson ni .kml.")
+                st.error(tr("El ZIP no trae ningún .shp, .gpkg, .geojson ni .kml."))
                 return None
 
             if ext == ".kmz":
@@ -103,19 +106,19 @@ def load_vector_file(uploaded_files) -> gpd.GeoDataFrame:
                     zf.extractall(carpeta)
                 kmls = _buscar_archivos(carpeta, ".kml")
                 if not kmls:
-                    st.error("El KMZ no trae ningún archivo .kml adentro.")
+                    st.error(tr("El KMZ no trae ningún archivo .kml adentro."))
                     return None
                 return gpd.read_file(kmls[0])
 
             if ext in (".geojson", ".json", ".kml", ".gpkg"):
                 return gpd.read_file(ruta)
 
-            st.error("Formato de archivo no soportado.")
+            st.error(tr("Formato de archivo no soportado."))
             return None
 
         except zipfile.BadZipFile:
-            st.error("El archivo comprimido está dañado o no es un ZIP válido.")
+            st.error(tr("El archivo comprimido está dañado o no es un ZIP válido."))
             return None
         except Exception as e:
-            st.error(f"No se pudo leer el archivo: {e}")
+            st.error(tr("No se pudo leer el archivo: {e}", e=e))
             return None

@@ -1,0 +1,9 @@
+
+@media (prefers-reduced-motion: reduce){
+  :root{--y2k-dur:0s}
+  *,*::before,*::after{transition-duration:0s !important;scroll-behavior:auto !important}
+  .st-key-y2k_inicio,.st-key-y2k_exportar,.st-key-y2k_panel,.st-key-y2k_dock,.st-key-y2k_ficha,.st-key-y2k_herr,.y2k-menu,.y2k-punto,
+  .y2k-barra i::after,.y2k-cab-export .vivo{animation:none !important}
+  .stApp:has(.y2k-pantalla[data-p="mapa"])[data-test-script-state="running"]::after{width:100%;border-radius:0;
+    animation:y2k-carga-ver 0s 3s forwards !important}
+}

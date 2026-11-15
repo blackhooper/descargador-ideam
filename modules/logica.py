@@ -1,0 +1,219 @@
+"""Logica de la app que no depende de Streamlit: cuentas, textos y tablas que `app.py` solo llama.
+
+Vive aparte para poder probarla (ver `tests/test_logica.py`): aqui no se lee `st.session_state` ni se dibuja nada.
+"""
+import math
+import re
+from datetime import date
+
+import geopandas as gpd
+import pandas as pd
+import shapely
+
+from modules import ideam_downloader, mapa_huecos, tabla_consolidada
+
+INICIO_REGISTRO = date(1920, 1, 1)   # "Todo": antes de esta fecha el IDEAM no tiene series
+
+
+def firma(gdf):
+    """Huella de una geometria para saber si la cuenca cambio de verdad."""
+    if gdf is None or gdf.empty:
+        return None
+    return shapely.normalize(shapely.set_precision(gdf.union_all(), 1e-5)).wkt
+
+
+def area_km2(gdf):
+    """Area de la cuenca en km² (en la proyeccion de Colombia que usa tambien el buffer)."""
+    try:
+        return float(gdf[["geometry"]].to_crs(epsg=3116).area.sum()) / 1e6
+    except Exception:
+        return None
+
+
+def periodo(ini, fin):
+    """Periodo corto para los textos: "2000–2020" si son anos completos; si no, las fechas."""
+    if (ini.month, ini.day, fin.month, fin.day) == (1, 1, 12, 31):
+        return f"{ini.year}–{fin.year}" if ini.year != fin.year else str(ini.year)
+    return f"{ini:%d/%m/%Y} – {fin:%d/%m/%Y}"
+
+
+def atajo_periodo(anios, hoy=None):
+    """Fechas (desde, hasta) de los atajos de Parametros: los ultimos `anios` años hasta hoy, o todo el registro
+    (None). El dia se limita a 28 para que un 29 de febrero no de una fecha que no existe."""
+    hoy = hoy or date.today()
+    if anios is None:
+        return INICIO_REGISTRO, hoy
+    return date(hoy.year - anios, hoy.month, min(hoy.day, 28)), hoy
+
+
+def por_defecto(opciones, *preferidas):
+    """Posicion de la primera opcion preferida que este en la lista (si ninguna esta, la primera)."""
+    claves = list(opciones)
+    return next((claves.index(c) for c in preferidas if c in opciones), 0)
+
+
+def clave_widget(texto):
+    return re.sub(r"\W+", "_", str(texto))
+
+
+def nombre_archivo(texto, respaldo):
+    """Nombre de archivo valido en Windows a partir de lo que escribio el usuario."""
+    limpio = re.sub(r'[<>:"/\\|?*\x00-\x1f]', "_", (texto or "").strip())
+    limpio = re.sub(r"\.zip$", "", limpio, flags=re.IGNORECASE).strip(" .")
+    return limpio or respaldo
+
+
+def hex_a_rgb(color):
+    color = color.lstrip("#")
+    return [int(color[i:i + 2], 16) for i in (0, 2, 4)]
+
+
+def marco(zona):
+    """Recuadro de las estaciones con unos 2 km de margen: encuadra el 3D y mide el relieve (no se dibuja)."""
+    minx, miny, maxx, maxy = zona.total_bounds
+    return gpd.GeoDataFrame(geometry=[shapely.box(minx - .02, miny - .02, maxx + .02, maxy + .02)], crs=4326)
+
+
+def encuadre(zona, celular=False):
+    """Centro (lat, lon) y zoom del mapa 2D para que quepan las estaciones (pantalla de ~1000 x 600 px; en el
+    celular ~340 x 520)."""
+    # Con muchas estaciones se encuadra entre los percentiles 1 y 99: una sola estacion con coordenadas erradas
+    # (hay una de Cundinamarca en la longitud -83) alejaba el mapa hasta dejar el departamento diminuto
+    if len(zona) >= 20:
+        xs, ys = zona.geometry.x, zona.geometry.y
+        minx, maxx, miny, maxy = xs.quantile(.01), xs.quantile(.99), ys.quantile(.01), ys.quantile(.99)
+    else:
+        minx, miny, maxx, maxy = zona.total_bounds
+    ancho_px, alto_px = (340, 520) if celular else (1000, 600)
+    zoom = min(math.log2(ancho_px * 360 / (256 * max(maxx - minx, .01))),
+               math.log2(alto_px * 360 / (256 * max(maxy - miny, .01))))
+    # medio nivel de zoom (el mapa lo admite): redondear siempre hacia abajo dejaba el encuadre pequeno
+    return ((miny + maxy) / 2, (minx + maxx) / 2), min(13, max(5, math.floor(zoom * 2) / 2))
+
+
+def estacion_cercana(zona, clic):
+    """Codigo de la estacion que esta justo donde se hizo clic en el mapa (None si no hay ninguna)."""
+    if zona is None or zona.empty or not clic:
+        return None
+    d = (zona.geometry.x - clic["lng"]) ** 2 + (zona.geometry.y - clic["lat"]) ** 2
+    idx = d.idxmin()
+    return ideam_downloader.codigo_de_estacion(zona.loc[idx], idx) if d.min() < 1e-6 else None
+
+
+def nombre_limpio(nombre):
+    """Nombre de la estacion sin el codigo entre corchetes del final."""
+    return re.sub(r"\s*\[\d+\]\s*$", "", str(nombre)).strip()
+
+
+# Categoria de la estacion en el catalogo del IDEAM (`idcategoria`). Los codigos que no estan aqui no se muestran
+CATEGORIAS = {
+    "PM": "Pluviométrica", "PG": "Pluviográfica", "LM": "Limnimétrica", "LG": "Limnigráfica",
+    "CO": "Climática ordinaria", "CP": "Climática principal", "AM": "Agrometeorológica", "ME": "Meteorológica especial",
+    "MM": "Mareográfica", "SP": "Sinóptica principal", "SS": "Sinóptica secundaria", "RS": "Radiosonda",
+}
+
+# Lo que mide una estacion (nombres de dhime_enriquecimiento.VARIABLE_POR_CODIGO, que van sin tildes) -> el nombre que
+# se muestra y su simbolo (clave de estilo.ICONOS)
+VARIABLES_FICHA = {
+    "Precipitacion": ("Precipitación", "lluvia"), "Temperatura": ("Temperatura", "termometro"),
+    "Temperatura del suelo": ("Temperatura del suelo", "termometro"),
+    "Temperatura del agua": ("Temperatura del agua", "termometro"), "Humedad": ("Humedad", "humedad"),
+    "Evaporacion": ("Evaporación", "evaporacion"), "Viento": ("Viento", "viento"),
+    "Brillo solar": ("Brillo solar", "sol"), "Radiacion": ("Radiación", "sol"), "Presion": ("Presión", "presion"),
+    "Nubosidad": ("Nubosidad", "nube"), "Fenomenos observados": ("Fenómenos observados", "ojo"),
+    "Nivel": ("Nivel", "nivel"), "Caudal": ("Caudal", "caudal"), "Aforos de caudal": ("Aforos", "aforo"),
+    "Perfiles de cauce": ("Perfiles de cauce", "perfil"), "Gradiente hidraulico": ("Gradiente hidráulico", "gradiente"),
+    "Ecosondeos": ("Ecosondeos", "sonar"), "Sedimentos": ("Sedimentos", "sedimentos"),
+    "Calidad de agua": ("Calidad de agua", "matraz"), "Suelo": ("Suelo", "suelo"),
+}
+
+
+def _texto(valor):
+    """Texto de una celda del catalogo ("" si viene vacia o sin dato)."""
+    return "" if valor is None or (isinstance(valor, float) and math.isnan(valor)) else str(valor).strip()
+
+
+def lista_de(valor):
+    """Trozos de una celda con varios valores ("Caudal; Nivel", "2120, 2121") sin vacios ni repetidos."""
+    vistos = []
+    for trozo in re.split(r"\s*[;,]\s*", _texto(valor)):
+        if trozo and trozo not in vistos:
+            vistos.append(trozo)
+    return vistos
+
+
+def anio_de(milisegundos):
+    """Año de una fecha del catalogo (milisegundos desde 1970; las anteriores vienen en negativo), o None."""
+    try:
+        ms = float(milisegundos)
+        return None if math.isnan(ms) else int((pd.Timestamp(0) + pd.Timedelta(milliseconds=ms)).year)
+    except (TypeError, ValueError, OverflowError):
+        return None
+
+
+def operacion(fila):
+    """(año de instalacion, año de suspension) de la estacion; None en lo que el catalogo no trae."""
+    return anio_de(fila.get("fechainstalacion")), anio_de(fila.get("fechasuspension"))
+
+
+def variables_ficha(fila):
+    """[(nombre, simbolo)] de lo que mide la estacion, lo conocido primero y en el orden del catalogo."""
+    return [VARIABLES_FICHA.get(v, (v, "punto")) for v in lista_de(fila.get("programas"))]
+
+
+def tabla_completitud(resultado):
+    """Completitud real de cada estacion guardada frente a su cobertura estimada, de la mayor caida a la menor: es el
+    dato nuevo de la descarga (antes solo estaba dentro de resumen_descarga.csv)."""
+    filas = [f for f in resultado.get("resumen") or [] if f.get("Resultado") == "Guardada"
+             and f.get("Completitud real (%)") not in ("", None)]
+    if not filas:
+        return None
+    t = pd.DataFrame({
+        "Estación": [nombre_limpio(f["Nombre"]) for f in filas],
+        "Estimada": [float(f["Cobertura estimada (%)"]) for f in filas],
+        "Real": [float(f["Completitud real (%)"]) for f in filas],
+    })
+    t["Diferencia"] = t["Real"] - t["Estimada"]
+    return t.sort_values(["Diferencia", "Estación"]).reset_index(drop=True)
+
+
+def titulo_huecos(resultado):
+    ini, fin = resultado["rango"]
+    return f"{resultado['rotulo']} · {ini:%d/%m/%Y} – {fin:%d/%m/%Y}"
+
+
+def tabla_huecos(resultado, por_mes=False):
+    """Tabla del mapa de huecos de la descarga, por año o por mes (se arma una vez y se guarda; es chica)."""
+    clave = "_tabla_huecos_mes" if por_mes else "_tabla_huecos"
+    if resultado.get(clave) is None:
+        armar = mapa_huecos.tabla_meses if por_mes else mapa_huecos.tabla_huecos
+        resultado[clave] = armar(resultado["huecos"], resultado["rango"], resultado.get("frecuencia"))
+    return resultado[clave]
+
+
+def png_huecos(resultado, por_mes=False):
+    """Imagen PNG del mapa de huecos, por año o por mes."""
+    dibujar = mapa_huecos.png_meses if por_mes else mapa_huecos.png
+    return dibujar(tabla_huecos(resultado, por_mes), titulo_huecos(resultado))
+
+
+def zip_final(resultado, carpetas, huecos=False, consolidada=None):
+    """El ZIP tal como se descarga: plano o en carpetas por completitud, con el mapa de huecos (`huecos`: False, "anio"
+    o "mes") y la tabla consolidada (`consolidada`: None, "xlsx" o "csv") si se pidieron. Solo se guarda la variante
+    elegida (ademas del ZIP plano de la descarga): antes quedaban hasta cuatro copias en memoria por sesion, y un ZIP
+    grande pesa decenas de MB. La tabla consolidada no se guarda aparte: puede ser grande y ya va dentro del ZIP."""
+    clave = (bool(carpetas), huecos or False, consolidada)
+    if clave == (False, False, None):
+        resultado.pop("_zip_variante", None)
+        return resultado["zip"]
+    guardada = resultado.get("_zip_variante")
+    if guardada is None or guardada[0] != clave:
+        base = ideam_downloader.zip_con_carpetas(resultado) if carpetas else resultado["zip"]
+        if huecos:
+            base = mapa_huecos.agregar_al_zip(base, tabla_huecos(resultado, huecos == "mes"), titulo_huecos(resultado),
+                                              por_mes=huecos == "mes")
+        if consolidada:
+            tabla = tabla_consolidada.construir(resultado["zip"], resultado["resumen"])
+            base = tabla_consolidada.agregar_al_zip(base, tabla, consolidada)
+        guardada = resultado["_zip_variante"] = (clave, base)
+    return guardada[1]

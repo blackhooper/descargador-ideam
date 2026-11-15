@@ -2,8 +2,8 @@ import json
 import time
 from pathlib import Path
 
-import streamlit.components.v1 as components
 
+from modules import guion
 from modules.idioma import tr
 
 # ===========================================================================
@@ -213,11 +213,10 @@ def instalar():
     cuerpo = (f"(function(){{var w=window.parent;w.__y2kScanLabel={json.dumps(tr('Buscando estaciones'))};"
               "if(w.__y2kScan)return;var s=w.document.createElement('script');"
               f"s.textContent={json.dumps(codigo)};w.document.head.appendChild(s);}})();")
-    components.html("<script>" + cuerpo.replace("</", "<\\/") + "</script>", height=0)
+    guion.inyectar("<script>" + cuerpo.replace("</", "<\\/") + "</script>")
 
 
 def listo(n, texto):
     """Avisa al navegador que las estaciones ya estan calculadas (cierra el escaner si hay uno corriendo)."""
     aviso = json.dumps({"n": int(n), "texto": texto})
-    components.html(f"<script>try{{window.parent.__y2kScan.listo({aviso})}}catch(e){{}}</script><!--{time.time()}-->",
-                    height=0)
+    guion.inyectar(f"<script>try{{window.parent.__y2kScan.listo({aviso})}}catch(e){{}}</script><!--{time.time()}-->")

@@ -1,0 +1,26 @@
+
+@media (forced-colors: active){
+  :is(.st-key-y2k_cuerpo,.st-key-y2k_inicio_cuerpo,.st-key-y2k_exportar_cuerpo,.st-key-y2k_ficha_cuerpo,[data-testid="stPopoverBody"],
+  .y2k-menu,.dvn-scroller,[data-testid="stDialog"] [role="dialog"],[data-testid="stExpanderDetails"]){scrollbar-color:auto !important}
+  :is(__VIDRIO__),.y2k-menu{border:1px solid CanvasText !important;forced-color-adjust:auto}
+  :is(__VIDRIO__)::before,:is(__VIDRIO__)::after{display:none}
+  .y2k-ico,.y2k-herr button.h,.y2k-dialogo button,.y2k-chip,.y2k-km,.y2k-boton,.y2k-kpi,.y2k-menu button,.y2k-como li{
+    border:1px solid ButtonText !important}
+  .stButton > button,.stDownloadButton > button,.stPopover button,[data-testid="stExpander"] details,[data-testid="stFileUploaderDropzone"]{
+    border:1px solid ButtonText !important}
+  .st-key-y2k_dock_izq button[aria-checked="true"],[data-testid="stPopoverBody"] button[aria-checked="true"],
+  .y2k-menu button[aria-checked="true"]{border:2px solid Highlight !important;outline:2px solid Highlight}
+  .st-key-y2k_dock_izq button[role="radio"]{border:1px solid ButtonText !important}
+  .y2k-consulta[aria-expanded="true"]{outline:2px solid Highlight}
+  .y2k-leyenda .pin,.y2k-leyenda .rampa,.y2k-leyenda .linea,.y2k-reparto i,.y2k-reparto-ley i{forced-color-adjust:none}
+  .y2k-punto{forced-color-adjust:none;border:1px solid CanvasText}
+  /* interruptores y casillas de Streamlit: su forma es solo fondo, que el modo de colores forzados quita */
+  [data-testid="stCheckbox"] label > span + div{border:1px solid ButtonText !important}
+  [data-testid="stCheckbox"] label > span + div > div{forced-color-adjust:none;background:ButtonText !important}
+  [data-testid="stCheckbox"][data-selected="true"] label > span + div{forced-color-adjust:none;background:Highlight !important;border-color:Highlight !important}
+  [data-testid="stCheckbox"][data-selected="true"] label > span + div > div{background:HighlightText !important}
+  [data-testid="stSlider"] [role="slider"]{outline:2px solid ButtonText}
+  .y2k-barra{border:1px solid CanvasText}
+  .y2k-barra i{forced-color-adjust:none;background:Highlight}
+  :is(button,a,input,select,textarea,summary,[role="radio"],[tabindex]):focus-visible{outline:3px solid Highlight !important}
+}

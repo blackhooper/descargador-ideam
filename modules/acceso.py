@@ -19,10 +19,13 @@ de usuario en el servidor.
 """
 import hashlib
 import hmac
+import math
+import threading
+import time
 
 import streamlit as st
-import streamlit.components.v1 as components
 
+from modules import guion, idioma
 from modules.idioma import tr
 
 COOKIE = "y2k_acceso"
@@ -63,13 +66,13 @@ def _modo_de_cookie(claves):
 
 def _js_cookie(valor, segundos):
     # el iframe comparte origen con la pagina: la cookie queda en la pagina (Secure solo bajo https)
-    components.html(f"""<script>
+    guion.inyectar(f"""<script>
     try {{
       const w = window.parent;
       const seguro = w.location.protocol === "https:" ? "; Secure" : "";
       w.document.cookie = "{COOKIE}={valor}; max-age={segundos}; path=/; SameSite=Lax" + seguro;
     }} catch (e) {{}}
-    </script>""", height=0)
+    </script>""")
 
 
 def modo():
@@ -81,8 +84,37 @@ def es_desarrollador():
     return modo() == "desarrollador"
 
 
-def puerta():
-    """Pide la clave hasta que se acierte. Llamar al principio de la app: si no hay acceso, detiene la corrida."""
+# Intentos fallidos seguidos que se permiten antes de hacer esperar, y cuanto (se duplica en cada tanda)
+INTENTOS_POR_TANDA = 5
+ESPERA_BASE_S = 30
+
+
+@st.cache_resource(show_spinner=False)
+def _intentos():
+    """Fallos de clave de todo el servidor: {"n": seguidos, "hasta": hora hasta la que no se aceptan claves}.
+    Es global (no por sesion): abrir otra pestaña no reinicia la cuenta. Un acierto la pone en cero."""
+    return {"candado": threading.Lock(), "n": 0, "hasta": 0.0}
+
+
+def _espera_restante():
+    return max(0, int(math.ceil(_intentos()["hasta"] - time.time())))
+
+
+def _anotar(acierto):
+    i = _intentos()
+    with i["candado"]:
+        if acierto:
+            i["n"], i["hasta"] = 0, 0.0
+            return
+        i["n"] += 1
+        if i["n"] % INTENTOS_POR_TANDA == 0:
+            tanda = i["n"] // INTENTOS_POR_TANDA
+            i["hasta"] = time.time() + min(300, ESPERA_BASE_S * 2 ** (tanda - 1))
+
+
+def puerta(al_cambiar_idioma=None):
+    """Pide la clave hasta que se acierte. Llamar al principio de la app, con los estilos ya aplicados: si no hay
+    acceso, detiene la corrida. `al_cambiar_idioma`: callback del boton ES/EN (el de Ajustes aun no existe aqui)."""
     ss = st.session_state
     claves = _claves()
     if not claves:
@@ -99,22 +131,35 @@ def puerta():
         if ss.pop("_poner_cookie", None):              # recien acertada: se guarda para las proximas recargas
             _js_cookie(_huella(ss.modo_acceso, claves[ss.modo_acceso]), 365 * 24 * 3600)
         return
-    _, centro, _ = st.columns([1, 1.2, 1])
-    with centro:
-        st.markdown("&nbsp;")
-        with st.form("y2k_acceso_form", border=True):
-            st.subheader(tr("Descargador IDEAM"))
-            st.caption(tr("Acceso restringido. Escribe la clave para entrar; solo se pide una vez en este navegador."))
-            escrita = st.text_input(tr("Clave"), type="password", key="y2k_clave_escrita")
-            enviar = st.form_submit_button(tr("Entrar"), type="primary", width="stretch")
+    if al_cambiar_idioma:
+        en = idioma.actual() == "en"
+        with st.container(key="y2k_acceso_idioma"):
+            st.button("ES" if en else "EN", key="y2k_idioma_acceso", type="tertiary", on_click=al_cambiar_idioma,
+                      help="Ver en español" if en else "View in English")
+    with st.container(key="y2k_acceso"):
+        st.markdown(f'<header class="y2k-cab-inicio"><p class="eyebrow">{tr("Acceso restringido")}</p>'
+                    f'<h1>{tr("Descargador IDEAM")}</h1></header>', unsafe_allow_html=True)
+        st.caption(tr("Escribe la clave para entrar; solo se pide una vez en este navegador."))
+        # Sin st.form: asi el boton es un st.button normal (con el estilo del boton principal de la app) y el campo
+        # no muestra la ayuda en ingles "Press Enter to submit form". Enter en el campo tambien envia (on_change).
+        escrita = st.text_input(tr("Clave"), type="password", key="y2k_clave_escrita",
+                                on_change=lambda: ss.__setitem__("_clave_enviada", True))
+        pulsado = st.button(tr("Entrar"), type="primary", width="stretch", key="y2k_entrar")
+        enviar = (pulsado or ss.pop("_clave_enviada", False)) and bool(escrita)
+        ss.pop("_clave_enviada", None)
         if enviar:
-            nuevo = _modo_de_clave(escrita, claves)
-            if nuevo:
-                ss.modo_acceso = nuevo
-                ss.sesion_cerrada = False
-                ss._poner_cookie = True
-                st.rerun()
-            st.error(tr("Clave incorrecta."))
+            espera = _espera_restante()
+            if espera:
+                st.error(tr("Demasiados intentos. Espera {s} s y vuelve a intentarlo.", s=espera))
+            else:
+                nuevo = _modo_de_clave(escrita, claves)
+                _anotar(bool(nuevo))
+                if nuevo:
+                    ss.modo_acceso = nuevo
+                    ss.sesion_cerrada = False
+                    ss._poner_cookie = True
+                    st.rerun()
+                st.error(tr("Clave incorrecta."))
     st.stop()
 
 

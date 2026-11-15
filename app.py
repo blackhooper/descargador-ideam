@@ -435,7 +435,7 @@ def _quitar_filtro():
 
 
 TEXTURAS = ["Satélite", "Topográfico", "Altura"]
-ESCALAS = ["Rango de la zona", "Rango de Colombia", "Pisos térmicos"]
+ESCALAS = ["Rango de la zona", "Rango de Colombia"]
 
 
 def _atajo_periodo(anios):
@@ -829,13 +829,12 @@ def pantalla_mapa():
                 if textura == "Altura":
                     altura = (rango if (escala_alt == "Rango de la zona" and rango and rango[1] > rango[0])
                               else terreno.ALTURA_COLOMBIA)
-                pisos = bool(altura) and escala_alt == "Pisos térmicos"
                 ligero = _es_celular() or ss.lite
                 with st.container(key="y2k_visor3d"):
                     deck, orbita = terreno.construir_deck(cuenca, area if buffer_on else None,
                                                           est_intro if usar_intro else _estaciones_3d(zona, excluidas),
                                                           ss.estacion_sel, textura,
-                                                          PALETA, ligero=ligero, altura=altura, celular=_es_celular(), pisos=pisos,
+                                                          PALETA, ligero=ligero, altura=altura, celular=_es_celular(),
                                                           marco_gdf=area)
                     # Vuelta de camara: alrededor de la estacion recien elegida o, sin seleccion, alrededor
                     # del centro de las estaciones (al abrir el 3D, al cambiar las estaciones o al quitar la seleccion)
@@ -884,7 +883,7 @@ def pantalla_mapa():
                     guion.inyectar(terreno.AVISO_NAVEGADOR)
                     guion.inyectar(terreno.EXTRAS_3D)
                 if altura:
-                    estilo.leyenda_altura(terreno.leyenda_pisos() if pisos else terreno.leyenda_altura(
+                    estilo.leyenda_altura(terreno.leyenda_altura(
                         altura[0], altura[1],
                         tr("escala de Colombia") if altura == terreno.ALTURA_COLOMBIA else tr("escala de la zona")))
                 else:

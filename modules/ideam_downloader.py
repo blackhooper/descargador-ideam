@@ -359,37 +359,41 @@ def _leer_valores_xlsx(libro):
 NIVELES_APROBACION = ("Definitivo", "En revisión", "Preliminar")
 
 
-def _anio_de(valor):
-    """Año de la fecha de una fila del Excel (fecha real o texto "2020-01-01 00:00"), o None si no se entiende."""
-    anio = getattr(valor, "year", None)
+def _anio_mes_de(valor):
+    """(año, mes) de la fecha de una fila del Excel (fecha real o texto "2020-01-01 00:00"), o None si no se entiende."""
+    anio, mes = getattr(valor, "year", None), getattr(valor, "month", None)
     if anio is None:
         texto = str(valor or "").strip()
         anio = int(texto[:4]) if texto[:4].isdigit() else None
-    return anio if anio and 1800 <= anio <= 2200 else None
+        mes = int(texto[5:7]) if texto[5:7].isdigit() else None
+    if anio and 1800 <= anio <= 2200 and mes and 1 <= mes <= 12:
+        return anio, mes
+    return None
 
 
 def analizar_excel_detalle(libro):
-    """Como analizar_excel, pero devuelve (datos, niveles, por_anio): ademas, cuantos datos hay en cada año
-    ({2019: n, 2020: n}). Es la base del mapa de huecos. (None, {}, {}) si no se puede leer."""
+    """Como analizar_excel, pero devuelve (datos, niveles, por_anio, por_mes): ademas, cuantos datos hay en cada año
+    ({2019: n}) y en cada mes ({(2019, 12): n}). Es la base del mapa de huecos. (None, {}, {}, {}) si no se puede leer."""
     try:
         filas = _leer_valores_xlsx(libro)
     except Exception:
-        return None, {}, {}
+        return None, {}, {}, {}
     encabezado = filas[FILAS_ENCABEZADO_IDEAM - 1] if len(filas) >= FILAS_ENCABEZADO_IDEAM else ()
     texto = [str(c or "").strip().lower() for c in encabezado]
     col = next((i for i, c in enumerate(texto) if c.startswith("valor")), 2)
     col_nivel = next((i for i, c in enumerate(texto) if c.startswith("nivel")), None)
-    datos, niveles, por_anio = 0, {}, {}
+    datos, niveles, por_anio, por_mes = 0, {}, {}, {}
     for f in filas[FILAS_ENCABEZADO_IDEAM:]:
         if f and f[0] not in (None, "") and len(f) > col and f[col] not in (None, ""):
             datos += 1
-            anio = _anio_de(f[0])
-            if anio is not None:
-                por_anio[anio] = por_anio.get(anio, 0) + 1
+            fecha = _anio_mes_de(f[0])
+            if fecha is not None:
+                por_anio[fecha[0]] = por_anio.get(fecha[0], 0) + 1
+                por_mes[fecha] = por_mes.get(fecha, 0) + 1
             if col_nivel is not None and len(f) > col_nivel and f[col_nivel] not in (None, ""):
                 nivel = str(f[col_nivel]).strip()
                 niveles[nivel] = niveles.get(nivel, 0) + 1
-    return datos, niveles, por_anio
+    return datos, niveles, por_anio, por_mes
 
 
 def analizar_excel(libro):
@@ -397,7 +401,7 @@ def analizar_excel(libro):
     y valor despues del encabezado, fila 8 con "Valor:") y cuantos de ellos hay en cada nivel de aprobacion
     ({"Definitivo": n, "En revisión": n, "Preliminar": n}, segun la columna "Nivel de Aprobación"). Es la base de la
     completitud real, que la cantidad probable no puede dar (no ve los huecos). (None, {}) si no se puede leer."""
-    datos, niveles, _ = analizar_excel_detalle(libro)
+    datos, niveles, _, _ = analizar_excel_detalle(libro)
     return datos, niveles
 
 
@@ -1325,8 +1329,8 @@ def procesar_descargas(estaciones_df, clasificar_en_carpetas, fecha_ini, fecha_f
                         continue
 
                     # Verificador: los datos que llegaron de verdad frente a los que caben en el periodo pedido
-                    datos, niveles, por_anio = analizar_excel_detalle(excel_data)
-                    huecos[codigo] = {"nombre": item["nombre"], "anios": por_anio}
+                    datos, niveles, por_anio, por_mes = analizar_excel_detalle(excel_data)
+                    huecos[codigo] = {"nombre": item["nombre"], "anios": por_anio, "meses": por_mes}
                     real = round(min(100.0, datos / item["esperados"] * 100), 1) \
                         if datos is not None and item["esperados"] else None
                     if real is not None:

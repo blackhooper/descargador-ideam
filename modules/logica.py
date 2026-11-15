@@ -10,7 +10,7 @@ import geopandas as gpd
 import pandas as pd
 import shapely
 
-from modules import ideam_downloader, mapa_huecos
+from modules import ideam_downloader, mapa_huecos, tabla_consolidada
 
 INICIO_REGISTRO = date(1920, 1, 1)   # "Todo": antes de esta fecha el IDEAM no tiene series
 
@@ -182,26 +182,38 @@ def titulo_huecos(resultado):
     return f"{resultado['rotulo']} · {ini:%d/%m/%Y} – {fin:%d/%m/%Y}"
 
 
-def tabla_huecos(resultado):
-    """Tabla del mapa de huecos de la descarga (se arma una vez y se guarda)."""
-    if resultado.get("_tabla_huecos") is None:
-        resultado["_tabla_huecos"] = mapa_huecos.tabla_huecos(resultado["huecos"], resultado["rango"],
-                                                              resultado.get("frecuencia"))
-    return resultado["_tabla_huecos"]
+def tabla_huecos(resultado, por_mes=False):
+    """Tabla del mapa de huecos de la descarga, por año o por mes (se arma una vez y se guarda; es chica)."""
+    clave = "_tabla_huecos_mes" if por_mes else "_tabla_huecos"
+    if resultado.get(clave) is None:
+        armar = mapa_huecos.tabla_meses if por_mes else mapa_huecos.tabla_huecos
+        resultado[clave] = armar(resultado["huecos"], resultado["rango"], resultado.get("frecuencia"))
+    return resultado[clave]
 
 
-def zip_final(resultado, carpetas, huecos=False):
-    """El ZIP tal como se descarga: plano o en carpetas por completitud, con el mapa de huecos si se pidio. Solo se
-    guarda la variante elegida (ademas del ZIP plano de la descarga): antes quedaban hasta cuatro copias en memoria
-    por sesion, y un ZIP grande pesa decenas de MB."""
-    clave = (bool(carpetas), bool(huecos))
-    if clave == (False, False):
+def png_huecos(resultado, por_mes=False):
+    """Imagen PNG del mapa de huecos, por año o por mes."""
+    dibujar = mapa_huecos.png_meses if por_mes else mapa_huecos.png
+    return dibujar(tabla_huecos(resultado, por_mes), titulo_huecos(resultado))
+
+
+def zip_final(resultado, carpetas, huecos=False, consolidada=None):
+    """El ZIP tal como se descarga: plano o en carpetas por completitud, con el mapa de huecos (`huecos`: False, "anio"
+    o "mes") y la tabla consolidada (`consolidada`: None, "xlsx" o "csv") si se pidieron. Solo se guarda la variante
+    elegida (ademas del ZIP plano de la descarga): antes quedaban hasta cuatro copias en memoria por sesion, y un ZIP
+    grande pesa decenas de MB. La tabla consolidada no se guarda aparte: puede ser grande y ya va dentro del ZIP."""
+    clave = (bool(carpetas), huecos or False, consolidada)
+    if clave == (False, False, None):
         resultado.pop("_zip_variante", None)
         return resultado["zip"]
     guardada = resultado.get("_zip_variante")
     if guardada is None or guardada[0] != clave:
         base = ideam_downloader.zip_con_carpetas(resultado) if carpetas else resultado["zip"]
         if huecos:
-            base = mapa_huecos.agregar_al_zip(base, tabla_huecos(resultado), titulo_huecos(resultado))
+            base = mapa_huecos.agregar_al_zip(base, tabla_huecos(resultado, huecos == "mes"), titulo_huecos(resultado),
+                                              por_mes=huecos == "mes")
+        if consolidada:
+            tabla = tabla_consolidada.construir(resultado["zip"], resultado["resumen"])
+            base = tabla_consolidada.agregar_al_zip(base, tabla, consolidada)
         guardada = resultado["_zip_variante"] = (clave, base)
     return guardada[1]

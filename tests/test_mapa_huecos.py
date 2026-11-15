@@ -3,6 +3,7 @@ import zipfile
 from datetime import date
 
 import openpyxl
+import pandas as pd
 from PIL import Image
 
 from modules import ideam_downloader as d, mapa_huecos as m
@@ -24,8 +25,9 @@ def _libro(fechas):
 def test_datos_por_anio():
     libro = _libro([("2019-12-31 00:00", 1.0), ("2020-01-01 00:00", 2.0), ("2020-01-02 00:00", None),
                     ("2020-01-03 00:00", 3.0)])
-    datos, niveles, por_anio = d.analizar_excel_detalle(libro)
+    datos, niveles, por_anio, por_mes = d.analizar_excel_detalle(libro)
     assert datos == 3 and por_anio == {2019: 1, 2020: 2}
+    assert por_mes == {(2019, 12): 1, (2020, 1): 2}
     assert d.analizar_excel(libro)[0] == 3   # la funcion de siempre sigue igual
 
 
@@ -54,3 +56,19 @@ def test_tabla_y_png_y_zip():
 
 def test_texto_sin_tildes_para_fuente_basica():
     assert m._sin_tildes("Precipitación – año · Cabaña") == "Precipitacion - ano | Cabana"
+
+
+def test_mapa_por_mes():
+    huecos = {"1": {"nombre": "UNO [1]", "anios": {}, "meses": {(2020, 1): 31, (2020, 2): 15}}}
+    t = m.tabla_meses(huecos, (date(2020, 1, 1), date(2020, 3, 15)), "Diario")
+    fila = t.loc[("1", "UNO [1]", 2020)]
+    assert fila[1] == 100.0 and round(fila[2], 1) == round(15 / 29 * 100, 1) and fila[3] == 0.0 and pd.isna(fila[4])
+    assert m.esperados_mes(2020, 3, date(2020, 1, 1), date(2020, 3, 15), "Diario") == 15
+    largo = m.csv_meses(t).decode("utf-8-sig").splitlines()
+    assert largo[0] == "Código,Nombre,Año,Mes,Datos (%)" and len(largo) == 1 + 3   # solo ene, feb y mar tienen valor
+    assert Image.open(io.BytesIO(m.png_meses(t, "Prueba"))).height > 100
+    assert m.disponible_mes("Diario") and not m.disponible_mes("Anual") and not m.disponible_mes("Multianual")
+    base = io.BytesIO()
+    with zipfile.ZipFile(base, "w") as z:
+        z.writestr("a.txt", "x")
+    assert "mapa_de_huecos.png" in zipfile.ZipFile(io.BytesIO(m.agregar_al_zip(base.getvalue(), t, "", por_mes=True))).namelist()

@@ -245,7 +245,7 @@ En el celular la tarjeta flota abajo, con margen, y las dos columnas van una deb
 
 ### Manual
 
-`static/manual.html` es una página aparte, con su propio CSS y un diseño sobrio (sin vidrio), pensada para usuarios y para el IDEAM: empieza por la comparación con el portal DHIME y sigue los tres pasos. Describe la interfaz con los nombres de sus botones: si cambias textos visibles de la app, revísalo. Las capturas (`static/manual/*.jpg`, 1600 px de ancho) se tomaron con la app simulada (`tests/interfaz/app_simulada.py`) con el relieve real, a 2× y reducidas; si cambia una pantalla, hay que volver a tomarla. Llevan datos de ejemplo, y el pie del manual lo dice.
+`static/manual.html` es una página aparte, con su propio CSS y estética de carta topográfica (sin vidrio), pensada para usuarios y para el IDEAM: portada con un relieve hipsométrico dibujado en un `canvas`, una rosa de los vientos como índice (cada rumbo lleva a un capítulo y la brújula del índice lateral apunta al capítulo que se lee) y tablas en forma de leyenda, con un signo SVG por fila. Letras Mozilla Headline, Mozilla Text y Red Hat Mono (Google Fonts). Sin emojis ni símbolos Unicode como iconos: todo signo es SVG. Cubre cualquier variable y cualquier zona, no solo hidrología. Empieza por la comparación con el portal DHIME y sigue los tres pasos. Describe la interfaz con los nombres de sus botones: si cambias textos visibles de la app, revísalo. Las capturas (`static/manual/*.jpg`, 1600 px de ancho) se tomaron con la app simulada (`tests/interfaz/app_simulada.py`) con el relieve real, a 2× y reducidas; si cambia una pantalla, hay que volver a tomarla. Llevan datos de ejemplo, y el pie del manual lo dice.
 
 ## Cómo se arma la página en cada corrida
 

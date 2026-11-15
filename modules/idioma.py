@@ -432,6 +432,11 @@ EN = {
     "Una imagen y una tabla con el % de datos de cada estación en cada año, para ver de un vistazo dónde faltan datos.":
         "An image and a table with the % of data each station has in each year, to see at a glance where data is missing.",
     "Vista previa del mapa de huecos": "Gap map preview",
+    "Resolución del mapa": "Map resolution",
+    "Por año": "By year",
+    "Por mes": "By month",
+    "Una imagen y una tabla con el % de datos de cada estación en cada año o mes, para ver de un vistazo dónde faltan datos.":
+        "An image and a table with the % of data each station has in each year or month, to see at a glance where data is missing.",
     "Incluir la tabla consolidada": "Include the consolidated table",
     "Un solo archivo con las fechas en filas y cada estación en una columna.":
         "A single file with dates in rows and each station in a column.",

@@ -1117,12 +1117,18 @@ def _titulo_huecos(resultado):
     return f"{resultado['rotulo']} · {ini:%d/%m/%Y} – {fin:%d/%m/%Y}"
 
 
-def _tabla_huecos(resultado):
-    """Tabla del mapa de huecos de la descarga (se arma una vez y se guarda)."""
-    if resultado.get("_tabla_huecos") is None:
-        resultado["_tabla_huecos"] = mapa_huecos.tabla_huecos(resultado["huecos"], resultado["rango"],
-                                                              resultado.get("frecuencia"))
-    return resultado["_tabla_huecos"]
+def _tabla_huecos(resultado, por_mes=False):
+    """Tabla del mapa de huecos de la descarga, por año o por mes (se arma una vez y se guarda)."""
+    clave = "_tabla_huecos_mes" if por_mes else "_tabla_huecos"
+    if resultado.get(clave) is None:
+        armar = mapa_huecos.tabla_meses if por_mes else mapa_huecos.tabla_huecos
+        resultado[clave] = armar(resultado["huecos"], resultado["rango"], resultado.get("frecuencia"))
+    return resultado[clave]
+
+
+def _png_huecos(resultado, por_mes=False):
+    dibujar = mapa_huecos.png_meses if por_mes else mapa_huecos.png
+    return dibujar(_tabla_huecos(resultado, por_mes), _titulo_huecos(resultado))
 
 
 def _tabla_consolidada(resultado):
@@ -1134,13 +1140,14 @@ def _tabla_consolidada(resultado):
 
 def _zip_final(resultado, carpetas, huecos=False, consolidada=None):
     """El ZIP tal como se descarga: plano o en carpetas por cobertura, con el mapa de huecos y la tabla consolidada
-    ("xlsx" o "csv") si se pidieron (cada variante se arma una vez y se guarda)."""
+    ("xlsx" o "csv") si se pidieron (cada variante se arma una vez y se guarda). `huecos`: False, "anio" o "mes"."""
     cache = resultado.setdefault("_zips", {})
-    clave = (bool(carpetas), bool(huecos), consolidada)
+    clave = (bool(carpetas), huecos or False, consolidada)
     if clave not in cache:
         base = ideam_downloader.zip_con_carpetas(resultado) if carpetas else resultado["zip"]
         if huecos:
-            base = mapa_huecos.agregar_al_zip(base, _tabla_huecos(resultado), _titulo_huecos(resultado))
+            base = mapa_huecos.agregar_al_zip(base, _tabla_huecos(resultado, huecos == "mes"),
+                                              _titulo_huecos(resultado), por_mes=huecos == "mes")
         if consolidada:
             base = tabla_consolidada.agregar_al_zip(base, _tabla_consolidada(resultado), consolidada)
         cache[clave] = base
@@ -1249,13 +1256,17 @@ def pantalla_descarga():
             # Opcional: mapa de huecos (heatmap de calidad por estacion y año), con lo ya descargado
             huecos = False
             if resultado.get("huecos") and mapa_huecos.disponible(resultado.get("frecuencia")):
-                huecos = st.checkbox(tr("Incluir el mapa de huecos"), value=False, key="incluir_huecos",
-                                     persist_state="session",
-                                     help=tr("Una imagen y una tabla con el % de datos de cada estación en cada año, "
-                                             "para ver de un vistazo dónde faltan datos."))
-                if huecos:
+                if st.checkbox(tr("Incluir el mapa de huecos"), value=False, key="incluir_huecos",
+                               persist_state="session",
+                               help=tr("Una imagen y una tabla con el % de datos de cada estación en cada año o mes, "
+                                       "para ver de un vistazo dónde faltan datos.")):
+                    huecos = "anio"
+                    if mapa_huecos.disponible_mes(resultado.get("frecuencia")):
+                        huecos = st.radio(tr("Resolución del mapa"), ["anio", "mes"], horizontal=True,
+                                          key="resolucion_huecos",
+                                          format_func=lambda r: tr("Por año") if r == "anio" else tr("Por mes"))
                     with st.expander(tr("Vista previa del mapa de huecos"), expanded=False):
-                        st.image(mapa_huecos.png(_tabla_huecos(resultado), _titulo_huecos(resultado)))
+                        st.image(_png_huecos(resultado, huecos == "mes"))
             # Opcional: tabla consolidada (fechas en filas, estaciones en columnas). Antes se estima su tamaño: si no
             # cabe en Excel se ofrece solo CSV, y si es enorme no se ofrece
             consolidada = None

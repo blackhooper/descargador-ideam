@@ -63,3 +63,13 @@ def test_estimar_decide_formato():
     enorme = {str(i): {"nombre": "x", "anios": {a: 500000 for a in range(1990, 2020)}} for i in range(400)}
     assert t.estimar(enorme, (date(1990, 1, 1), date(2019, 12, 31)), "Minutal")["formatos"] == []
     assert t.estimar(chico, rango, "Multianual")["formatos"] == []
+
+
+def test_zip_final_con_huecos_por_mes_y_tabla():
+    from modules import logica
+    resultado = {"zip": _zip(), "resumen": RESUMEN, "rango": (date(2020, 1, 1), date(2020, 1, 31)), "rotulo": "X",
+                 "frecuencia": "Diario", "carpetas": {},
+                 "huecos": {"1": {"nombre": "UNO [1]", "anios": {2020: 2}, "meses": {(2020, 1): 2}}}}
+    nombres = zipfile.ZipFile(io.BytesIO(logica.zip_final(resultado, False, "mes", "csv"))).namelist()
+    assert "mapa_de_huecos.png" in nombres and "tabla_consolidada.csv" in nombres
+    assert logica.zip_final(resultado, False) == resultado["zip"]   # sin opciones: el ZIP plano de siempre

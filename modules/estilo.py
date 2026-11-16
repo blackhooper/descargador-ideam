@@ -535,11 +535,32 @@ def pasos(actual):
     md(_pasos(actual))
 
 
+# Archivos del catalogo que el IDEAM publica en su portal (menu "Descargar catalogos"): se enlazan directo, porque el
+# IDEAM los regenera a diario y asi siempre salen al dia. (texto, archivo, aclaracion)
+URL_CATALOGOS_IDEAM = "https://bart.ideam.gov.co/cneideam/"
+RECURSOS_IDEAM = (
+    ("Catálogo nacional de estaciones (Excel)", "CNE_IDEAM.xls", "Todas las estaciones del IDEAM, con su estado."),
+    ("Catálogo nacional de estaciones (Shape)", "CNE_IDEAM.zip", "Las mismas estaciones como shapefile, para QGIS o ArcGIS."),
+    ("Catálogo de otras entidades (Excel)", "CNE_OE.xls", "Estaciones de otras entidades, no del IDEAM."),
+    ("Glosario de variables (Excel)", "GlosarioVariables.xlsx", "Qué significa cada variable y cada parámetro."),
+)
+
+
+def _enlaces_recursos():
+    """Lista de enlaces a los archivos del catalogo del IDEAM (van en el desplegable del pie de Parametros)."""
+    filas = "".join(
+        f'<li><a href="{URL_CATALOGOS_IDEAM}{archivo}" target="_blank" rel="noopener" download>{tr(texto)}</a>'
+        f' <span>{tr(nota)}</span></li>' for texto, archivo, nota in RECURSOS_IDEAM)
+    return f'<ul class="y2k-recursos">{filas}</ul>'
+
+
 def pie_inicio(texto_legal):
     md('<footer class="y2k-pie-inicio">'
        # una sola linea: de quien son los datos, como se pueden usar y que la herramienta no es oficial
        f'<details class="y2k-det"><summary><span>{tr("Herramienta no oficial. Datos del IDEAM: uso personal y no comercial; cita la fuente.")}</span>'
        f'<span class="ver">{tr("Ver condiciones")}</span></summary><div><p>{texto_legal}</p></div></details>'
+       f'<details class="y2k-det"><summary><span>{tr("Archivos del catálogo del IDEAM")}</span>'
+       f'<span class="ver">{tr("Ver descargas")}</span></summary><div>{_enlaces_recursos()}</div></details>'
        f'<p><a href="app/static/manual.html" target="_blank" rel="noopener">{tr("Manual de usuario")}</a></p></footer>')
 
 

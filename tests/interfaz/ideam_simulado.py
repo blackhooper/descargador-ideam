@@ -15,7 +15,7 @@ import time
 import openpyxl
 from PIL import Image
 
-from modules import dhime_enriquecimiento, ideam_downloader, terreno
+from modules import buscador_lugares, dhime_enriquecimiento, ideam_downloader, terreno
 
 ESPERA_BLOQUE = float(os.environ.get("SIMULADO_ESPERA", "0.3"))
 ESPERA_API = float(os.environ.get("SIMULADO_API", "0.2"))
@@ -65,12 +65,25 @@ def _series(etiqueta):
     return filas
 
 
+def _historia_simulada(ruta):
+    """Historia de estacion: las respuestas reales de Acapulco (21206280), guardadas en tests/datos."""
+    nombre = ("historico" if "HistoricoEstacion" in ruta else "informacion" if "InformacionEstacion" in ruta
+              else "observadores" if "Observadores" in ruta else "visitas")
+    with open(os.path.join(os.path.dirname(os.path.dirname(__file__)), "datos", "historia_estacion",
+                           f"{nombre}_21206280.json"), encoding="utf-8") as f:
+        return json.load(f)
+
+
 def consultar_api(ruta, params=None, token=None):
     time.sleep(ESPERA_API)
+    if any(k in ruta for k in ("ConsultarHistoricoEstacion", "ConsultarInformacionEstacion",
+                               "ConsultarObservadoresPorIdEstacion", "ConsultarVisitasEstacion")):
+        return _historia_simulada(ruta)
     if ruta.startswith("PortalDescargas"):
         return VARIABLES
     if ruta.startswith("GestionDatos/Consultar"):
-        return [{"Etiqueta": e, "Descripcion": d, "Unidad": u, "Periodicidad": f, "Visible": True}
+        return [{"Etiqueta": e, "Descripcion": d, "Unidad": u, "Periodicidad": f, "Visible": True,
+                 "Habilitar": e != "PT_10_TT_D"}
                 for e, d, u, f in PARAMETROS[params["idparametro"]]]
     if ruta.startswith("Restricciones"):
         return [{"descripcion": k, "nroAnual": v} for k, v in LIMITES.items()]
@@ -137,6 +150,18 @@ def _tablas(*_a, **_k):
     return {"creado": time.time(), "programas": programas, "subredes": subredes, "homologacion": homologacion}
 
 
+LUGARES = {"zipaquira": [{"nombre": "Zipaquirá, Cundinamarca, Colombia", "lat": 5.0235, "lon": -74.004, "tipo": "town", "zoom": 12},
+                         {"nombre": "Zipaquirá (vereda), Boyacá, Colombia", "lat": 5.6, "lon": -73.0, "tipo": "hamlet", "zoom": 14}]}
+
+
+def buscar_lugar(texto, limite=5):
+    """Buscador de lugares de mentira (sin salir a Nominatim)."""
+    clave = " ".join(str(texto).lower().replace("á", "a").replace("í", "i").split())
+    if clave == "falla":
+        raise buscador_lugares.ErrorBusqueda("simulado")
+    return LUGARES.get(clave, [])
+
+
 def instalar():
     """Cambia las salidas a internet por las simuladas (una sola vez por servidor)."""
     if getattr(ideam_downloader, "_simulado", False):
@@ -148,4 +173,5 @@ def instalar():
     ideam_downloader.descargar_excel_ideam = descargar_excel
     ideam_downloader.registrar_descargas_ideam = lambda *a, **k: None
     terreno._tile = _tesela
+    buscador_lugares.buscar = buscar_lugar
     dhime_enriquecimiento.cargar_tablas = _tablas

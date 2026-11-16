@@ -75,3 +75,19 @@ def test_catalogo_del_repo_sin_columnas_internas():
                         "ideam_catalogo_completo.geojson")
     columnas = set(gpd.read_file(ruta, rows=1).columns)
     assert columnas <= set(ideam_catalog.COLUMNAS)
+
+
+def test_listado_abreviado_de_parametros():
+    """El «Listado abreviado» deja solo los parametros marcados "Habilitar" y no se ofrece si no acorta la lista."""
+    def p(etiqueta, abreviado):
+        return {"clave": f"V|{etiqueta}", "variable": "V", "especial": False, "frecuencia": "Diario",
+                "abreviado": abreviado}
+    catalogo = [p("A", True), p("B", False), p("C", True)]
+    assert list(ideam_parameters.parametros_de(catalogo, "V", abreviado=True)) == ["V|A", "V|C"]
+    assert list(ideam_parameters.parametros_de(catalogo, "V")) == ["V|A", "V|B", "V|C"]
+    assert ideam_parameters.tiene_listado_abreviado(catalogo, "V")
+    # ninguno marcado o todos marcados: la lista abreviada no acorta nada
+    for marcas in ((False, False), (True, True)):
+        cat = [p("A", marcas[0]), p("B", marcas[1])]
+        assert not ideam_parameters.tiene_listado_abreviado(cat, "V")
+        assert len(ideam_parameters.parametros_de(cat, "V", abreviado=True)) == 2

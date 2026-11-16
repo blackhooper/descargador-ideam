@@ -155,8 +155,9 @@ def obtener_catalogo_parametros():
             frecuencia = _inferir_frecuencia(p["Etiqueta"], p.get("Periodicidad"))
             # dos con el mismo texto en la misma variable: se distinguen por la etiqueta, como hacia la pagina
             nombre = descripcion + (f" [{p['Etiqueta']}]" if descripciones.count(descripcion) > 1 else "")
+            # "Habilitar" es la marca con la que la pagina arma su «Listado abreviado» (los parametros mas consultados)
             catalogo.append(entrada(variable, p["Etiqueta"], descripcion, p.get("Unidad"), frecuencia, frecuencia,
-                                    nombre=nombre))
+                                    nombre=nombre, abreviado=bool(p.get("Habilitar"))))
 
     # Serie especial: la unidad y la frecuencia de la serie base salen de su parametro en GestionDatos (aunque no
     # sea visible). Sin ese dato, la frecuencia se deduce de la etiqueta. Las variables que la pagina no ofrece se
@@ -196,9 +197,19 @@ def variables_de(catalogo, especial=False, frecuencia=None):
     return {p["variable"]: p["variable_nombre"] for p in params}
 
 
-def parametros_de(catalogo, variable, especial=False, frecuencia=None):
-    """{clave: parametro} de una variable en la serie elegida, en el orden de la pagina."""
-    return {p["clave"]: p for p in _de_la_serie(catalogo, especial, frecuencia) if p["variable"] == variable}
+def parametros_de(catalogo, variable, especial=False, frecuencia=None, abreviado=False):
+    """{clave: parametro} de una variable en la serie elegida, en el orden de la pagina. Con `abreviado`, solo los
+    del «Listado abreviado» de la pagina del IDEAM (los parametros marcados "Habilitar"); si la variable no trae
+    ninguno marcado, se devuelven todos, para no dejar el desplegable vacio."""
+    todos = {p["clave"]: p for p in _de_la_serie(catalogo, especial, frecuencia) if p["variable"] == variable}
+    cortos = {c: p for c, p in todos.items() if p.get("abreviado")}
+    return cortos if abreviado and cortos else todos
+
+
+def tiene_listado_abreviado(catalogo, variable, especial=False, frecuencia=None):
+    """True si el «Listado abreviado» de esa variable es mas corto que la lista completa (si no, no hay que ofrecerlo)."""
+    todos = [p for p in _de_la_serie(catalogo, especial, frecuencia) if p["variable"] == variable]
+    return 0 < sum(1 for p in todos if p.get("abreviado")) < len(todos)
 
 
 def periodo_excedido(param, fecha_ini, fecha_fin):

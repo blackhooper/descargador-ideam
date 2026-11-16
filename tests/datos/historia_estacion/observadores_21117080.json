@@ -1,0 +1,22 @@
+[
+ {
+  "Cedula": "55154409",
+  "Nombre": "LUZ MIRYAN",
+  "Apellido": "GONZALEZ",
+  "Telefono": "3132312907",
+  "Estado": "Inactivo",
+  "FechaInicio": "2018-04-01T05:00:00",
+  "FechaFin": "2018-08-01T00:00:00",
+  "Direccion": "Luz Gonzalez - Planta de Acueducto El Guayabo - Neiva (Huila)"
+ },
+ {
+  "Cedula": "83225794",
+  "Nombre": "RIGOBERTO",
+  "Apellido": "BONELO GOMEZ",
+  "Telefono": "3118661278",
+  "Estado": "Inactivo",
+  "FechaInicio": "2017-01-01T00:00:00",
+  "FechaFin": "2019-03-30T00:00:00",
+  "Direccion": "Planta de Acueducto El Guayabo - Neiva (Huila)"
+ }
+]

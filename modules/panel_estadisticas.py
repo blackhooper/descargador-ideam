@@ -3,7 +3,7 @@ from functools import partial
 from html import escape
 import pandas as pd
 import streamlit as st
-from modules import idioma, ideam_downloader, logica
+from modules import historia_estacion, idioma, ideam_downloader, logica
 from modules.calidad import CLASES_CALIDAD, clasificar_calidad
 from modules.estilo import ICONOS, anillo, aviso, detalles, ficha_datos, ficha_pildora, kpis, md
 from modules.idioma import tr
@@ -251,6 +251,7 @@ def _cuerpo_ficha(fila, codigo, rango, vista, descargable):
                         f'{_explicacion_altitud(float(fila["altitud"]), float(fila["terreno"]), rango)}'
                         f'{tr(" En el mapa 3D, la marca naranja muestra dónde quedaría con la altitud del catálogo.") if vista == "3D" else ""}'
                         f'</p>', unsafe_allow_html=True)
+    _historia(codigo)
     if vista != "3D":
         st.button(tr("Ver en 3D"), key="ver_3d", icon=":material/landscape:", width="stretch", on_click=_ver_en_3d)
     # Lo que no se explica solo va plegado, y solo lo que esta ficha muestra
@@ -260,6 +261,82 @@ def _cuerpo_ficha(fila, codigo, rango, vista, descargable):
     if glosa:
         detalles(tr("Qué significa cada dato."), "".join(f"<p><b>{escape(t)}:</b> {escape(a)}</p>" for t, a in glosa),
                  ver="Ver más")
+
+
+MAX_EVENTOS_HISTORIA = 12
+
+
+def _abrir_historia(codigo):
+    st.session_state.historia_de = codigo
+
+
+def _cerrar_historia():
+    st.session_state.historia_de = None
+
+
+def _fecha_txt(f):
+    """'2022-11-16' -> '16/11/2022' (el formato de las fechas de la app)."""
+    return "/".join(reversed(f.split("-"))) if f else "?"
+
+
+def _linea_evento(e):
+    """Texto de un cambio de la bitacora (sin la fecha)."""
+    if e["tipo"] == "categoria":
+        nombre = lambda c: tr(logica.CATEGORIAS.get(c, c))
+        return tr("Cambió de categoría: {a} → {b}", a=nombre(e["antes"]), b=nombre(e["despues"]))
+    if e["tipo"] == "tecnologia":
+        return tr("Cambió de tecnología: {a} → {b}", a=e["antes"], b=e["despues"])
+    if e["tipo"] == "estado":
+        return tr("Estado: {a} → {b}", a=e["antes"] or "?", b=e["despues"])
+    if e["tipo"] == "altitud":
+        return tr("Altitud: {a} m → {b} m", a=_num(e["antes"]), b=_num(e["despues"]))
+    return tr("Cambió de lugar unos {d} m", d=_num(e["antes"]))
+
+
+def _historia(codigo):
+    """«Historia de la estación» de la ficha: instalación y suspensión, cambios de categoría, tecnología, estado,
+    altitud y lugar (bitácora del IDEAM, que solo cubre desde 2018-2020), periodos de observadores y visitas. Se pide
+    al IDEAM solo al pulsar el botón (son cuatro consultas) y queda guardado un día."""
+    ss = st.session_state
+    if ss.get("historia_de") != codigo:
+        st.button(tr("Ver historia de la estación"), key="ver_historia", icon=":material/history:", width="stretch",
+                  on_click=_abrir_historia, args=(codigo,))
+        return
+    try:
+        d = historia_estacion.historia_de(codigo)
+    except Exception:
+        st.caption(tr("No se pudo consultar la historia de la estación ahora. Prueba de nuevo en un momento."))
+        st.button(tr("Cerrar"), key="cerrar_historia", on_click=_cerrar_historia)
+        return
+    info, eventos = d["informacion"], d["historia"]
+    filas = []
+    if info["instalacion"]:
+        filas.append((info["instalacion"], tr("Instalada")))
+    cambios = [e for e in eventos if e["tipo"] != "inicio"]
+    for e in cambios:
+        filas.append((e["fecha"], _linea_evento(e)))
+    if info["suspension"]:
+        filas.append((info["suspension"], tr("Suspendida")))
+    filas.sort(key=lambda f: f[0], reverse=True)
+    hay_mas = len(filas) - MAX_EVENTOS_HISTORIA
+    items = "".join(f'<li><b>{escape(_fecha_txt(f))}</b> {escape(t)}</li>' for f, t in filas[:MAX_EVENTOS_HISTORIA])
+    if hay_mas > 0:
+        items += f'<li>{escape(tr("y {n} cambios más antiguos", n=hay_mas))}</li>'
+    cuerpo = f'<ul class="y2k-historia">{items}</ul>' if items else \
+        f'<p class="y2k-hint">{escape(tr("El IDEAM no registra cambios de esta estación."))}</p>'
+    inicio = next((e for e in eventos if e["tipo"] == "inicio"), None)
+    nota = [tr("La bitácora del IDEAM empieza en {a}: lo anterior no queda registrado.", a=inicio["fecha"][:4])] if inicio else []
+    obs = d["observadores"]
+    if obs:
+        activos = [o for o in obs if o["activo"]]
+        nota.append(tr("Observador actual desde {f}.", f=_fecha_txt(activos[0]["desde"])) if activos
+                    else tr("Sin observador activo; el último terminó el {f}.", f=_fecha_txt(obs[0]["hasta"])))
+    vis = d["visitas"]
+    if vis["n"]:
+        nota.append(tr("{n} visitas registradas, la última el {f}.", n=vis["n"], f=_fecha_txt(vis["ultima"])))
+    md(f'<div class="y2k-historia-bloque"><p class="y2k-hint"><b>{escape(tr("Historia de la estación"))}</b></p>{cuerpo}'
+       + "".join(f'<p class="y2k-hint">{escape(t)}</p>' for t in nota) + "</div>")
+    st.button(tr("Ocultar historia"), key="cerrar_historia", on_click=_cerrar_historia)
 
 
 def tablero(zona, descargables, seleccion, param, cifras, dudosas=None, rango=None, ubicacion=None):

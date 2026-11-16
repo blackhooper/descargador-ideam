@@ -1,0 +1,56 @@
+[
+ {
+  "Fecha": "2019-05-17T00:00:00",
+  "HorasVisitas": [
+   {
+    "Identificador": "8afdc669-0e92-6488-e055-bb38cf8cb29d",
+    "Hora": "13:11:00"
+   }
+  ]
+ },
+ {
+  "Fecha": "2019-02-13T00:00:00",
+  "HorasVisitas": [
+   {
+    "Identificador": "9c59d57b-88dc-4908-e053-353210ac0948",
+    "Hora": "08:30:00"
+   }
+  ]
+ },
+ {
+  "Fecha": "2018-10-16T00:00:00",
+  "HorasVisitas": [
+   {
+    "Identificador": "7b426019-775e-57e8-e055-bb38cf8cb29d",
+    "Hora": "09:50:00"
+   }
+  ]
+ },
+ {
+  "Fecha": "2018-07-24T00:00:00",
+  "HorasVisitas": [
+   {
+    "Identificador": "728a72f1-db62-09cf-e055-bb38cf8cb29d",
+    "Hora": "08:10:00"
+   }
+  ]
+ },
+ {
+  "Fecha": "2018-04-18T00:00:00",
+  "HorasVisitas": [
+   {
+    "Identificador": "6d45e63c-b7b0-57a9-e055-bb38cf8cb29d",
+    "Hora": "09:00:00"
+   }
+  ]
+ },
+ {
+  "Fecha": "2018-01-22T00:00:00",
+  "HorasVisitas": [
+   {
+    "Identificador": "7d39e798-5c79-2f3a-e055-bb38cf8cb29d",
+    "Hora": "13:00:00"
+   }
+  ]
+ }
+]

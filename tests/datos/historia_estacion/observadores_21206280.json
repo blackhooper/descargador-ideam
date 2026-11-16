@@ -1,0 +1,22 @@
+[
+ {
+  "Cedula": "206086",
+  "Nombre": "ALFONSO",
+  "Apellido": "LÓPEZ SIERRA",
+  "Telefono": "3002657063",
+  "Estado": "Inactivo",
+  "FechaInicio": "2017-01-01T15:00:00",
+  "FechaFin": "2018-01-01T05:00:00",
+  "Direccion": "VDA STA BARBARA/FCA. EL ROBLE"
+ },
+ {
+  "Cedula": "52660930",
+  "Nombre": "SANDRA ROSALBA",
+  "Apellido": "GUEVARA VARGAS",
+  "Telefono": "3016341114",
+  "Estado": "Activo",
+  "FechaInicio": "2018-09-01T10:00:00",
+  "FechaFin": null,
+  "Direccion": " MUNICIPIO BOJACá cundinamarca, VEREDA SANTA BARBARA"
+ }
+]

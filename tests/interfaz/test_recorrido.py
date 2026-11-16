@@ -177,3 +177,24 @@ def test_buscar_un_lugar_lleva_el_mapa_alli(pagina):
     caja.fill("zzz no existe")
     caja.press("Enter")
     pagina.get_by_text("No encontré").wait_for(timeout=10000)
+
+
+def test_historia_de_la_estacion_en_la_ficha(pagina):
+    ir_al_mapa_con_area(pagina)
+    marco = marco_mapa(pagina)
+    marco.wait_for_selector(".leaflet-bottom.leaflet-right .leaflet-control-scale", state="attached", timeout=20000)
+    pin = marco.evaluate("""() => { let r = null; map.eachLayer(l => {
+        if (r || !l.options || l.options.y2k !== 'pin' || l.options.interactive === false || !l.getTooltip()) return;
+        const p = map.latLngToContainerPoint(l.getLatLng());
+        if (p.x > 300 && p.x < 900 && p.y > 250 && p.y < 650) r = [p.x, p.y]; }); return r; }""")
+    pagina.mouse.click(*pin)
+    pagina.wait_for_selector("[data-y2k-ficha-btn]", state="attached", timeout=20000)
+    pagina.locator("[data-y2k-ficha-btn]").click()
+    pagina.get_by_role("button", name="Ver historia de la estación").click()
+    historia = pagina.locator(".y2k-historia-bloque")
+    historia.wait_for(timeout=20000)
+    texto = historia.inner_text()
+    assert "Cambió de categoría" in texto and "Cambió de lugar" in texto and "Instalada" in texto, texto
+    assert "La bitácora del IDEAM empieza en 2018" in texto
+    pagina.get_by_role("button", name="Ocultar historia").click()
+    pagina.get_by_role("button", name="Ver historia de la estación").wait_for()

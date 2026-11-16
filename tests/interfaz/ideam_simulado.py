@@ -65,8 +65,20 @@ def _series(etiqueta):
     return filas
 
 
+def _historia_simulada(ruta):
+    """Historia de estacion: las respuestas reales de Acapulco (21206280), guardadas en tests/datos."""
+    nombre = ("historico" if "HistoricoEstacion" in ruta else "informacion" if "InformacionEstacion" in ruta
+              else "observadores" if "Observadores" in ruta else "visitas")
+    with open(os.path.join(os.path.dirname(os.path.dirname(__file__)), "datos", "historia_estacion",
+                           f"{nombre}_21206280.json"), encoding="utf-8") as f:
+        return json.load(f)
+
+
 def consultar_api(ruta, params=None, token=None):
     time.sleep(ESPERA_API)
+    if any(k in ruta for k in ("ConsultarHistoricoEstacion", "ConsultarInformacionEstacion",
+                               "ConsultarObservadoresPorIdEstacion", "ConsultarVisitasEstacion")):
+        return _historia_simulada(ruta)
     if ruta.startswith("PortalDescargas"):
         return VARIABLES
     if ruta.startswith("GestionDatos/Consultar"):

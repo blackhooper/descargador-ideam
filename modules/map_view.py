@@ -1,4 +1,8 @@
+import json
+
 import folium
+from branca.element import MacroElement
+from jinja2 import Template
 import pandas as pd
 from folium.plugins import Draw, FastMarkerCluster, MarkerCluster
 from shapely.geometry import shape
@@ -31,6 +35,65 @@ HALO_DUDOSA = "#FFE08A"   # halo punteado de las estaciones con altitud dudosa (
 # tapan unos a otros); de cerca (ZOOM_SIN_GRUPOS) vuelven a verse todos sueltos
 AGRUPAR_DESDE = 300
 ZOOM_SIN_GRUPOS = 11
+
+
+class CoordenadasDelMapa(MacroElement):
+    """Coordenadas en el mapa, como en el visor del portal del IDEAM: la posicion del cursor (lat, lon, en el
+    rincon de abajo a la izquierda) y, con un clic en un lugar vacio, un cuadro con las coordenadas de ese punto y
+    un boton para copiarlas. Todo corre en el navegador: no recarga la pagina. No hace nada mientras se dibuja."""
+    _template = Template("""
+        {% macro script(this, kwargs) %}
+        (function () {
+          var mapa = {{ this._parent.get_name() }};
+          var T = {{ this.textos }};
+          var dibujando = false;
+          var f = function (n) { return n.toFixed(5); };
+          var Cursor = L.Control.extend({
+            options: {position: "bottomleft"},
+            onAdd: function () {
+              var d = L.DomUtil.create("div", "y2k-coords");
+              d.setAttribute("aria-live", "off");
+              d.textContent = T.cursor;
+              this._d = d; return d;
+            }
+          });
+          var cursor = new Cursor(); cursor.addTo(mapa);
+          mapa.on("mousemove", function (e) { cursor._d.textContent = f(e.latlng.lat) + ", " + f(e.latlng.lng); });
+          mapa.on("mouseout", function () { cursor._d.textContent = T.cursor; });
+          mapa.on("draw:drawstart", function () { dibujando = true; mapa.closePopup(); });
+          mapa.on("draw:drawstop draw:created", function () { setTimeout(function () { dibujando = false; }, 0); });
+          mapa.on("click", function (e) {
+            if (dibujando) return;
+            var texto = f(e.latlng.lat) + ", " + f(e.latlng.lng);
+            var caja = L.DomUtil.create("div", "y2k-coords-popup");
+            var b = L.DomUtil.create("b", "", caja); b.textContent = texto;
+            var boton = L.DomUtil.create("button", "", caja);
+            boton.type = "button"; boton.textContent = T.copiar;
+            L.DomEvent.on(boton, "click", function (ev) {
+              L.DomEvent.stop(ev);
+              var listo = function () { boton.textContent = T.copiado; };
+              if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(texto).then(listo, function () { copiarViejo(texto); listo(); });
+              } else { copiarViejo(texto); listo(); }
+            });
+            L.popup({closeButton: true, autoPan: false, className: "y2k-coords-caja"})
+              .setLatLng(e.latlng).setContent(caja).openOn(mapa);
+          });
+          function copiarViejo(t) {
+            var a = document.createElement("textarea"); a.value = t; a.style.position = "fixed"; a.style.opacity = "0";
+            document.body.appendChild(a); a.select();
+            try { document.execCommand("copy"); } catch (x) {}
+            document.body.removeChild(a);
+          }
+        })();
+        {% endmacro %}
+    """)
+
+    def __init__(self):
+        super().__init__()
+        self._name = "CoordenadasDelMapa"
+        self.textos = json.dumps({"cursor": tr("Lat, lon: mueve el cursor"), "copiar": tr("Copiar"),
+                                  "copiado": tr("Copiado")}, ensure_ascii=False)
 
 
 def mapa_base(cuenca_gdf=None, tema="claro"):
@@ -93,6 +156,7 @@ def mapa_base(cuenca_gdf=None, tema="claro"):
         show_geometry_on_click=False,
     ).add_to(m)
     folium.LayerControl(position="topright", collapsed=True).add_to(m)
+    CoordenadasDelMapa().add_to(m)
     # Creditos de las capas: una linea chica en el borde (el texto completo va al final del panel)
     m.get_root().header.add_child(folium.Element(
         "<style>.leaflet-control-attribution{font:10px/1.4 Figtree,system-ui,sans-serif !important;"
@@ -100,6 +164,12 @@ def mapa_base(cuenca_gdf=None, tema="claro"):
         # Grupos del catalogo nacional en un solo color neutro: el verde, amarillo y naranja de Leaflet son los
         # mismos que despues significan cobertura alta, media y baja, y un grupo verde parecia "buena cobertura"
         ".marker-cluster-small,.marker-cluster-medium,.marker-cluster-large{background:rgba(28,111,216,.28) !important}"
+        ".y2k-coords{font:11px/1.4 Figtree,system-ui,sans-serif;background:rgba(255,255,255,.82);color:#0B1324;"
+        "padding:1px 6px;border-radius:4px;margin:0 6px 4px;font-variant-numeric:tabular-nums;pointer-events:none}"
+        "@media (hover:none){.y2k-coords{display:none}}"   # en el celular no hay cursor: se usa el clic
+        ".y2k-coords-popup{font:12px/1.5 Figtree,system-ui,sans-serif;color:#0B1324;display:flex;gap:8px;align-items:center}"
+        ".y2k-coords-popup button{font:600 12px Figtree,system-ui,sans-serif;border:1px solid #1C6FD8;color:#1C6FD8;"
+        "background:#fff;border-radius:6px;padding:2px 8px;cursor:pointer}"
         ".marker-cluster-small div,.marker-cluster-medium div,.marker-cluster-large div{background:rgba(28,111,216,.86) "
         "!important;color:#fff !important;font:600 12px/30px Figtree,system-ui,sans-serif !important}</style>"))
     if cuenca_gdf is not None and not cuenca_gdf.empty:

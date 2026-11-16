@@ -11,7 +11,7 @@ from streamlit_folium import st_folium
 
 from modules import (escaner, estilo, geo_input, geo_utils, map_view, ideam_catalog, ideam_parameters,
                      ideam_downloader, idioma, logica, mapa_huecos, tabla_consolidada, panel_estadisticas, terreno, acceso, herramientas, guion,
-                     trabajo)
+                     trabajo, buscador_lugares)
 from modules.calidad import CLASES_CALIDAD, filtrar_descargables, clasificar_calidad
 from modules.idioma import tr
 
@@ -387,6 +387,23 @@ def _quitar_filtro_mapa():
     ss.excluidas = set()
 
 
+def _buscar_lugar():
+    """Enter en «Buscar un lugar»: busca el texto y lleva el mapa al primer resultado (si hay mas, se elige en la lista)."""
+    ss.lugares, ss.lugar_error = [], False
+    try:
+        ss.lugares = buscador_lugares.buscar(ss.get("lugar_texto", ""))
+    except buscador_lugares.ErrorBusqueda:
+        ss.lugar_error = True
+    ss.lugar_buscado = ss.get("lugar_texto", "").strip()
+    ss.pop("lugar_sel", None)
+    _ir_a_lugar(0)
+
+
+def _ir_a_lugar(i):
+    if i is not None and i < len(ss.get("lugares", [])):
+        ss._ir_lugar = ss.lugares[i]
+
+
 def _volver_parametros():
     ss.paso = "parametros"
 
@@ -571,8 +588,18 @@ def pantalla_parametros():
         variable = _desplegable(tr("Variable"), variables, f"var_{sufijo}",
                                 vacio or (tr("Sin variables") if cargada else tr("Variable")),
                                 defecto=logica.por_defecto(variables, "PRECIPITACION"), punto=estado_cat)
-        params = ideam_parameters.parametros_de(catalogo_param, variable, especial, frecuencia) if variable else {}
+        # «Listado abreviado» de la pagina del IDEAM (los parametros mas consultados): solo en la serie estandar y si
+        # la variable tiene una lista mas corta que la completa
+        abreviado = False
+        if variable and not especial and ideam_parameters.tiene_listado_abreviado(catalogo_param, variable):
+            abreviado = st.segmented_control(
+                tr("Lista de parámetros"), ["Completa", "Abreviada"], default="Completa", key="lista_param",
+                required=True, width="stretch", persist_state="session", format_func=tr,
+                help=tr("**Abreviada:** solo los parámetros más consultados, como el «Listado abreviado» de la página "
+                        "del IDEAM.")) == "Abreviada"
+        params = ideam_parameters.parametros_de(catalogo_param, variable, especial, frecuencia, abreviado) if variable else {}
         clave_param = f"par_{sufijo}_{logica.clave_widget(variable)}"
+        _vigente(clave_param, params)
         clave = _desplegable(tr("Parámetro"), {c: p["nombre"] for c, p in params.items()}, clave_param,
                              vacio or (tr("Sin parámetros") if cargada else tr("Parámetro")), defecto=logica.por_defecto(params, "PRECIPITACION|PTPM_CON"))
         param = params.get(clave) if clave else None
@@ -681,6 +708,25 @@ def dialogo_subida():
         st.rerun()
 
 
+def _buscador_de_lugares():
+    """«Buscar un lugar» del panel: un pueblo, un rio o un sitio de Colombia; el mapa se mueve hasta alli. Sirve para
+    llegar rapido a la zona antes de dibujar el area."""
+    estilo.etiqueta(tr("Buscar un lugar"))
+    st.text_input(tr("Buscar un lugar"), key="lugar_texto", label_visibility="collapsed", on_change=_buscar_lugar,
+                  placeholder=tr("Un municipio, un río… y Enter"), icon=":material/search:")
+    lugares = ss.get("lugares")
+    if ss.get("lugar_error"):
+        st.caption(tr("No se pudo buscar ahora. Prueba de nuevo en un momento."))
+    elif lugares == [] and ss.get("lugar_buscado"):
+        st.caption(tr("No encontré «{texto}» en Colombia.", texto=ss.lugar_buscado)
+                   if len(ss.lugar_buscado) >= 3 else tr("Escribe al menos 3 letras."))
+    elif lugares and len(lugares) > 1:
+        st.selectbox(tr("Resultados"), range(len(lugares)), key="lugar_sel", label_visibility="collapsed",
+                     format_func=lambda i: lugares[i]["nombre"], on_change=lambda: _ir_a_lugar(ss.lugar_sel))
+    if lugares:
+        st.caption(tr("Búsqueda con datos de OpenStreetMap."))
+
+
 def _km_txt(valor):
     """Cifra corta en km o km²: "2", "2,5", "0,8", "1.234"."""
     if valor < 10:
@@ -739,6 +785,8 @@ def pantalla_mapa():
             estilo.seccion(tr("Área de estudio"), capsula=f"≈ {_km_txt(area_km2)} km²" if area_km2 else None,
                            valor="" if cuenca is not None else tr("Sin definir"))
             estilo.acciones_area(cuenca is not None, vista)
+            if vista != "3D":
+                _buscador_de_lugares()
             buffer_on, buffer_km = _control_buffer()
         # la variable consultada, en corto (sin fechas): al pulsarla se vuelve a Parametros
         estilo.seccion(tr("Cobertura estimada"), chip=(
@@ -916,6 +964,10 @@ def pantalla_mapa():
                     ss.saltos += 1
                     centro = (elegida.geometry.iloc[0].y + ss.saltos * 1e-9, elegida.geometry.iloc[0].x)
                     zoom = 14 + (ss.saltos % 2) * 1e-4
+            lugar = ss.pop("_ir_lugar", None)
+            if lugar:   # «Buscar un lugar»: el mismo desfase minusculo que arriba, para que el mapa se mueva siempre
+                ss.saltos += 1
+                centro, zoom = (lugar["lat"] + ss.saltos * 1e-9, lugar["lon"]), lugar["zoom"] + (ss.saltos % 2) * 1e-4
             retorno = mapa_2d(capa, centro, zoom)
             if retorno and retorno.get("all_drawings") is not None:
                 nueva = map_view.cuenca_desde_dibujos(retorno["all_drawings"])

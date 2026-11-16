@@ -115,3 +115,65 @@ def test_ficha_de_la_estacion_y_escala_del_mapa(pagina):
     # la ✕ de la pildora quita la seleccion (su boton va oculto)
     pagina.locator("[data-y2k-ficha-quitar]").click()
     pagina.wait_for_selector("[data-y2k-ficha-btn]", state="detached", timeout=20000)
+
+
+def test_parametros_recursos_y_listado_abreviado(pagina):
+    # archivos del catalogo del IDEAM: cuatro enlaces directos al servidor del IDEAM
+    pagina.locator(".y2k-pie-inicio summary", has_text="catálogo del IDEAM").click()
+    enlaces = pagina.locator("ul.y2k-recursos a")
+    assert enlaces.count() == 4
+    assert all(h.startswith("https://bart.ideam.gov.co/cneideam/") for h in
+               [enlaces.nth(i).get_attribute("href") for i in range(4)])
+    # «Lista de parámetros»: en Precipitacion la abreviada deja fuera el de 10 minutos
+    pagina.get_by_role("combobox").nth(1).click()   # el de «Parámetro»
+    pagina.get_by_role("option").first.wait_for()
+    pagina.wait_for_timeout(700)
+    completa = pagina.get_by_role("option").all_inner_texts()
+    assert any("10 minutos" in t for t in completa), completa
+    pagina.keyboard.press("Escape")
+    pagina.locator(".st-key-lista_param").get_by_text("Abreviada", exact=True).click()
+    pagina.wait_for_timeout(1500)
+    pagina.get_by_role("combobox").nth(1).click()   # el de «Parámetro»
+    pagina.get_by_role("option").first.wait_for()
+    pagina.wait_for_timeout(700)
+    corta = pagina.get_by_role("option").all_inner_texts()
+    assert corta and not any("10 minutos" in t for t in corta) and len(corta) < len(completa)
+
+
+def test_coordenadas_del_cursor_y_clic_en_el_mapa(pagina):
+    ir_al_mapa_con_area(pagina)
+    marco = marco_mapa(pagina)
+    marco.wait_for_selector(".y2k-coords", state="attached", timeout=20000)
+    # cursor: la lectura sigue al raton (sin recargar nada)
+    pagina.mouse.move(700, 450)
+    pagina.wait_for_timeout(300)
+    lectura = marco.locator(".y2k-coords").inner_text()
+    assert "," in lectura and lectura.split(",")[0].strip().replace(".", "").replace("-", "").isdigit(), lectura
+    # clic en un lugar vacio: cuadro con las coordenadas y boton para copiarlas
+    pagina.mouse.click(900, 300)
+    marco.wait_for_selector(".y2k-coords-popup b", timeout=10000)
+    assert marco.locator(".y2k-coords-popup b").inner_text().count(",") == 1
+    assert marco.locator(".y2k-coords-popup button").inner_text() == "Copiar"
+
+
+def test_buscar_un_lugar_lleva_el_mapa_alli(pagina):
+    ir_al_mapa_con_area(pagina)
+    pagina.mouse.click(66, 33)   # «Consulta»: abre el panel
+    caja = pagina.get_by_placeholder("Un municipio, un río… y Enter")
+    caja.fill("Zipaquirá")
+    caja.press("Enter")
+    for _ in range(40):
+        try:
+            c = marco_mapa(pagina).evaluate("() => { const c = window.map.getCenter(); return [c.lat, c.lng]; }")
+            if abs(c[0] - 5.0235) < 0.05 and abs(c[1] + 74.004) < 0.05:
+                break
+        except Exception:
+            pass
+        pagina.wait_for_timeout(500)
+    else:
+        raise AssertionError("El mapa no se movio a Zipaquira")
+    # dos resultados: la lista deja elegir el otro
+    assert pagina.locator(".st-key-lugar_sel").count() == 1
+    caja.fill("zzz no existe")
+    caja.press("Enter")
+    pagina.get_by_text("No encontré").wait_for(timeout=10000)

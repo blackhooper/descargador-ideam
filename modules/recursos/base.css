@@ -596,6 +596,9 @@ details.y2k-det[open] summary .ver::after{content:" ▴"}
 details.y2k-det > div{margin-top:6px;color:var(--y2k-ink-2)}
 details.y2k-det > div p{margin:0 0 6px !important;font-size:12.5px !important;color:var(--y2k-ink-2) !important}
 details.y2k-det b{color:var(--y2k-ink)}
+details.y2k-det ul.y2k-recursos{margin:0;padding-left:18px;font-size:12.5px;color:var(--y2k-ink-2)}
+details.y2k-det ul.y2k-recursos li{margin:0 0 4px}
+details.y2k-det ul.y2k-recursos a{color:var(--y2k-accent-texto);font-weight:600}
 .y2k-pie{margin-top:8px;padding-top:12px;font-size:12px;line-height:1.5;color:var(--y2k-ink-3);border-top:1px solid var(--y2k-line)}
 .y2k-pie p{margin:0 0 4px;color:var(--y2k-ink-3);font-size:12px}
 .y2k-pie b{color:var(--y2k-ink);font-weight:600}

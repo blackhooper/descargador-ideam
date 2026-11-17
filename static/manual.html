@@ -464,10 +464,10 @@ summary:focus-visible{outline:2.5px solid var(--agua);outline-offset:2px}
       <h2>Requisitos</h2>
       <ul>
         <li><strong>Un navegador actualizado y conexión a internet.</strong> La herramienta no requiere instalación y funciona en computador, tableta y celular.</li>
-        <li><strong>La clave de acceso</strong> asignada. Se solicita una sola vez en cada navegador. Para salir, usa <span class="ui">Cerrar sesión</span> en el menú de ajustes.</li>
+        <li><strong>La clave de acceso</strong> asignada. Se solicita una sola vez en cada navegador; a partir de ahí, el acceso es directo. Para salir, basta con elegir <span class="ui">Cerrar sesión</span> en el menú de ajustes.</li>
         <li><strong>La zona de interés.</strong> Puede ser un municipio, una cuenca, un páramo, un corredor vial o el área de un proyecto. Si está delimitada en un archivo SIG, se carga directamente; de lo contrario, se traza sobre el mapa o se seleccionan las estaciones por departamento y municipio.</li>
       </ul>
-      <p>El trabajo se desarrolla en tres pasos, que la aplicación indica en la parte superior de la pantalla:</p>
+      <p>El trabajo se resuelve en tres pasos, que la aplicación indica en todo momento en la parte superior de la pantalla:</p>
       <div class="pasos-3">
         <div><span class="n">PASO 1</span><h4>Parámetros</h4><p>La variable, el parámetro y el periodo de la consulta.</p></div>
         <div><span class="n">PASO 2</span><h4>Área y estaciones</h4><p>La delimitación del área y la revisión de las estaciones que contiene.</p></div>
@@ -492,9 +492,9 @@ summary:focus-visible{outline:2.5px solid var(--agua);outline-offset:2px}
         <li><span><strong>Serie de tiempo y frecuencia.</strong> <span class="ui">Estándar</span> reúne las series diarias, mensuales, anuales, horarias y de alta frecuencia. <span class="ui">Especial</span> reúne los cálculos decadales y multianuales del IDEAM, descritos en <a href="#especial">la serie especial</a>.</span></li>
         <li><span><strong>Variable y parámetro.</strong> Cada variable ofrece sus propios parámetros. En precipitación, por ejemplo, están <em>Día pluviométrico (convencional)</em>, <em>Precipitación total mensual</em> y <em>Precipitación total anual</em>; en temperatura, las máximas, las mínimas y las medias. Las listas admiten búsqueda por texto. El punto situado junto a «Variable» se ilumina en azul cuando la lista del IDEAM ha terminado de cargar.</span></li>
         <li><span><strong>Desde y Hasta</strong>, en formato día/mes/año. Los accesos <span class="ui">Últimos 10 años</span>, <span class="ui">Últimos 30 años</span> y <span class="ui">Todo</span> completan el periodo de inmediato.</span></li>
-        <li><span>Pulsa <span class="ui">Seleccionar área en el mapa</span> para continuar.</span></li>
+        <li><span>El botón <span class="ui">Seleccionar área en el mapa</span> conduce al siguiente paso.</span></li>
       </ol>
-      <p>Los límites del portal no restringen el periodo que puedes solicitar: la aplicación lo divide en los tramos que admite el IDEAM y entrega la serie unida en un solo Excel por estación.</p>
+      <p>Los límites del portal no restringen el periodo que se puede solicitar: la aplicación lo divide en los tramos que admite el IDEAM y entrega la serie unida en un solo Excel por estación.</p>
       <div class="leyenda">
         <strong>Rangos de descarga del portal, por consulta</strong>
         <table>
@@ -509,7 +509,7 @@ summary:focus-visible{outline:2.5px solid var(--agua);outline-offset:2px}
       </div>
 
       <h3 id="ubicacion">Selección por ubicación</h3>
-      <p>Como alternativa al área, las estaciones pueden elegirse por división administrativa. El desplegable <span class="ui">Filtrar por ubicación · opcional</span>, al final de la tarjeta, permite indicar el <strong>departamento</strong>, el <strong>municipio</strong> y, si se desea, estaciones específicas por nombre o código. Cada estación se presenta con los años de su serie, por ejemplo <em>ASTILLEROS [27011110] · 1991–2026</em>. El botón principal pasa a decir <span class="ui">Ver N estaciones en el mapa</span>, y el mapa se abre únicamente con esa selección. Para volver al trabajo por área, usa <span class="ui">Quitar filtro</span> en el panel o delimita un área.</p>
+      <p>Como alternativa al área, las estaciones pueden elegirse por división administrativa. El desplegable <span class="ui">Filtrar por ubicación · opcional</span>, al final de la tarjeta, permite indicar el <strong>departamento</strong>, el <strong>municipio</strong> y, si se desea, estaciones específicas por nombre o código. Cada estación se presenta con los años de su serie, por ejemplo <em>ASTILLEROS [27011110] · 1991–2026</em>. El botón principal pasa a decir <span class="ui">Ver N estaciones en el mapa</span>, y el mapa se abre únicamente con esa selección. Para volver al trabajo por área, basta con pulsar <span class="ui">Quitar filtro</span> en el panel o delimitar un área.</p>
 
       <h3 id="especial">La serie especial</h3>
       <p>Corresponde a los cálculos que el IDEAM efectúa sobre una serie base. Cada parámetro indica su cálculo y su código, tal como aparecen en el portal: <em>Día pluviométrico |SUM [PTPM_CON]</em>.</p>
@@ -533,7 +533,7 @@ summary:focus-visible{outline:2.5px solid var(--agua);outline-offset:2px}
         <figcaption><b>Lámina 3</b>Las tres formas de delimitar el área, en el lápiz de la barra de herramientas.</figcaption>
       </figure>
       <div class="tarjetas">
-        <div><h4>Dibujar un rectángulo</h4><p>De cualquier tamaño. Acerca el mapa a la zona, elige la opción y arrastra de una esquina a la opuesta.</p></div>
+        <div><h4>Dibujar un rectángulo</h4><p>De cualquier tamaño. Basta con acercar el mapa a la zona, elegir la opción y arrastrar de una esquina a la opuesta.</p></div>
         <div><h4>Usar el área visible</h4><p>El área corresponde a lo que muestra la pantalla. Se habilita con el mapa cercano (nivel de zoom 10 o superior).</p></div>
         <div><h4>Subir un archivo</h4><p>El contorno exacto de la zona, con cualquier forma. Es la opción más precisa.</p></div>
       </div>
@@ -553,10 +553,10 @@ summary:focus-visible{outline:2.5px solid var(--agua);outline-offset:2px}
           </tbody>
         </table>
       </div>
-      <p>Elige <span class="ui">Subir un archivo</span>, arrastra el archivo al recuadro y, cuando aparezca <em>Archivo válido</em>, confirma con <span class="ui">Usar esta área</span>. El archivo debe contener polígonos y declarar su sistema de coordenadas. Si falta el .prj y las coordenadas están en metros, la aplicación lo advierte en lugar de situar el área en una posición incorrecta.</p>
+      <p>Con <span class="ui">Subir un archivo</span>, el archivo se arrastra al recuadro y, cuando aparece <em>Archivo válido</em>, se confirma con <span class="ui">Usar esta área</span>. El archivo debe contener polígonos y declarar su sistema de coordenadas. Si falta el .prj y las coordenadas están en metros, la aplicación lo advierte en lugar de situar el área en una posición incorrecta.</p>
 
       <h3>El buffer: estaciones vecinas</h3>
-      <p>Las estaciones próximas al límite de la zona suelen ser necesarias para interpolar, comparar o completar series. El control <span class="ui">Buffer · 2 km</span> del panel añade una franja de 0,5 a 15 km alrededor del área, que el mapa representa con una línea punteada de color ámbar (naranja en la vista 3D). Cada estación queda clasificada como <em>en el área</em> o <em>en el buffer</em>, y esa clasificación se conserva en el resumen del ZIP. Para prescindir de la franja, desactiva <span class="ui">Incluir estaciones cercanas</span>.</p>
+      <p>Las estaciones próximas al límite de la zona suelen ser necesarias para interpolar, comparar o completar series. El control <span class="ui">Buffer · 2 km</span> del panel añade una franja de 0,5 a 15 km alrededor del área, que el mapa representa con una línea punteada de color ámbar (naranja en la vista 3D). Cada estación queda clasificada como <em>en el área</em> o <em>en el buffer</em>, y esa clasificación se conserva en el resumen del ZIP. Para prescindir de la franja, se desactiva <span class="ui">Incluir estaciones cercanas</span>.</p>
     </section>
 
     <!-- SE -->
@@ -661,9 +661,9 @@ summary:focus-visible{outline:2.5px solid var(--agua);outline-offset:2px}
         <figcaption><b>Lámina 6</b>Al finalizar, la tarjeta presenta el balance: estaciones guardadas y omitidas, completitud real media y, para cada estación, la cobertura estimada frente a la completitud real.</figcaption>
       </figure>
       <ol class="pasos">
-        <li><span>Revisa el balance: estaciones guardadas, estaciones omitidas y <strong>completitud real media</strong>, con su distribución por clase.</span></li>
-        <li><span>Si lo deseas, modifica el <strong>nombre del archivo ZIP</strong>. La aplicación propone uno, como <code>IDEAM_PTPM_CON_20000101-20201231</code>.</span></li>
-        <li><span>Pulsa <span class="ui">Descargar el ZIP</span>.</span></li>
+        <li><span>Revisar el balance: estaciones guardadas, estaciones omitidas y <strong>completitud real media</strong>, con su distribución por clase.</span></li>
+        <li><span>Confirmar el <strong>nombre del archivo ZIP</strong> o asignarle uno propio. La aplicación propone uno, como <code>IDEAM_PTPM_CON_20000101-20201231</code>.</span></li>
+        <li><span>Pulsar <span class="ui">Descargar el ZIP</span>.</span></li>
       </ol>
       <h3>Opciones de la entrega</h3>
       <p>Las siguientes opciones se generan con los datos ya descargados, de modo que pueden activarse o cambiarse sin repetir la consulta:</p>
@@ -723,7 +723,7 @@ summary:focus-visible{outline:2.5px solid var(--agua);outline-offset:2px}
           </tbody>
         </table>
       </div>
-      <p>Los datos recientes suelen ser preliminares. En estudios formales conviene revisar esta información antes del análisis.</p>
+      <p>Los datos recientes suelen ser preliminares. En estudios formales conviene revisar esta información antes del análisis; el resumen la deja a la vista sin necesidad de abrir cada archivo.</p>
     </section>
 
     <!-- 02 -->
@@ -760,21 +760,21 @@ summary:focus-visible{outline:2.5px solid var(--agua);outline-offset:2px}
       <h2>Preguntas frecuentes</h2>
       <details>
         <summary>No aparece ninguna estación en el área</summary>
-        <p>Es posible que el área no contenga estaciones del IDEAM. Activa el buffer o amplía su ancho para incorporar las estaciones cercanas.</p>
+        <p>Es posible que el área no contenga estaciones del IDEAM. La solución es activar el buffer o ampliar su ancho para incorporar las estaciones cercanas.</p>
       </details>
       <details>
         <summary>Hay estaciones, pero no es posible preparar la descarga</summary>
         <ul>
-          <li>Verifica en la lista del panel que al menos una estación esté marcada.</li>
-          <li>Prueba con otro periodo: muchas estaciones solo cuentan con registros en ciertas décadas.</li>
-          <li>Verifica la variable: una estación puede medir precipitación y no temperatura. En ese caso, la ficha indica <em>Sin serie de esta variable</em>.</li>
+          <li>Conviene comprobar en la lista del panel que al menos una estación esté marcada.</li>
+          <li>Vale la pena probar con otro periodo: muchas estaciones solo cuentan con registros en ciertas décadas.</li>
+          <li>También conviene revisar la variable: una estación puede medir precipitación y no temperatura. En ese caso, la ficha indica <em>Sin serie de esta variable</em>.</li>
         </ul>
       </details>
       <details>
         <summary>El shapefile no carga</summary>
         <ul>
-          <li>Cárgalo en un archivo ZIP que incluya el .shp, el .shx, el .dbf y el .prj.</li>
-          <li>Sin el .prj no es posible determinar su ubicación. Expórtalo de nuevo desde el SIG, con su sistema de coordenadas.</li>
+          <li>La forma más segura es cargarlo en un archivo ZIP que incluya el .shp, el .shx, el .dbf y el .prj.</li>
+          <li>Sin el .prj no es posible determinar su ubicación. Basta con exportarlo de nuevo desde el SIG, con su sistema de coordenadas.</li>
           <li>La geometría debe ser un polígono; los puntos y las líneas no definen un área.</li>
         </ul>
       </details>
@@ -792,11 +792,11 @@ summary:focus-visible{outline:2.5px solid var(--agua);outline-offset:2px}
       </details>
       <details>
         <summary>La vista 3D aparece en blanco o desaparece al girar</summary>
-        <p>El navegador agotó la memoria gráfica disponible. En el aviso que aparece, elige <span class="ui">Activar Lite y reintentar</span>. Si el problema persiste, cierra las pestañas que no estés usando o trabaja en 2D.</p>
+        <p>El navegador agotó la memoria gráfica disponible. El aviso que aparece ofrece <span class="ui">Activar Lite y reintentar</span>, que lo resuelve en la mayoría de los casos. Si el problema persiste, ayuda cerrar las pestañas que no estén en uso o continuar en 2D.</p>
       </details>
       <details>
         <summary>En el celular, el relieve 3D muestra picos irregulares</summary>
-        <p>Algunos navegadores alteran las imágenes como medida de privacidad (Safari en modo privado o con protección contra rastreo, y Brave), y el relieve se transmite codificado en imágenes. Abre la aplicación en una ventana normal, desactiva esa protección para el sitio o utiliza otro navegador.</p>
+        <p>Algunos navegadores alteran las imágenes como medida de privacidad (Safari en modo privado o con protección contra rastreo, y Brave), y el relieve se transmite codificado en imágenes. Se soluciona abriendo la aplicación en una ventana normal, desactivando esa protección para el sitio o usando otro navegador.</p>
       </details>
     </section>
 

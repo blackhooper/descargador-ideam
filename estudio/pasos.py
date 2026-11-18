@@ -18,6 +18,7 @@ class Paso:
     por_que: str
     fuentes: tuple[str, ...]
     decision: str = ""      # qué queda a criterio del hidrólogo, si algo
+    calidad: str = ""       # qué tan bueno es el dato y qué lo respalda, si hace falta explicarlo
 
     @property
     def marca(self) -> str:
@@ -29,7 +30,9 @@ _PASOS = [
          "Marca un rectángulo que contenga toda la cuenca, con algo de margen alrededor. El modelo de elevación se "
          "recorta a esa zona.",
          "Trabajar solo la zona necesaria hace el cálculo rápido. Si la cuenca que resulta toca el borde del "
-         "rectángulo, puede faltar terreno aguas arriba: la página lo detecta y ofrece ampliar el área.",
+         "rectángulo, puede faltar terreno aguas arriba: la página lo detecta y ofrece ampliar el área. La marca "
+         "«Sin fuente oficial» es solo de esa prueba de borde. La calidad del terreno y sus fuentes están en "
+         "«Modelo de elevación».",
          ("herramienta_control_borde",)),
     Paso("terreno.dem", "Modelo de elevación",
          "Por defecto se lee en línea Copernicus GLO-30 (Agencia Espacial Europea, 30 m), solo para el área "
@@ -37,7 +40,19 @@ _PASOS = [
          "(EPSG:9377) con celdas de 30 m, interpolando de forma bilineal.",
          "Minambiente exige la información geográfica en Magna-Sirgas origen nacional, el sistema que adoptó el "
          "IGAC. En coordenadas planas las áreas y longitudes salen en metros reales.",
-         ("copernicus_glo30", "minambiente_res940_2026", "igac_res471_2020")),
+         ("copernicus_glo30", "minambiente_res940_2026", "igac_res471_2020", "capachero_2015_srtm",
+          "buitrago_martinez_2016", "velez_suarez_2025", "nasa_alos_rtc", "car_pomca_bogota_2019_dem"),
+         calidad=(
+             "Es la altura del terreno en cada celda, no una foto satelital. Para Colombia no hay un modelo gratuito "
+             "más fino que 30 m. El de 12,5 m de ALOS PALSAR, el «alta resolución» de la NASA, no lo es en altura: "
+             "la NASA aclara que su elevación es el SRTM de 30 m remuestreado. Estudios colombianos respaldan "
+             "trabajar a 30 m: con alturas del IGAC, el SRTM de 30 m tiene un error medio cuadrático de 9,5 m, y "
+             "menos de 5 m en terreno plano (Capachero et al., 2015). En Boyacá, ALOS de 12,5 m y SRTM fueron los "
+             "que mejor se ajustaron a puntos de GPS (Buitrago y Martínez, 2016). En una cuenca de la cordillera "
+             "Central, la divisoria salió mejor con un modelo de 30 m que con el de 12,5 m (Vélez y Suárez, 2025). "
+             "No encontramos estudios colombianos sobre Copernicus. Por eso cada cuenca se compara con el SRTM, y "
+             "en el río Teusacá el área difiere 0,06 % de la del POMCA de la CAR (2019), que contaba con un modelo "
+             "de 12,5 m.")),
     Paso("terreno.flujo", "Dirección y acumulación de flujo",
          "Primero se rellenan los pozos y las depresiones del modelo y se da una pendiente mínima a las zonas "
          "planas, para que el agua siempre tenga salida. Después cada celda drena hacia la vecina de mayor pendiente "

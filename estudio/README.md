@@ -23,11 +23,12 @@ tan oficial es su respaldo:
 |---|---|
 | Fuente ambiental oficial | IDEAM, CAR u otra corporación, Minambiente o ANLA. |
 | Otra entidad oficial | IGAC, SGC, INVÍAS… cuando las ambientales no lo traen. |
+| Estudio académico colombiano | Universidad o revista colombiana, con mediciones hechas en Colombia. |
 | Referencia técnica | Método publicado sin norma colombiana que lo fije. |
 | Decisión del hidrólogo | Valor que la página propone y el hidrólogo puede cambiar. |
 | Sin fuente oficial | Control propio de la herramienta, declarado. |
 
-En la página, cada paso tiene un botón «i» con lo que hace, por qué se hace, lo que decide el hidrólogo y sus
+En la página, cada paso tiene un botón «i» con lo que hace, por qué se hace, la calidad del dato si hace falta, lo que decide el hidrólogo y sus
 fuentes (con página o tabla). Bajo cada resultado hay una línea con la fuente y su marca. Al final aparece la
 bibliografía en APA 7.
 
@@ -47,7 +48,7 @@ bibliografía en APA 7.
 ## Etapa 1, paso a paso
 
 1. **Área de trabajo.** Se marca con un rectángulo en el mapa, un archivo o coordenadas. Si la cuenca toca el borde, la página ofrece ampliar el área y vuelve a delimitar.
-2. **Modelo de elevación.** Copernicus GLO-30 leído en línea, solo de la ventana necesaria, o un GeoTIFF propio. Se reproyecta a EPSG:9377 con celdas de 30 m.
+2. **Modelo de elevación.** Copernicus GLO-30 leído en línea, solo de la ventana necesaria, o un GeoTIFF propio. Se reproyecta a EPSG:9377 con celdas de 30 m. La ayuda explica la calidad: no hay modelo gratuito más fino que 30 m para Colombia (el ALOS PALSAR de 12,5 m es el SRTM remuestreado, según la NASA), con tres estudios colombianos de respaldo (Capachero et al., 2015; Buitrago y Martínez, 2016; Vélez y Suárez, 2025).
 3. **Flujo.** Relleno de depresiones (Barnes et al., 2014a), zonas planas (Barnes et al., 2014b), dirección D8 (O'Callaghan y Mark, 1984) y acumulación. Es el procedimiento del IDEAM (2013, p. 104).
 4. **Punto de cierre.** Clic, estación hidrológica del catálogo IDEAM o coordenadas. Se ajusta a la celda de mayor acumulación dentro del radio (300 m por defecto).
 5. **Cuenca y red.** Polígono, área, elevaciones y red con orden de Strahler. El umbral de la red (1 km² por defecto) queda declarado.

@@ -76,6 +76,7 @@ CSS = """
 .est-marca::before{content:"";width:8px;height:8px;border-radius:50%;background:var(--m,var(--y2k-line-2));flex:none}
 .est-marca[data-m="ambiental"]{--m:var(--y2k-ok-luz)}
 .est-marca[data-m="oficial"]{--m:var(--y2k-accent)}
+.est-marca[data-m="academica"]{--m:#2BB3A3}
 .est-marca[data-m="literatura"]{--m:var(--y2k-accent-2)}
 .est-marca[data-m="hidrologo"]{--m:#B27DFF}
 .est-marca[data-m="sin_fuente"]{--m:var(--y2k-alerta-borde)}
@@ -145,9 +146,10 @@ def _contenido_ayuda(p: pasos.Paso) -> str:
         enlace = f' <a href="{escape(f.url)}" target="_blank" rel="noopener">Abrir</a>' if f.url else ""
         lis.append(f'<li>{marca(f.marca)}<br>{escape(f.cita)}{enlace}<span class="n">{escape(f.nota)}</span></li>')
     decision = (f'<p class="r">A decisión del hidrólogo</p><p>{escape(p.decision)}</p>') if p.decision else ""
+    calidad = (f'<p class="r">Calidad del dato</p><p>{escape(p.calidad)}</p>') if p.calidad else ""
     return (f'<div class="est-ayuda"><h4>{escape(p.titulo)}</h4>'
             f'<p class="r">Qué hace</p><p>{escape(p.que_hace)}</p>'
-            f'<p class="r">Por qué</p><p>{escape(p.por_que)}</p>{decision}'
+            f'<p class="r">Por qué</p><p>{escape(p.por_que)}</p>{calidad}{decision}'
             f'<p class="r">Fuentes</p><ol>{"".join(lis)}</ol></div>')
 
 

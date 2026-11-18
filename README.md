@@ -10,6 +10,8 @@ Incluye vista 3D con relieve real y aviso de estaciones cuya altitud en el catá
 
 > **Portfolio (English).** A GIS case study of this project, with the spatial analysis behind it and how it applies to land and site-feasibility work, is at [blackhooper.github.io/descargador-ideam](https://blackhooper.github.io/descargador-ideam/) (source: `docs/index.html`). In short: the app takes a national catalog of 9,857 stations, cuts it to any study area with metric buffers and spatial joins (Shapefile, GeoJSON, KML/KMZ or GeoPackage input, with CRS checks and geometry repair), screens each station's data coverage and cross-checks its catalog altitude against a terrain model, and delivers a sourced, organized package (merged Excel, summary CSV, citation).
 
+> **Estudio hidrológico express** (carpeta [`estudio/`](estudio/README.md)): herramienta del modo desarrollador (Ajustes → Vista → Herramientas). Delimita la cuenca y su red de drenaje desde el modelo de elevación, con la fuente de cada cálculo.
+
 ## Acceso por clave y modos (cliente / desarrollador)
 
 La app pide una clave al entrar, y la clave decide el modo: la del **cliente** abre la app tal como está (esa clave es temporal, solo para mantener la página privada por ahora) y la del **desarrollador** abre el **modo desarrollador**: la misma app más un apartado «Herramientas» (en Ajustes → Acceso → Vista) donde se irán sumando las herramientas nuevas (`modules/herramientas.py`). La clave se pide una sola vez por navegador: queda guardada en una cookie de un año y las recargas entran solas. «Cerrar sesión» está en Ajustes.

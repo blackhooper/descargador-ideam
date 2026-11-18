@@ -38,6 +38,8 @@ La estructura y la estética se conectan solo por **nombres**: las claves de los
 | `modules/tabla_consolidada.py` | Lógica | Tabla consolidada (fechas en filas, estaciones en columnas) con la estimación de tamaño que decide el formato |
 | `modules/calidad.py` | Lógica | Clases de cobertura (alta ≥ 70 %, media ≥ 50 %, baja ≥ 25 %, crítica) y sus colores |
 | `modules/geo_input.py`, `geo_utils.py` | Lógica | Lectura de archivos, buffer y filtro espacial |
+| `modules/herramientas.py` | Estructura | Herramientas del modo desarrollador (Aforos y perfiles, Estudio hidrológico) |
+| `estudio/` | Lógica + estructura | Estudio hidrológico: cuenca y red de drenaje con la fuente de cada cálculo. Su CSS solo aplica con la herramienta abierta y su mapa usa los controles de Leaflet tal cual (`ui.js` lo excluye de `marco2d`). Ver `estudio/README.md` |
 | `static/intro_satelital/` | Estructura | Intro satelital (del mapa 2D al 3D): escena Three.js, reproductor, mosaico de satélite |
 | `static/manual.html` | Documento aparte | Manual de usuario, servido en `app/static/manual.html` (tiene su propio CSS) |
 | `.streamlit/config.toml` | Estética | Colores de los widgets de Streamlit en claro y oscuro (deben coincidir con los tokens) |

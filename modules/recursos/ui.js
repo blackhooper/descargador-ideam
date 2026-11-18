@@ -482,7 +482,8 @@
            handlers: {edit: {tooltip: {text: "Arrastra los vértices para ajustar el área.", subtext: "Pulsa «Guardar» al terminar o «Cancelar» para deshacer."}},
                       remove: {tooltip: {text: "Haz clic en el área para borrarla."}}}}};
   function fusionar(a, b) { for (var k in b) { if (b[k] && typeof b[k] === "object") { a[k] = a[k] || {}; fusionar(a[k], b[k]); } else a[k] = b[k]; } }
-  function marco2d() { return d.querySelector(".st-key-y2k_mapa2d iframe") || d.querySelector("iframe[title*='st_folium']"); }
+  // el mapa del estudio hidrologico (Herramientas, contenedores est_*) usa los controles de Leaflet tal cual: se excluye
+  function marco2d() { return d.querySelector(".st-key-y2k_mapa2d iframe") || d.querySelector("iframe[title*='st_folium']:not([class*='st-key-est_'] iframe)"); }
   function winMapa() { var f = marco2d(); try { return f && f.contentWindow; } catch (e) { return null; } }
   function docMapa() { var x = winMapa(); try { return x && x.document && x.document.head ? x.document : null; } catch (e) { return null; } }
   function vigilar2d() {

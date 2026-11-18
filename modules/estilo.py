@@ -475,7 +475,7 @@ _UI = _recurso("ui.js")
 def instalar_ui():
     """Inyecta el guion de la interfaz en la pagina principal (sobrevive a las recargas de Streamlit)."""
     # la version lleva el idioma: al cambiarlo, el guion se instala de nuevo con sus textos
-    codigo = (idioma.traducir_js(_UI).replace("__V__", "38-" + idioma.actual())
+    codigo = (idioma.traducir_js(_UI).replace("__V__", "39-" + idioma.actual())
               .replace("__ICONO_ALERTA__", json.dumps(ICONOS["alerta"]))
               .replace("__MOVIL__", json.dumps(MOVIL)).replace("__VIDRIO__", json.dumps(VIDRIO)))
     cuerpo = ("(function(){var w=window.parent;var s=w.document.createElement('script');"

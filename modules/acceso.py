@@ -112,9 +112,10 @@ def _anotar(acierto):
             i["hasta"] = time.time() + min(300, ESPERA_BASE_S * 2 ** (tanda - 1))
 
 
-def puerta(al_cambiar_idioma=None):
+def puerta(al_cambiar_idioma=None, titulo=None):
     """Pide la clave hasta que se acierte. Llamar al principio de la app, con los estilos ya aplicados: si no hay
-    acceso, detiene la corrida. `al_cambiar_idioma`: callback del boton ES/EN (el de Ajustes aun no existe aqui)."""
+    acceso, detiene la corrida. `al_cambiar_idioma`: callback del boton ES/EN (el de Ajustes aun no existe aqui).
+    `titulo`: nombre de la app en la pantalla de la clave (el estudio hidrologico usa la misma puerta)."""
     ss = st.session_state
     claves = _claves()
     if not claves:
@@ -138,7 +139,7 @@ def puerta(al_cambiar_idioma=None):
                       help="Ver en español" if en else "View in English")
     with st.container(key="y2k_acceso"):
         st.markdown(f'<header class="y2k-cab-inicio"><p class="eyebrow">{tr("Acceso restringido")}</p>'
-                    f'<h1>{tr("Descargador IDEAM")}</h1></header>', unsafe_allow_html=True)
+                    f'<h1>{titulo or tr("Descargador IDEAM")}</h1></header>', unsafe_allow_html=True)
         st.caption(tr("Escribe la clave para entrar; solo se pide una vez en este navegador."))
         # Sin st.form: asi el boton es un st.button normal (con el estilo del boton principal de la app) y el campo
         # no muestra la ayuda en ingles "Press Enter to submit form". Enter en el campo tambien envia (on_change).

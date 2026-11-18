@@ -29,7 +29,7 @@ from streamlit_folium import st_folium  # noqa: E402
 st.set_page_config(page_title="Estudio hidrológico", page_icon="💧", layout="wide", initial_sidebar_state="collapsed")
 
 from estudio import almacen, core, fuentes, terreno, trabajos, ui  # noqa: E402
-from modules import estilo, geo_input, ideam_catalog  # noqa: E402
+from modules import acceso, estilo, geo_input, ideam_catalog  # noqa: E402
 
 ETAPAS = ["Terreno", "Morfometría", "Datos", "Clima", "Suelos", "Lluvia de diseño", "Caudales", "Informe"]
 RADIO_DEFECTO_M = 300
@@ -47,6 +47,16 @@ for clave, valor in {"tema": _q.get("tema") if _q.get("tema") in estilo.TEMAS el
     ss.setdefault(clave, valor)
 if ss.estudio is None:
     ss.estudio = core.Estudio(nombre="Estudio sin nombre")
+
+# Cada control guarda su valor en una clave propia ("<nombre>_control") y aquí se copia a la clave que usa la página.
+# Dos razones: (1) Streamlit no muestra en un control el valor que se puso antes en session_state si el control
+# aparece en una corrida posterior (pasa con la pantalla de la clave o con los resultados, que salen después), así
+# que el valor inicial se le pasa con `default`/`value`; (2) la copia va al principio porque partes de arriba de la
+# página (el modelo en preparación, el mapa) necesitan ya el valor nuevo.
+CONTROLES = ("modo_area", "fuente_dem", "modo_punto", "radio", "umbral")
+for _c in CONTROLES:
+    if f"{_c}_control" in ss and ss[f"{_c}_control"] is not None:
+        ss[_c] = ss[f"{_c}_control"]
 
 
 @st.cache_resource
@@ -234,6 +244,8 @@ def _red_y_comparacion(t_principal, t_comparacion):
 estilo.aplicar(ss.tema, ss.contraste, ss.lite, sello=False)
 ui.aplicar_css()
 ui.guiones("estudio")
+# misma puerta y mismas claves que el descargador (secreto [acceso]); se detiene aquí hasta acertar la clave
+acceso.puerta(titulo="Estudio hidrológico")
 estilo.ajustes()
 
 if ss.bbox:
@@ -247,8 +259,6 @@ if ss.auto_delinear and t_principal is not None and t_principal.estado != "carga
 if ss.resultado and (ss.resultado["clave"] != _clave_flujo("principal") or t_principal is None
                      or t_principal.estado != "listo"):
     ss.resultado = None
-if "umbral_control" in ss:      # el control del umbral se dibuja abajo; su valor se necesita ya para el mapa
-    ss.umbral = float(ss.umbral_control)
 if ss.resultado:
     _red_y_comparacion(t_principal, t_comparacion)
 
@@ -261,8 +271,8 @@ col_izq, col_der = st.columns([0.42, 0.58], gap="medium")
 with col_izq, st.container(key="est_entrada"):
     # 1. Área de trabajo
     ui.seccion("terreno.area", 1)
-    st.segmented_control("Cómo marcar el área", ["Dibujar", "Archivo", "Coordenadas"],
-                         key="modo_area", required=True, label_visibility="collapsed", width="stretch")
+    st.segmented_control("Cómo marcar el área", ["Dibujar", "Archivo", "Coordenadas"], default=ss.modo_area,
+                         key="modo_area_control", required=True, label_visibility="collapsed", width="stretch")
     if ss.modo_area == "Dibujar":
         estilo.md('<p class="y2k-hint">Usa la herramienta de rectángulo del mapa y encierra toda la cuenca con margen.</p>')
     elif ss.modo_area == "Archivo":
@@ -293,7 +303,8 @@ with col_izq, st.container(key="est_entrada"):
 
     # 2. Modelo de elevación
     ui.seccion("terreno.dem", 2, estado=t_principal.estado if t_principal else None)
-    st.segmented_control("Fuente del modelo", ["Copernicus", "Archivo propio"], key="fuente_dem", required=True,
+    st.segmented_control("Fuente del modelo", ["Copernicus", "Archivo propio"], default=ss.fuente_dem,
+                         key="fuente_dem_control", required=True,
                          label_visibility="collapsed", width="stretch")
     if ss.fuente_dem == "Archivo propio":
         tif = st.file_uploader("Modelo de elevación (GeoTIFF)", type=["tif", "tiff"], key="dem_archivo")
@@ -310,8 +321,8 @@ with col_izq, st.container(key="est_entrada"):
 
     # 3. Punto de cierre
     ui.seccion("terreno.punto", 3)
-    st.segmented_control("Cómo elegir el punto", ["Mapa", "Estación", "Coordenadas"],
-                         key="modo_punto", required=True, label_visibility="collapsed", width="stretch")
+    st.segmented_control("Cómo elegir el punto", ["Mapa", "Estación", "Coordenadas"], default=ss.modo_punto,
+                         key="modo_punto_control", required=True, label_visibility="collapsed", width="stretch")
     if ss.modo_punto == "Estación":
         if ss.bbox:
             est = _estaciones_hidrologicas()
@@ -336,7 +347,8 @@ with col_izq, st.container(key="est_entrada"):
             ss.punto = {"lon": lon, "lat": lat, "origen": "coordenadas escritas"}
     else:
         estilo.md('<p class="y2k-hint">Haz clic sobre el río, en el sitio donde termina la cuenca.</p>')
-    st.number_input("Radio de ajuste al cauce (m)", min_value=30, max_value=2000, step=30, key="radio",
+    st.number_input("Radio de ajuste al cauce (m)", min_value=30, max_value=2000, step=30, value=int(ss.radio),
+                    key="radio_control",
                     help="La página mueve el punto a la celda del cauce con más acumulación dentro de este radio. "
                          "Si el punto salta a otro río, redúcelo.")
 
@@ -438,8 +450,6 @@ if ss.resultado:
 
         # Red de drenaje
         ui.seccion("terreno.red", 5)
-        # Streamlit no muestra en el control un valor puesto antes en session_state: se le pasa con `value` y una
-        # clave propia, y se copia a `umbral` (la que se recuerda aunque los resultados se oculten).
         st.slider("Umbral de área para formar cauce (km²)", 0.05, 5.0, value=float(ss.umbral), step=0.05,
                   key="umbral_control", format="%.2f",
                   help="Más bajo: red más densa. Queda declarado en el informe, porque la densidad de drenaje depende "

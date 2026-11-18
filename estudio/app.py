@@ -10,12 +10,14 @@ from __future__ import annotations
 
 import hashlib
 import math
+import os
 import sys
 from pathlib import Path
 
 RAIZ = Path(__file__).resolve().parent.parent
 if str(RAIZ) not in sys.path:   # Streamlit pone en la ruta la carpeta del guion, no la raíz del repositorio
     sys.path.insert(0, str(RAIZ))
+os.chdir(RAIZ)   # los módulos del descargador leen data/ con rutas relativas a la raíz
 
 import folium  # noqa: E402
 import geopandas as gpd  # noqa: E402
@@ -27,12 +29,11 @@ from streamlit_folium import st_folium  # noqa: E402
 st.set_page_config(page_title="Estudio hidrológico", page_icon="💧", layout="wide", initial_sidebar_state="collapsed")
 
 from estudio import almacen, core, fuentes, terreno, trabajos, ui  # noqa: E402
-from modules import estilo, geo_input  # noqa: E402
+from modules import estilo, geo_input, ideam_catalog  # noqa: E402
 
 ETAPAS = ["Terreno", "Morfometría", "Datos", "Clima", "Suelos", "Lluvia de diseño", "Caudales", "Informe"]
 RADIO_DEFECTO_M = 300
 UMBRAL_DEFECTO_KM2 = 1.0
-CATALOGO = RAIZ / "data" / "ideam_catalogo_completo.geojson"
 
 ss = st.session_state
 _q = st.query_params
@@ -58,10 +59,15 @@ def _almacen():
     return almacen.almacen_configurado()
 
 
+# Estaciones donde se mide el nivel del río (limnimétricas LM y limnigráficas LG): son las que sirven de punto de
+# cierre. Se usa el mismo catálogo del descargador, ya limpio (sin estaciones de prueba ni duplicadas).
+CATEGORIAS_HIDROLOGICAS = ("LM", "LG")
+
+
 @st.cache_data(show_spinner=False)
 def _estaciones_hidrologicas():
-    g = gpd.read_file(CATALOGO)
-    g = g[g["clase"] == "Hidrológica"][["idestacion", "nombre", "altitud", "geometry"]].copy()
+    g = ideam_catalog.load_ideam_catalog()
+    g = g[g["idcategoria"].isin(CATEGORIAS_HIDROLOGICAS)][["idestacion", "nombre", "idcategoria", "geometry"]].copy()
     g["idestacion"] = g["idestacion"].astype(str)
     return g
 

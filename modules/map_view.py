@@ -1,6 +1,6 @@
 import folium
 import pandas as pd
-from folium.plugins import Draw, FastMarkerCluster
+from folium.plugins import Draw, FastMarkerCluster, MarkerCluster
 from shapely.geometry import shape
 import geopandas as gpd
 from modules.estilo import ATRIB_ESRI_NOMBRES, ATRIB_ESRI_RELIEVE, ATRIB_ESRI_SATELITE, ATRIB_NASA
@@ -26,6 +26,11 @@ GRIS = "#7C87A3"
 TINTA_2 = "#4F5D78"
 BORDE_PIN = "#FFFFFF"
 ALERTA = "#A4430F"
+HALO_DUDOSA = "#FFE08A"   # halo punteado de las estaciones con altitud dudosa (claro: se lee sobre el satelite)
+# Desde esta cantidad de estaciones los pines se agrupan al alejar el mapa (un departamento entero trae cientos y se
+# tapan unos a otros); de cerca (ZOOM_SIN_GRUPOS) vuelven a verse todos sueltos
+AGRUPAR_DESDE = 300
+ZOOM_SIN_GRUPOS = 11
 
 
 def mapa_base(cuenca_gdf=None, tema="claro"):
@@ -37,8 +42,9 @@ def mapa_base(cuenca_gdf=None, tema="claro"):
         centro, zoom = [4.6, -74.1], 6
 
     # Sin control de zoom de Leaflet: el zoom, las capas y el dibujo se manejan desde la capsula de herramientas
-    # de la pagina (estilo.herramientas_2d), que pulsa estos controles ocultos
-    m = folium.Map(location=centro, zoom_start=zoom, tiles=None, control_scale=True, prefer_canvas=True, zoom_control=False)
+    # de la pagina (estilo.herramientas_2d), que pulsa estos controles ocultos. La escala la pone el guion de la
+    # interfaz (recursos/ui.js, vigilar2d) junto a los creditos
+    m = folium.Map(location=centro, zoom_start=zoom, tiles=None, prefer_canvas=True, zoom_control=False)
     # Mapas base sin clave (CARTO ahora exige API key y muestra una marca de agua)
     esri = "https://server.arcgisonline.com/ArcGIS/rest/services/{}/MapServer/tile/{{z}}/{{y}}/{{x}}"
     # "Satelite con nombres" arranca visible: la imagen con los rotulos de lugares y limites de Esri encima (las dos
@@ -90,7 +96,12 @@ def mapa_base(cuenca_gdf=None, tema="claro"):
     # Creditos de las capas: una linea chica en el borde (el texto completo va al final del panel)
     m.get_root().header.add_child(folium.Element(
         "<style>.leaflet-control-attribution{font:10px/1.4 Figtree,system-ui,sans-serif !important;"
-        "white-space:nowrap;max-width:75%;overflow:hidden;text-overflow:ellipsis}</style>"))
+        "white-space:nowrap;max-width:75%;overflow:hidden;text-overflow:ellipsis}"
+        # Grupos del catalogo nacional en un solo color neutro: el verde, amarillo y naranja de Leaflet son los
+        # mismos que despues significan cobertura alta, media y baja, y un grupo verde parecia "buena cobertura"
+        ".marker-cluster-small,.marker-cluster-medium,.marker-cluster-large{background:rgba(28,111,216,.28) !important}"
+        ".marker-cluster-small div,.marker-cluster-medium div,.marker-cluster-large div{background:rgba(28,111,216,.86) "
+        "!important;color:#fff !important;font:600 12px/30px Figtree,system-ui,sans-serif !important}</style>"))
     if cuenca_gdf is not None and not cuenca_gdf.empty:
         minx, miny, maxx, maxy = cuenca_gdf.total_bounds
         m.fit_bounds([[miny, minx], [maxy, maxx]], padding=(30, 30))
@@ -120,14 +131,14 @@ def _tarjeta(row, codigo, excluida=False):
         partes.append(f"<span style='color:{TINTA_2}'>{tr('Excluida de la descarga')}</span>")
     if "Porcentaje (%)" in row and pd.notna(row["Porcentaje (%)"]):
         if row.get("Serie DHIME") == "No":
-            partes.append(f"<span style='color:#B42318'>{tr('Sin serie de este parámetro en DHIME')}</span>")
+            partes.append(f"<span style='color:#B42318'>{tr('Sin serie de esta variable en DHIME')}</span>")
         else:
-            partes.append(tr("Cantidad probable <b>{p} %</b> · cobertura {clase}", p=f"{row['Porcentaje (%)']:.0f}",
+            partes.append(tr("Cobertura estimada <b>{p} %</b> ({clase})", p=f"{row['Porcentaje (%)']:.0f}",
                              clase=tr(row.get('Clase calidad', '')).lower()))
             if row.get("Inicio serie"):
                 partes.append(f"<span style='color:{TINTA_2}'>{tr('Serie')} {str(row['Inicio serie'])[:4]}–"
                               f"{str(row['Fin serie'])[:4]}</span>")
-    lugar = {"cuenca": "En la cuenca", "buffer": "En el buffer"}.get(row.get("zona"))
+    lugar = {"cuenca": "En el área", "buffer": "En el buffer"}.get(row.get("zona"))
     if lugar:
         partes.append(f"<span style='color:{TINTA_2}'>{tr(lugar)}</span>")
     if row.get("altitud_dudosa") and row.get("terreno") is not None:
@@ -168,6 +179,12 @@ def capa_dinamica(area_gdf=None, estaciones=None, seleccionada=None, catalogo=No
 
     if estaciones is not None and not estaciones.empty:
         evaluadas = "Porcentaje (%)" in estaciones.columns
+        # Con muchas estaciones los pines van a un agrupador; la elegida queda fuera, siempre a la vista
+        grupos = None
+        if len(estaciones) >= AGRUPAR_DESDE:
+            grupos = MarkerCluster(name="Estaciones agrupadas", control=False, options={
+                "disableClusteringAtZoom": ZOOM_SIN_GRUPOS, "maxClusterRadius": 46, "showCoverageOnHover": False,
+                "spiderfyOnMaxZoom": False, "chunkedLoading": True}).add_to(fg)
         for idx, row in estaciones.iterrows():
             codigo = codigo_de_estacion(row, idx)
             pct = row["Porcentaje (%)"] if evaluadas else None
@@ -175,6 +192,8 @@ def capa_dinamica(area_gdf=None, estaciones=None, seleccionada=None, catalogo=No
             fuera = ok and codigo in excluidas
             color = clasificar_calidad(pct)["color"] if ok else GRIS
             es_sel = codigo == seleccionada
+            destino = fg if grupos is None or es_sel else grupos
+            dudosa = bool(row.get("altitud_dudosa"))
             if es_sel:
                 _marca(folium.CircleMarker(location=[row.geometry.y, row.geometry.x], radius=16, color=AZUL,
                                               weight=3, fill=True, fill_color="#FFFFFF", fill_opacity=0.35)).add_to(fg)
@@ -185,15 +204,22 @@ def capa_dinamica(area_gdf=None, estaciones=None, seleccionada=None, catalogo=No
                     dash_array="3 3", fill=True, fill_color="#FFFFFF", fill_opacity=0.35,
                     tooltip=folium.Tooltip(_tarjeta(row, codigo, excluida=True), sticky=True))
             else:
+                if dudosa and destino is fg:
+                    # Altitud dudosa: un halo punteado oscuro alrededor del pin. Antes era un borde naranja, casi el
+                    # mismo tono del relleno de la cobertura baja. No es interactivo: los clics pasan al pin
+                    _marca(folium.CircleMarker(location=[row.geometry.y, row.geometry.x], radius=12, color=HALO_DUDOSA,
+                                               weight=2, dash_array="2 5", fill=False, interactive=False)).add_to(fg)
+                # agrupada, el halo contaria como otra estacion: la duda va en el borde del propio pin, punteado
+                en_borde = dudosa and destino is not fg
                 marcador = folium.CircleMarker(
                     location=[row.geometry.y, row.geometry.x],
                     radius=9 if es_sel else 7 if ok else 5,
-                    # borde naranja = altitud dudosa; borde claro = se lee sobre el satelite
-                    color="#D0602F" if row.get("altitud_dudosa") else BORDE_PIN if ok or es_sel else "#E6ECF7",
-                    weight=2.5 if es_sel or row.get("altitud_dudosa") else 1.6 if ok else 1.4,
+                    color=HALO_DUDOSA if en_borde else BORDE_PIN if ok or es_sel else "#E6ECF7",   # borde claro: se lee sobre el satelite
+                    weight=2.5 if es_sel or en_borde else 1.6 if ok else 1.4,
+                    dash_array="3 4" if en_borde else None,
                     fill=ok or es_sel, fill_color=color, fill_opacity=0.95 if ok else 0.4,
                     tooltip=folium.Tooltip(_tarjeta(row, codigo), sticky=True))
-            _marca(marcador, pin=True).add_to(fg)
+            _marca(marcador, pin=True).add_to(destino)
     elif catalogo is not None and not catalogo.empty:
         # Sin cuenca todavia: el catalogo nacional agrupado, para ubicarse
         FastMarkerCluster(data=list(zip(catalogo.geometry.y, catalogo.geometry.x)), name="Catálogo nacional").add_to(fg)

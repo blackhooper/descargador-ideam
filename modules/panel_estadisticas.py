@@ -1,13 +1,13 @@
 import datetime
-import re
 from functools import partial
 from html import escape
 import pandas as pd
 import streamlit as st
-from modules import idioma, ideam_downloader
+from modules import idioma, ideam_downloader, logica
 from modules.calidad import CLASES_CALIDAD, clasificar_calidad
-from modules.estilo import aviso, detalles, ficha_pildora, kpis, md
+from modules.estilo import ICONOS, anillo, aviso, detalles, ficha_datos, ficha_pildora, kpis, md
 from modules.idioma import tr
+from modules.logica import nombre_limpio
 from modules.terreno import ALTITUD_DUDOSA_M
 
 # ===========================================================================
@@ -80,22 +80,25 @@ def cifras_seleccion(seleccion, param, fecha_ini, fecha_fin):
             "segundos": ideam_downloader.estimar_segundos(bloques, datos, len(seleccion))}
 
 
-def _nombre_limpio(nombre):
-    return re.sub(r"\s*\[\d+\]\s*$", "", str(nombre)).strip()
-
-
 def tabla_lista(descargables):
     """Lista de las estaciones que se pueden descargar (mejor cobertura primero): codigo, punto de color de su
     clase, nombre (con ⚠ si la altitud es dudosa) y cobertura."""
-    columnas = ["Código", "●", "Estación", "Cobertura", "color"]
+    columnas = ["Código", "●", "Estación", "Serie", "Cobertura", "color"]
     if descargables is None or descargables.empty:
         return pd.DataFrame(columns=columnas)
+
+    def anios(ini, fin):
+        ini, fin = str(ini or "")[:4], str(fin or "")[:4]
+        return f"{ini}–{fin}" if ini.isdigit() and fin.isdigit() else ""
+
     dudosa = (descargables["altitud_dudosa"].fillna(False).astype(bool) if "altitud_dudosa" in descargables.columns
               else pd.Series(False, index=descargables.index))
     t = pd.DataFrame({
-        "Código": [ideam_downloader.codigo_de_estacion(r, i) for i, r in descargables.iterrows()],
+        "Código": ideam_downloader.codigos_de(descargables),
         "●": "●",
-        "Estación": [_nombre_limpio(n) + (" ⚠" if d else "") for n, d in zip(descargables["nombre"], dudosa)],
+        "Estación": [nombre_limpio(n) + (" ⚠" if d else "") for n, d in zip(descargables["nombre"], dudosa)],
+        "Serie": [anios(a, b) for a, b in zip(descargables.get("Inicio serie", [""] * len(descargables)),
+                                              descargables.get("Fin serie", [""] * len(descargables)))],
         "Cobertura": pd.to_numeric(descargables["Porcentaje (%)"], errors="coerce").values,
         "color": [clasificar_calidad(p)["color"] for p in descargables["Porcentaje (%)"]],
     })
@@ -109,8 +112,8 @@ def tabla_dudosas(zona):
         return pd.DataFrame(columns=columnas)
     d = zona[zona["altitud_dudosa"].fillna(False).astype(bool)]
     t = pd.DataFrame({
-        "Código": [ideam_downloader.codigo_de_estacion(r, i) for i, r in d.iterrows()],
-        "Estación": [_nombre_limpio(n) for n in d["nombre"]],
+        "Código": ideam_downloader.codigos_de(d),
+        "Estación": [nombre_limpio(n) for n in d["nombre"]],
         "Catálogo": pd.to_numeric(d["altitud"], errors="coerce").values,
         "Terreno": pd.to_numeric(d["terreno"], errors="coerce").values,
     })
@@ -153,7 +156,7 @@ def _al_elegir_dudosa():
         _ver_en_3d()
 
 
-def _quitar_seleccion():
+def quitar_seleccion():
     st.session_state["estacion_sel"] = None
 
 
@@ -186,27 +189,59 @@ def _incluir(codigo):
 def tarjeta_seleccionada(fila, rango=None, vista="2D", descargable=False):
     """Ficha flotante de la estacion elegida (desde el mapa o la lista)."""
     codigo = str(ideam_downloader.codigo_de_estacion(fila))
+    # cerrada: una pildora con el nombre; al pulsarla se despliega el resto (estilo.ficha_pildora)
+    ficha_pildora(nombre_limpio(fila.get("nombre", "")), codigo)
+    with st.container(key="y2k_ficha_cuerpo"):   # se desplaza el cuerpo, no el vidrio
+        _cuerpo_ficha(fila, codigo, rango, vista, descargable)
+
+
+def _cifras_ficha(fila):
+    """Casillas de la ficha: altitud, cobertura (un anillo del color de su clase) y años de la serie."""
     try:
         altitud = _num(float(fila.get("altitud"))) + " m"
     except (TypeError, ValueError):
-        altitud = tr("altitud sin dato")
-    zona = tr({"cuenca": "en el área", "buffer": "en el buffer"}.get(fila.get("zona"), ""))
-    # cerrada: una pildora con el nombre; al pulsarla se despliega el resto (estilo.ficha_pildora)
-    ficha_pildora(_nombre_limpio(fila.get("nombre", "")), codigo)
-    with st.container(key="y2k_ficha_cuerpo"):   # se desplaza el cuerpo, no el vidrio
-        _cuerpo_ficha(fila, codigo, altitud, zona, rango, vista, descargable)
-
-
-def _cuerpo_ficha(fila, codigo, altitud, zona, rango, vista, descargable):
-    ss = st.session_state
-    md(f'<p class="y2k-ficha-dato">{tr("Código")} {escape(codigo)} · {altitud}{f" · {zona}" if zona else ""}</p>')
+        altitud = "–"
+    cifras = [(ICONOS["montana"], tr("Altitud"), altitud, tr("Altitud de la estación en el catálogo del IDEAM"))]
     serie = fila.get("Serie DHIME") if "Serie DHIME" in fila.index else None
     if serie == "Sí":
-        st.caption(tr("Cobertura **{p} %** ({clase}) · serie {a}–{b}", p=f"{fila['Porcentaje (%)']:.0f}",
-                      clase=tr(str(fila.get('Clase calidad', ''))).lower(),
-                      a=str(fila.get('Inicio serie'))[:4], b=str(fila.get('Fin serie'))[:4]))
+        pct = float(fila["Porcentaje (%)"])
+        clase = clasificar_calidad(pct)
+        cifras += [
+            # la clase va en el color del anillo (el mismo del pin y la leyenda) y, con palabras, en la ayuda
+            (anillo(pct, clase["color"]), tr("Cobertura"), f"{pct:.0f} %",
+             tr("Cobertura estimada {clase}: qué parte del periodo cubre el registro de la estación",
+                clase=tr(clase["nombre"]).lower())),
+            (ICONOS["calendario"], tr("Serie"), f"{str(fila.get('Inicio serie'))[:4]}–{str(fila.get('Fin serie'))[:4]}",
+             tr("Primer y último año con datos de la serie en el IDEAM")),
+        ]
     elif serie == "No":
-        st.caption(tr("Sin serie de esta variable en DHIME"))
+        cifras.append((ICONOS["calendario"], tr("Sin serie de esta variable"), "",
+                       tr("El IDEAM no tiene esta variable en la estación")))
+    return cifras, serie == "Sí"
+
+
+# Filas de la ficha que salen del catalogo enriquecido: (titulo, columna, ayuda y explicacion de «Ver más»)
+_FILAS_FICHA = (
+    ("Mide", "programas", "Variables que el IDEAM registra en la estación"),
+    ("Subred", "subredes", "Red regional del IDEAM a la que pertenece"),
+    ("Alias", "homologa_con", "Otros códigos con los que el IDEAM registra esta misma estación; su historial "
+                                    "puede estar repartido entre ellos"),
+)
+
+
+def _cuerpo_ficha(fila, codigo, rango, vista, descargable):
+    ss = st.session_state
+    zona = tr({"cuenca": "En el área", "buffer": "En el buffer"}.get(fila.get("zona"), ""))
+    cifras, con_serie = _cifras_ficha(fila)
+    filas = []
+    for titulo, columna, ayuda in _FILAS_FICHA:
+        valores = (logica.variables_ficha(fila) if columna == "programas"
+                   else [(v, None) for v in logica.lista_de(fila.get(columna))])
+        if valores:
+            filas.append((tr(titulo), [(tr(texto), icono) for texto, icono in valores], tr(ayuda)))
+    suspendida = logica.operacion(fila)[1]   # el catalogo trae la fecha solo si la estacion dejo de operar
+    ficha_datos([codigo, tr(logica.CATEGORIAS.get(str(fila.get("idcategoria") or "").strip(), "")), zona,
+                 tr("Suspendida en {a}", a=suspendida) if suspendida else ""], cifras, filas)
     if descargable:
         ss[f"incluir_{codigo}"] = codigo not in ss.get("excluidas", set())
         st.toggle(tr("Incluir en la descarga"), key=f"incluir_{codigo}", on_change=_incluir, args=(codigo,))
@@ -216,10 +251,15 @@ def _cuerpo_ficha(fila, codigo, altitud, zona, rango, vista, descargable):
                         f'{_explicacion_altitud(float(fila["altitud"]), float(fila["terreno"]), rango)}'
                         f'{tr(" En el mapa 3D, la marca naranja muestra dónde quedaría con la altitud del catálogo.") if vista == "3D" else ""}'
                         f'</p>', unsafe_allow_html=True)
-    with st.container(horizontal=True, gap="small"):
-        if vista != "3D":
-            st.button(tr("Ver en 3D"), key="ver_3d", icon=":material/landscape:", width="stretch", on_click=_ver_en_3d)
-        st.button(tr("Quitar selección"), key="quitar_sel", icon=":material/close:", width="stretch", on_click=_quitar_seleccion)
+    if vista != "3D":
+        st.button(tr("Ver en 3D"), key="ver_3d", icon=":material/landscape:", width="stretch", on_click=_ver_en_3d)
+    # Lo que no se explica solo va plegado, y solo lo que esta ficha muestra
+    glosa = ([(tr("Cobertura"), tr("Parte del periodo consultado que abarca el registro de la estación, entre su "
+                                   "primer y su último dato. No descuenta los huecos internos."))] if con_serie else [])
+    glosa += [(titulo, ayuda + ".") for titulo, _, ayuda in filas]
+    if glosa:
+        detalles(tr("Qué significa cada dato."), "".join(f"<p><b>{escape(t)}:</b> {escape(a)}</p>" for t, a in glosa),
+                 ver="Ver más")
 
 
 def tablero(zona, descargables, seleccion, param, cifras, dudosas=None, rango=None, ubicacion=None):
@@ -229,15 +269,13 @@ def tablero(zona, descargables, seleccion, param, cifras, dudosas=None, rango=No
     n_sel, n_desc, n_zona = len(seleccion), len(descargables), len(zona)
     sin_info = n_zona - n_desc
     kpis([
-        (n_zona, tr("Estaciones encontradas"),
-         tr("{n} {estaciones} sin información", n=sin_info,
-            estaciones=tr("estaciones") if sin_info != 1 else tr("estación")) if sin_info
-         else tr("Todas con información"),
+        # la cifra es lo que sirve (las que tienen datos); el total de la zona va debajo, sin obligar a restar
+        (n_desc, tr("Estaciones con datos"), tr("de {n} en la zona", n=n_zona) if sin_info else tr("Todas las de la zona"),
          (tr("Estaciones con esta serie en {u}.", u=ubicacion) if ubicacion
           else tr("Estaciones del IDEAM en el área y el buffer."))
-         + tr(" {n} tienen datos de esta variable en el periodo.", n=n_desc)),
-        (f"{seleccion['Porcentaje (%)'].mean():.0f} %" if n_sel else "–", tr("Cobertura media del periodo"), "",
-         tr("Promedio de la cantidad probable de las estaciones seleccionadas: qué parte del periodo consultado cubre "
+         + (tr(" {n} no tienen la serie de esta variable en el periodo.", n=sin_info) if sin_info else "")),
+        (f"{seleccion['Porcentaje (%)'].mean():.0f} %" if n_sel else "–", tr("Cobertura estimada media"), "",
+         tr("Promedio de la cobertura estimada de las estaciones seleccionadas: qué parte del periodo consultado cubre "
             "su registro (no descuenta los huecos internos).")),
         (f"≈ {tamano_txt(peso_zip(cifras['datos'], n_sel))}" if n_sel else "–", tr("Tamaño del ZIP"),
          duracion_aprox(cifras["segundos"]) if n_sel else "",
@@ -290,24 +328,37 @@ def tablero(zona, descargables, seleccion, param, cifras, dudosas=None, rango=No
 
     # Lista con casillas: marcada = se descarga. Un clic en el nombre selecciona la estacion
     tabla = tabla_lista(descargables)
-    codigos = list(tabla["Código"])
     excluidas = set(ss.get("excluidas", set()))
     md(f'<div class="y2k-lista-cab"><span>{tr("Estaciones a descargar")}</span>'
        f'<span><b>{n_sel}</b> {tr("de")} {n_desc}</span></div>')
+    # Buscador: con muchas estaciones, encontrar una por su nombre o su codigo sin recorrer la lista. Las casillas de
+    # las que quedan fuera de la busqueda no cambian (_al_marcar solo toca las que estan a la vista)
+    if n_desc > 8:
+        busca = st.text_input(tr("Buscar estación"), key="buscar_estacion", placeholder=tr("Buscar por nombre o código"),
+                              label_visibility="collapsed", icon=":material/search:").strip().lower()
+        if busca:
+            tabla = tabla[tabla["Estación"].str.lower().str.contains(busca, regex=False)
+                          | tabla["Código"].astype(str).str.contains(busca, regex=False)].reset_index(drop=True)
+            if tabla.empty:
+                st.caption(tr("Ninguna estación coincide con la búsqueda."))
+    codigos = list(tabla["Código"])
     clave = f"lista_{abs(hash(tuple(codigos))) % 10 ** 8}_{ss.get('version_lista', 0)}"
     colores = tabla["color"].tolist()
     vista = tabla.drop(columns=["color"]).style.apply(
         lambda col: [f"color: {c}" for c in colores], subset=["●"]).format({"Cobertura": "{:.0f} %"})
     st.dataframe(
-        vista, hide_index=True, width="stretch", height=min(38 + 35 * max(1, len(tabla)), 330), key=clave,
+        vista, hide_index=True, width="stretch", height=min(38 + 35 * max(1, len(tabla)), 458), key=clave,
         on_select=partial(_al_marcar, clave, codigos), selection_mode=["multi-row", "single-cell"],
         selection_default={"selection": {"rows": [i for i, c in enumerate(codigos) if c not in excluidas]}},
-        column_order=["●", "Estación", "Cobertura"],
+        column_order=["●", "Estación", "Código", "Serie", "Cobertura"],
         column_config={
-            "●": st.column_config.TextColumn("", width=28, help=tr("Color de su clase de cobertura (ver la leyenda)")),
-            "Estación": st.column_config.TextColumn(tr("Estación"), width=176),
-            "Cobertura": st.column_config.TextColumn(tr("Cobertura"), width=66,
-                                                     help=tr("Cantidad probable: qué parte del periodo cubre el "
+            "●": st.column_config.TextColumn("", width=24, help=tr("Color de su clase de cobertura (ver la leyenda)")),
+            "Estación": st.column_config.TextColumn(tr("Estación"), width=130),
+            "Código": st.column_config.TextColumn(tr("Código"), width=70),
+            "Serie": st.column_config.TextColumn(tr("Serie"), width=72,
+                                                 help=tr("Primer y último año con datos de la serie en el IDEAM")),
+            "Cobertura": st.column_config.TextColumn(tr("Cob."), width=44,
+                                                     help=tr("Cobertura estimada: qué parte del periodo cubre el "
                                                              "registro de la estación")),
         },
     )

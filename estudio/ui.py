@@ -8,9 +8,8 @@ from __future__ import annotations
 from html import escape
 
 import streamlit as st
-import streamlit.components.v1 as components
 
-from modules import estilo
+from modules import estilo, guion
 
 from . import fuentes, pasos
 
@@ -225,5 +224,4 @@ def guiones(pantalla: str = "estudio"):
     with st.container(key="y2k_guiones"):
         estilo.md(f'<span class="y2k-pantalla" data-p="{pantalla}" hidden></span>')
         quiero = {"claro": "Light", "oscuro": "Dark"}.get(st.session_state.get("tema", "sistema"), "System")
-        components.html(estilo._SINCRONIZAR_TEMA.replace("__TEMA__", quiero) + _LUZ.replace("__TARJETAS__", TARJETAS),
-                        height=0)
+        guion.inyectar(estilo._SINCRONIZAR_TEMA.replace("__TEMA__", quiero) + _LUZ.replace("__TARJETAS__", TARJETAS))

@@ -112,12 +112,14 @@ def _anotar(acierto):
             i["hasta"] = time.time() + min(300, ESPERA_BASE_S * 2 ** (tanda - 1))
 
 
-def puerta(al_cambiar_idioma=None, titulo=None):
+def puerta(al_cambiar_idioma=None, titulo=None, modos=MODOS):
     """Pide la clave hasta que se acierte. Llamar al principio de la app, con los estilos ya aplicados: si no hay
     acceso, detiene la corrida. `al_cambiar_idioma`: callback del boton ES/EN (el de Ajustes aun no existe aqui).
-    `titulo`: nombre de la app en la pantalla de la clave (el estudio hidrologico usa la misma puerta)."""
+    `titulo`: nombre de la app en la pantalla de la clave (el estudio hidrologico usa la misma puerta).
+    `modos`: que claves abren esta app. El estudio hidrologico solo acepta la del desarrollador: la del cliente no
+    lo abre."""
     ss = st.session_state
-    claves = _claves()
+    claves = {m: c for m, c in _claves().items() if m in modos}
     if not claves:
         st.error(tr("Falta configurar las claves de acceso. En tu computador van en `.streamlit/secrets.toml`; en "
                     "Streamlit Cloud, en Settings → Secrets de la app, así:")

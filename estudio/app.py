@@ -244,8 +244,9 @@ def _red_y_comparacion(t_principal, t_comparacion):
 estilo.aplicar(ss.tema, ss.contraste, ss.lite, sello=False)
 ui.aplicar_css()
 ui.guiones("estudio")
-# misma puerta y mismas claves que el descargador (secreto [acceso]); se detiene aquí hasta acertar la clave
-acceso.puerta(titulo="Estudio hidrológico")
+# misma puerta que el descargador (secreto [acceso]), pero solo abre con la clave del desarrollador: el estudio aún
+# no es para el cliente. Se detiene aquí hasta acertar la clave.
+acceso.puerta(titulo="Estudio hidrológico", modos=("desarrollador",))
 estilo.ajustes()
 
 if ss.bbox:

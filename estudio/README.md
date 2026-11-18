@@ -13,7 +13,7 @@ python -m unittest discover -s tests  # pruebas, sin red
 En Streamlit Community Cloud se publica como una segunda app del mismo repositorio, con `estudio/app.py` como
 archivo principal. Cloud usa el `requirements.txt` que está junto a ese archivo.
 
-Pide la misma clave que el descargador (`modules/acceso.py`). En la app nueva de Cloud hay que copiar el bloque
+Pide la clave de **desarrollador** del descargador (`modules/acceso.py`); la del cliente no lo abre. En la app nueva de Cloud hay que copiar el bloque
 `[acceso]` en Settings → Secrets.
 
 ## Regla de la herramienta: todo con fuente

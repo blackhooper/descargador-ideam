@@ -4,7 +4,8 @@ Cada cálculo o decisión del estudio apunta a una o varias claves de este regis
 fuente junto a cada resultado y el informe (etapa 8) arma la bibliografía en APA 7 sin escribirla dos veces.
 
 Cada fuente lleva una **marca** que dice qué tan oficial es su respaldo, en el orden de prioridad acordado con el
-usuario el 17 nov 2026: primero entidades ambientales, luego otras entidades oficiales, y lo demás se declara.
+usuario el 17 nov 2026: primero entidades ambientales, luego otras entidades oficiales, después estudios académicos
+colombianos, y lo demás se declara.
 """
 from __future__ import annotations
 
@@ -14,6 +15,7 @@ from dataclasses import dataclass
 MARCAS = {
     "ambiental": "Fuente ambiental oficial",
     "oficial": "Otra entidad oficial",
+    "academica": "Estudio académico colombiano",
     "literatura": "Referencia técnica (sin norma colombiana)",
     "hidrologo": "Decisión del hidrólogo",
     "sin_fuente": "Sin fuente oficial",
@@ -23,6 +25,8 @@ MARCAS_DESCRIPCION = {
     "ambiental": "Lo respalda una entidad ambiental colombiana: IDEAM, CAR u otra corporación, Minambiente o ANLA.",
     "oficial": "Lo respalda otra entidad oficial colombiana (IGAC, SGC, INVÍAS…), porque las ambientales no lo traen "
                "escrito.",
+    "academica": "Lo respalda un estudio publicado por una universidad o una revista colombiana, con mediciones "
+                 "hechas en Colombia. No es norma, pero es evidencia local.",
     "literatura": "Es un método publicado en la literatura técnica internacional. Ninguna norma colombiana lo fija; "
                   "se usa porque es el estándar del método que sí pide la norma.",
     "hidrologo": "Lo decide el hidrólogo responsable del estudio. La página propone un valor y lo deja editable.",
@@ -84,6 +88,38 @@ _FUENTES = [
            "(modificada por la Resolución 529 de 2020).",
            "IGAC (2020)", "oficial", "",
            "Adopta el sistema de proyección cartográfica Origen Nacional (CTM12), EPSG:9377."),
+    Fuente("car_pomca_bogota_2019_dem",
+           "Corporación Autónoma Regional de Cundinamarca [CAR]. (2019). Actualización del Plan de Ordenación y "
+           "Manejo de la Cuenca Hidrográfica del río Bogotá. Volumen I: caracterización física. CAR.",
+           "CAR (2019)", "ambiental", "",
+           "Numeral 1.2.2.1.2 (p. 3): el POMCA del río Bogotá contó con un modelo de elevación de 12,5 m por píxel."),
+    # --- Estudios académicos colombianos ---
+    Fuente("capachero_2015_srtm",
+           "Capachero Martínez, C., García Reinoso, P. L., & Obregón Neira, N. (2015). Análisis de la exactitud del "
+           "modelo digital de terreno SRTM-30 para Colombia usando datos IGAC e IDEAM. Revista de Investigaciones "
+           "Universidad del Quindío, 27(1), 30-38.",
+           "Capachero et al. (2015)", "academica",
+           "https://ojs.uniquindio.edu.co/index.php/riuq/es/article/download/20/32/87",
+           "Pontificia Universidad Javeriana. Contra 1.262 alturas geométricas del IGAC, el SRTM de 30 m tiene un "
+           "error medio cuadrático de 9,51 m: 4,81 m con pendientes menores de 12 % y 34,80 m con más de 50 %. La "
+           "exactitud vertical es de unos 17 m con 95 % de confianza (tablas 2 y 3)."),
+    Fuente("buitrago_martinez_2016",
+           "Buitrago E., J. Y., & Martínez M., L. J. (2016). Digital elevation models (DEM) used to assess soil "
+           "erosion risks: A case study in Boyaca, Colombia. Agronomía Colombiana, 34(2). "
+           "https://doi.org/10.15446/agron.colomb.v34n2.56145",
+           "Buitrago y Martínez (2016)", "academica",
+           "https://revistas.unal.edu.co/index.php/agrocol/article/view/56145",
+           "Universidad Nacional de Colombia. Con 2.273 puntos de GPS diferencial en Boyacá, ALOS PALSAR de 12,5 m "
+           "tuvo el mejor ajuste (R² 0,783, menor error) y el SRTM de 30 m le siguió (R² 0,71); ASTER fue el peor."),
+    Fuente("velez_suarez_2025",
+           "Vélez Mesa, A., & Suárez Gómez, J. A. (2025). Exactitud de la delimitación automática de una cuenca "
+           "hidrográfica a partir de diferentes fuentes de información. Análisis Geográficos, 58, 82-90. "
+           "https://doi.org/10.65966/ag.n58.5",
+           "Vélez y Suárez (2025)", "academica",
+           "https://igac.dossiersoluciones.com/index.php/analisisgeo/article/view/5",
+           "Universidad Nacional de Colombia, en la revista del IGAC. En una cuenca de la cordillera Central, la "
+           "divisoria salió mejor con ASTER de 30 m que con ALOS PALSAR de 12,5 m, y el cauce principal al revés. "
+           "Concluyen que el procesamiento pesa tanto como la resolución del modelo."),
     # --- Datos de terreno ---
     Fuente("copernicus_glo30",
            "European Space Agency. (2021). Copernicus DEM: Copernicus Digital Elevation Model GLO-30 [Conjunto de "
@@ -98,6 +134,14 @@ _FUENTES = [
            "Mapzen (2017)", "literatura", "https://github.com/tilezen/joerd/blob/master/docs/data-sources.md",
            "Teselas de elevación cuyo origen en Colombia es el SRTM de la NASA (misión de radar del año 2000). Se "
            "usan como segundo modelo, independiente de Copernicus, para comparar la cuenca."),
+    Fuente("nasa_alos_rtc",
+           "NASA Earthdata. (s. f.). ALOS PALSAR Radiometric Terrain Corrected (RTC) [Proyecto]. "
+           "https://www.earthdata.nasa.gov/data/projects/alos-palsar-rtc-project",
+           "NASA Earthdata (s. f.)", "literatura",
+           "https://www.earthdata.nasa.gov/data/projects/alos-palsar-rtc-project",
+           "El producto de 12,5 m de ALOS PALSAR (el «alta resolución» del portal de la NASA) trae un modelo de "
+           "elevación que, en Colombia, es el SRTM de 30 m remuestreado. La NASA advierte que no reemplaza a un "
+           "modelo de elevación regular."),
     Fuente("dem_propio",
            "Modelo de elevación suministrado por el usuario.",
            "Modelo propio", "hidrologo", "",

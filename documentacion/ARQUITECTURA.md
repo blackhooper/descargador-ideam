@@ -41,7 +41,7 @@ La estructura y la estética se conectan solo por **nombres**: las claves de los
 | `modules/herramientas.py` | Estructura | Herramientas del modo desarrollador (Aforos y perfiles, Estudio hidrológico) |
 | `estudio/` | Lógica + estructura | Estudio hidrológico: cuenca y red de drenaje con la fuente de cada cálculo. Su CSS solo aplica con la herramienta abierta y su mapa usa los controles de Leaflet tal cual (`ui.js` lo excluye de `marco2d`). Ver `estudio/README.md` |
 | `static/intro_satelital/` | Estructura | Intro satelital (del mapa 2D al 3D): escena Three.js, reproductor, mosaico de satélite |
-| `static/manual.html` | Documento aparte | Manual de usuario, servido en `app/static/manual.html` (tiene su propio CSS) |
+| `static/manual.html`, `static/manual/` | Documento aparte | Manual de usuario, servido en `app/static/manual.html` (tiene su propio CSS), y sus capturas de pantalla |
 | `.streamlit/config.toml` | Estética | Colores de los widgets de Streamlit en claro y oscuro (deben coincidir con los tokens) |
 
 ## Pantallas
@@ -251,7 +251,7 @@ En el celular la tarjeta flota abajo, con margen, y las dos columnas van una deb
 
 ### Manual
 
-`static/manual.html` es una página aparte, con su propio CSS. Describe la interfaz con los nombres de sus botones: si cambias textos visibles de la app, revísalo.
+`static/manual.html` es una página aparte, con su propio CSS y estética de carta topográfica (sin vidrio), pensada para usuarios y para el IDEAM: portada con un relieve hipsométrico dibujado en un `canvas`, una rosa de los vientos como índice (cada rumbo lleva a un capítulo y la brújula del índice lateral apunta al capítulo que se lee) y tablas en forma de leyenda, con un signo SVG por fila. Letras Mozilla Headline, Mozilla Text y Red Hat Mono (Google Fonts). Sin emojis ni símbolos Unicode como iconos: todo signo es SVG. Cubre cualquier variable y cualquier zona, no solo hidrología. Empieza por la comparación con el portal DHIME y sigue los tres pasos. Describe la interfaz con los nombres de sus botones: si cambias textos visibles de la app, revísalo. Las capturas (`static/manual/*.jpg`, 1600 px de ancho) se tomaron con la app simulada (`tests/interfaz/app_simulada.py`) con el relieve real, a 2× y reducidas; si cambia una pantalla, hay que volver a tomarla. Llevan datos de ejemplo, y el pie del manual lo dice.
 
 ## Cómo se arma la página en cada corrida
 

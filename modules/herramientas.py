@@ -9,7 +9,16 @@ from modules.idioma import tr
 
 from modules import herramienta_aforos
 
-HERRAMIENTAS = [("Aforos y perfiles", herramienta_aforos.pantalla)]   # [(nombre, funcion)]
+
+
+def _estudio_hidrologico():
+    # Se importa al abrirla: carga pysheds, rasterio y scipy, que el resto de la app no necesita
+    from estudio import pagina
+    pagina.pantalla()
+
+
+HERRAMIENTAS = [("Aforos y perfiles", herramienta_aforos.pantalla),
+                ("Estudio hidrológico", _estudio_hidrologico)]   # [(nombre, funcion)]
 
 
 def pantalla():

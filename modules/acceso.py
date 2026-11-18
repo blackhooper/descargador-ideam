@@ -112,14 +112,11 @@ def _anotar(acierto):
             i["hasta"] = time.time() + min(300, ESPERA_BASE_S * 2 ** (tanda - 1))
 
 
-def puerta(al_cambiar_idioma=None, titulo=None, modos=MODOS):
+def puerta(al_cambiar_idioma=None):
     """Pide la clave hasta que se acierte. Llamar al principio de la app, con los estilos ya aplicados: si no hay
-    acceso, detiene la corrida. `al_cambiar_idioma`: callback del boton ES/EN (el de Ajustes aun no existe aqui).
-    `titulo`: nombre de la app en la pantalla de la clave (el estudio hidrologico usa la misma puerta).
-    `modos`: que claves abren esta app. El estudio hidrologico solo acepta la del desarrollador: la del cliente no
-    lo abre."""
+    acceso, detiene la corrida. `al_cambiar_idioma`: callback del boton ES/EN (el de Ajustes aun no existe aqui)."""
     ss = st.session_state
-    claves = {m: c for m, c in _claves().items() if m in modos}
+    claves = _claves()
     if not claves:
         st.error(tr("Falta configurar las claves de acceso. En tu computador van en `.streamlit/secrets.toml`; en "
                     "Streamlit Cloud, en Settings → Secrets de la app, así:")
@@ -141,7 +138,7 @@ def puerta(al_cambiar_idioma=None, titulo=None, modos=MODOS):
                       help="Ver en español" if en else "View in English")
     with st.container(key="y2k_acceso"):
         st.markdown(f'<header class="y2k-cab-inicio"><p class="eyebrow">{tr("Acceso restringido")}</p>'
-                    f'<h1>{titulo or tr("Descargador IDEAM")}</h1></header>', unsafe_allow_html=True)
+                    f'<h1>{tr("Descargador IDEAM")}</h1></header>', unsafe_allow_html=True)
         st.caption(tr("Escribe la clave para entrar; solo se pide una vez en este navegador."))
         # Sin st.form: asi el boton es un st.button normal (con el estilo del boton principal de la app) y el campo
         # no muestra la ayuda en ingles "Press Enter to submit form". Enter en el campo tambien envia (on_change).

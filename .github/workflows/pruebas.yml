@@ -17,8 +17,7 @@ jobs:
         with:
           python-version: "3.12"
           cache: pip
-      # estudio/requirements.txt suma lo del estudio hidrológico (pysheds, rasterio) para tests/test_estudio.py
-      - run: pip install -r requirements.txt -r estudio/requirements.txt pytest
+      - run: pip install -r requirements.txt pytest
       - run: python -m pytest -q tests --ignore=tests/interfaz
 
   interfaz:

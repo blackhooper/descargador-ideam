@@ -13,3 +13,9 @@ pyogrio==0.13.0
 openpyxl==3.1.5
 requests==2.34.2
 pillow==12.3.0
+# Estudio hidrológico (Herramientas, modo desarrollador): cuenca y red de drenaje desde el modelo de elevación
+pysheds==0.5
+rasterio==1.5.2
+scipy==1.18.1
+scikit-image==0.26.0
+numba==0.68.1

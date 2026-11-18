@@ -17,16 +17,17 @@ from . import fuentes, pasos
 TARJETAS = ".st-key-est_entrada,.st-key-est_mapa,.st-key-est_resultado,.st-key-est_fuentes"
 
 CSS = """
-/* fondo ambiental: el vidrio necesita algo detrás (gradiente suave con halos de color) */
-.stApp{background:
+/* Solo mientras el estudio está abierto (Herramientas del descargador): fondo ambiental, porque el vidrio necesita
+   algo detrás, y un ancho cómodo para leer. :has() lo limita a esta herramienta. */
+.stApp:has(.st-key-est_entrada){background:
   radial-gradient(900px 520px at 12% -6%,color-mix(in srgb,var(--y2k-accent) 22%,transparent),transparent 70%),
   radial-gradient(760px 520px at 96% 8%,color-mix(in srgb,var(--y2k-accent-2) 18%,transparent),transparent 70%),
   radial-gradient(900px 640px at 50% 110%,color-mix(in srgb,var(--y2k-ok-luz) 12%,transparent),transparent 70%),
   var(--y2k-bg) !important;background-attachment:fixed !important}
-.stMainBlockContainer{max-width:1240px;padding:28px 24px 64px !important}
-/* el botón de idioma del descargador no aplica aquí: el estudio está solo en español */
-.st-key-y2k_idioma{display:none !important}
-.st-key-y2k_ajustes{position:fixed !important;top:12px;right:12px;z-index:60;border-radius:999px;padding:4px !important;width:auto !important}
+.stApp:has(.st-key-est_entrada) .stMainBlockContainer{max-width:1240px}
+/* guiones y vigía: sin alto */
+.st-key-est_ocultos{height:0 !important;min-height:0 !important;overflow:hidden !important;margin:0 !important;
+  padding:0 !important;position:absolute !important}
 
 /* tarjetas */
 :is(__TARJETAS__){position:relative;border-radius:30px !important;padding:22px 24px !important;gap:14px !important}
@@ -102,7 +103,7 @@ CSS = """
 
 /* celular: una sola columna y tarjetas con margen */
 @media (max-width: 760px){
-  .stMainBlockContainer{padding:64px 10px 48px !important}
+  .stApp:has(.st-key-est_entrada) .stMainBlockContainer{padding-left:10px !important;padding-right:10px !important}
   :is(__TARJETAS__){border-radius:22px !important;padding:16px 14px !important}
   .est-cab h1{font-size:24px}
   .est-kpis{grid-template-columns:1fr;gap:6px}
@@ -199,15 +200,14 @@ def bibliografia(claves: list[str]):
     estilo.md(f'<ol class="est-biblio">{"".join(filas)}</ol>')
 
 
-# Guiones de la página. No se usa `estilo.guiones_globales`: su interfaz es la del descargador (oculta la barra de
-# dibujo y el zoom de Leaflet para manejarlos desde su cápsula de herramientas), y aquí el mapa usa los controles de
-# Leaflet tal cual. Se reutiliza solo la sincronización del tema de Streamlit.
+# Luz especular de las tarjetas del estudio (la del descargador no las conoce). El tema, Ajustes y lo demás vienen de
+# los guiones del descargador.
 _LUZ = """
 <script>
 (function () {
   var w = window.parent, d = w.document;
   if (w.__estLuz) return; w.__estLuz = true;
-  // luz especular de las tarjetas: sigue al puntero (sin efecto en Lite ni con movimiento reducido, lo apaga el CSS)
+  // sigue al puntero (en Lite y con movimiento reducido el CSS del descargador quita el brillo)
   d.addEventListener("pointermove", function (e) {
     var t = e.target && e.target.closest && e.target.closest("__TARJETAS__");
     if (!t) return;
@@ -220,8 +220,5 @@ _LUZ = """
 """
 
 
-def guiones(pantalla: str = "estudio"):
-    with st.container(key="y2k_guiones"):
-        estilo.md(f'<span class="y2k-pantalla" data-p="{pantalla}" hidden></span>')
-        quiero = {"claro": "Light", "oscuro": "Dark"}.get(st.session_state.get("tema", "sistema"), "System")
-        guion.inyectar(estilo._SINCRONIZAR_TEMA.replace("__TEMA__", quiero) + _LUZ.replace("__TARJETAS__", TARJETAS))
+def guiones():
+    guion.inyectar(_LUZ.replace("__TARJETAS__", TARJETAS))

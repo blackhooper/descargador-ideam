@@ -4,17 +4,15 @@ Herramienta en la nube para hacer un estudio hidrológico sin ArcGIS, del modelo
 PDF. El plan completo, con sus ocho etapas y las fuentes acordadas, está en el plan del proyecto. Esta carpeta
 contiene la **etapa 1, Terreno**: delimitar la cuenca y su red de drenaje.
 
+Es una herramienta del **modo desarrollador** del descargador: entra con la clave de desarrollador y abre Ajustes →
+Vista → Herramientas → «Estudio hidrológico». Usa la misma dirección, la misma clave y los mismos estilos que el
+descargador. Las librerías del análisis de terreno (pysheds, rasterio, scipy) están en el `requirements.txt` de la raíz
+y solo se cargan al abrir la herramienta.
+
 ```bash
-pip install -r estudio/requirements.txt
-streamlit run estudio/app.py          # desde la raíz del repositorio
-python -m unittest discover -s tests  # pruebas, sin red
+streamlit run app.py                         # el descargador; el estudio está en Herramientas
+python -m pytest -q tests/test_estudio.py    # pruebas del estudio, sin red
 ```
-
-En Streamlit Community Cloud se publica como una segunda app del mismo repositorio, con `estudio/app.py` como
-archivo principal. Cloud usa el `requirements.txt` que está junto a ese archivo.
-
-Pide la clave de **desarrollador** del descargador (`modules/acceso.py`); la del cliente no lo abre. En la app nueva de Cloud hay que copiar el bloque
-`[acceso]` en Settings → Secrets.
 
 ## Regla de la herramienta: todo con fuente
 
@@ -43,8 +41,8 @@ bibliografía en APA 7.
 | `almacen.py` | Dónde se guardan los archivos. Hoy es una carpeta temporal y el estudio se guarda o se retoma en un ZIP. Supabase se agrega después como otra clase con los mismos cinco métodos (`guardar`, `leer`, `existe`, `listar`, `ruta_local`), sin tocar el resto. |
 | `terreno.py` | Cálculo de la etapa 1, sin Streamlit. Lee el modelo de elevación, lo acondiciona, ubica el punto de cierre, delimita la cuenca, extrae la red, compara con un segundo modelo y exporta. |
 | `trabajos.py` | Trabajos en segundo plano. Leer y acondicionar el modelo corre en un hilo mientras la persona llena lo demás, y un punto junto al título se enciende al terminar. No hay pantallas de carga. |
-| `ui.py` | Piezas visuales propias: tarjetas, ayudas «i», marcas, cifras y bibliografía. Lo común (tokens, vidrio, botón azul, Ajustes) viene de `modules/estilo.py`. |
-| `app.py` | La página. |
+| `ui.py` | Piezas visuales propias: tarjetas, ayudas «i», marcas, cifras y bibliografía. Lo común (tokens, vidrio, botón azul, Ajustes) viene de `modules/estilo.py`; el CSS propio solo aplica con el estudio abierto. |
+| `pagina.py` | La página: `pantalla()`, que abre `modules/herramientas.py`. Lo que guarda en `session_state` lleva el prefijo `est_` para no chocar con el descargador. |
 
 ## Etapa 1, paso a paso
 
